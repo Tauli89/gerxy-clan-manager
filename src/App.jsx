@@ -24,8 +24,7 @@ const firebaseConfig = {
 
   measurementId: "G-ZMK0XJ4J45"
 
-};
-// ═══════════════════════════════════════════════════════════
+};// ═══════════════════════════════════════════════════════════
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -249,6 +248,7 @@ export default function GerxyApp() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState(0);
+  const [messages, setMessages] = useState({});
 
   const isAdmin = user && ADMIN_ROLES.includes(user.role);
 
@@ -262,6 +262,7 @@ export default function GerxyApp() {
       onValue(ref(db,"wars"), s => setWars(s.val()||{})),
       onValue(ref(db,"notes"), s => setNotes(s.val()||{})),
       onValue(ref(db,"settings"), s => { if(s.val()) setSettings(s.val()); }),
+      onValue(ref(db,"messages"), s => setMessages(s.val()||{})),
     ];
     return () => subs.forEach(u=>u());
   }, []);
@@ -299,12 +300,6 @@ export default function GerxyApp() {
   const memberList = Object.entries(members).map(([id,m])=>({id,...m}));
   const warList = Object.entries(wars).map(([id,w])=>({id,...w})).sort((a,b)=>b.dateFrom?.localeCompare(a.dateFrom));
   const noteList = Object.entries(notes).map(([id,n])=>({id,...n})).sort((a,b)=>b.createdAt-a.createdAt);
-  const [messages, setMessages] = useState({});
-
-  useEffect(() => {
-    const unsub = onValue(ref(db,"messages"), s => setMessages(s.val()||{}));
-    return () => unsub();
-  }, []);
 
   // Ungelesene Nachrichten zählen
   const unreadCount = Object.values(messages).filter(m =>
