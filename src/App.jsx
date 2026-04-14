@@ -24,9 +24,7 @@ const firebaseConfig = {
 
   measurementId: "G-ZMK0XJ4J45"
 
-};
-
-// ═══════════════════════════════════════════════════════════
+};// ═══════════════════════════════════════════════════════════
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -280,9 +278,17 @@ export default function GerxyApp() {
     return false;
   }
 
+  async function register(username, password) {
+    await push(ref(db,"accounts"), {
+      username,
+      passwordHash: hashPw(password),
+      role: "R5"
+    });
+  }
+
   function logout() { setUser(null); sessionStorage.removeItem("gerxy_user"); setTab("dashboard"); }
 
-  if (!user) return <><style>{CSS}</style><LoginScreen onLogin={login} accounts={accounts} loading={loading}/></>;
+  if (!user) return <><style>{CSS}</style><LoginScreen onLogin={login} onRegister={register} accounts={accounts} loading={loading}/></>;
 
   const memberList = Object.entries(members).map(([id,m])=>({id,...m}));
   const warList = Object.entries(wars).map(([id,w])=>({id,...w})).sort((a,b)=>b.date?.localeCompare(a.date));
@@ -351,17 +357,42 @@ export default function GerxyApp() {
 }
 
 // ── LOGIN ────────────────────────────────────────────────────
-function LoginScreen({ onLogin, accounts, loading }) {
+function LoginScreen({ onLogin, onRegister, accounts, loading }) {
+  const [mode, setMode] = useState("login");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
   const [err, setErr] = useState("");
+  const [success, setSuccess] = useState("");
   const [show, setShow] = useState(false);
   const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
 
   function doLogin() {
     setErr("");
+    if (!user || !pass) { setErr("Bitte Benutzername und Passwort eingeben."); return; }
     if (!onLogin(user, pass)) setErr("Benutzername oder Passwort falsch.");
   }
+
+  async function doRegister() {
+    setErr(""); setSuccess("");
+    if (!user || !pass) { setErr("Bitte alle Felder ausfüllen."); return; }
+    if (pass !== pass2) { setErr("Passwörter stimmen nicht überein."); return; }
+    if (pass.length < 4) { setErr("Passwort muss mindestens 4 Zeichen lang sein."); return; }
+    if (accList.find(a => a.username.toLowerCase() === user.toLowerCase())) {
+      setErr("Dieser Benutzername ist bereits vergeben."); return;
+    }
+    await onRegister(user, pass);
+    setSuccess("Account erstellt! Du kannst dich jetzt einloggen.");
+    setMode("login");
+    setPass(""); setPass2("");
+  }
+
+  const tabStyle = (active) => ({
+    flex:1, padding:"8px", borderRadius:7, border:"none", cursor:"pointer",
+    fontFamily:"'Cinzel',serif", fontSize:12, letterSpacing:1, transition:"all .2s",
+    background: active ? "linear-gradient(135deg,var(--gold),#8a5c00)" : "transparent",
+    color: active ? "#000" : "var(--text3)", fontWeight: active ? "700" : "400"
+  });
 
   return (
     <>
@@ -371,23 +402,50 @@ function LoginScreen({ onLogin, accounts, loading }) {
           <div className="login-icon">🔥</div>
           <div className="login-title shimmer">GERXY</div>
           <div className="login-sub">Forge Master · Clan Manager</div>
-          <div className="mb-16">
-            <label className="lbl">Benutzername</label>
-            <input className="inp" placeholder="Dein Benutzername" value={user} onChange={e=>setUser(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
+
+          <div style={{display:"flex",gap:4,marginBottom:24,background:"#1a0f00",borderRadius:10,padding:4}}>
+            <button style={tabStyle(mode==="login")} onClick={()=>{setMode("login");setErr("");setSuccess("");}}>Einloggen</button>
+            <button style={tabStyle(mode==="register")} onClick={()=>{setMode("register");setErr("");setSuccess("");}}>Registrieren</button>
           </div>
-          <div className="mb-16" style={{position:"relative"}}>
-            <label className="lbl">Passwort</label>
-            <input className="inp" type={show?"text":"password"} placeholder="Passwort" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{paddingRight:44}}/>
-            <button onClick={()=>setShow(!show)} style={{position:"absolute",right:12,top:32,background:"none",border:"none",cursor:"pointer",color:"var(--text3)",fontSize:16}}>{show?"🙈":"👁️"}</button>
-          </div>
-          {err && <div style={{padding:"8px 12px",background:"#7f1d1d40",border:"1px solid #ef444440",borderRadius:8,color:"#fca5a5",fontSize:13,marginBottom:14}}>⚠️ {err}</div>}
-          <button className="btn btn-gold w100" style={{justifyContent:"center",padding:"12px",fontSize:14}} onClick={doLogin}>⚔️ Einloggen</button>
-          {loading && <div className="text-muted text-sm text-center mt-12">Lade Daten…</div>}
-          {!loading && accList.length===0 && (
-            <div style={{marginTop:16,padding:"12px",background:"#2a180060",border:"1px solid var(--border)",borderRadius:8,fontSize:12,color:"var(--text3)",textAlign:"center"}}>
-              Noch keine Accounts. Bitte Setup-Anleitung lesen und ersten Admin-Account erstellen.
+
+          {mode==="login" && (<>
+            <div className="mb-16">
+              <label className="lbl">Benutzername</label>
+              <input className="inp" placeholder="Dein Benutzername" value={user} onChange={e=>setUser(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
             </div>
-          )}
+            <div className="mb-16" style={{position:"relative"}}>
+              <label className="lbl">Passwort</label>
+              <input className="inp" type={show?"text":"password"} placeholder="Passwort" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doLogin()} style={{paddingRight:44}}/>
+              <button onClick={()=>setShow(!show)} style={{position:"absolute",right:12,top:32,background:"none",border:"none",cursor:"pointer",color:"var(--text3)",fontSize:16}}>{show?"🙈":"👁️"}</button>
+            </div>
+            {err && <div style={{padding:"8px 12px",background:"#7f1d1d40",border:"1px solid #ef444440",borderRadius:8,color:"#fca5a5",fontSize:13,marginBottom:14}}>⚠️ {err}</div>}
+            {success && <div style={{padding:"8px 12px",background:"#14390060",border:"1px solid #22c55e40",borderRadius:8,color:"#22c55e",fontSize:13,marginBottom:14}}>✅ {success}</div>}
+            <button className="btn btn-gold w100" style={{justifyContent:"center",padding:"12px",fontSize:14}} onClick={doLogin}>⚔️ Einloggen</button>
+          </>)}
+
+          {mode==="register" && (<>
+            <div style={{padding:"10px 14px",background:"#2a180060",border:"1px solid var(--border)",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:16,lineHeight:1.5}}>
+              📋 Erstelle deinen Account mit deinem In-Game Namen. Du bekommst automatisch Rang <strong style={{color:"var(--text2)"}}>R5</strong> — der Anführer vergibt danach deinen richtigen Rang.
+            </div>
+            <div className="mb-16">
+              <label className="lbl">Benutzername (dein In-Game Name)</label>
+              <input className="inp" placeholder="Dein Spielername" value={user} onChange={e=>setUser(e.target.value)}/>
+            </div>
+            <div className="mb-16" style={{position:"relative"}}>
+              <label className="lbl">Passwort (min. 4 Zeichen)</label>
+              <input className="inp" type={show?"text":"password"} placeholder="Passwort wählen" value={pass} onChange={e=>setPass(e.target.value)} style={{paddingRight:44}}/>
+              <button onClick={()=>setShow(!show)} style={{position:"absolute",right:12,top:32,background:"none",border:"none",cursor:"pointer",color:"var(--text3)",fontSize:16}}>{show?"🙈":"👁️"}</button>
+            </div>
+            <div className="mb-16">
+              <label className="lbl">Passwort wiederholen</label>
+              <input className="inp" type={show?"text":"password"} placeholder="Passwort bestätigen" value={pass2} onChange={e=>setPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doRegister()}/>
+            </div>
+            {err && <div style={{padding:"8px 12px",background:"#7f1d1d40",border:"1px solid #ef444440",borderRadius:8,color:"#fca5a5",fontSize:13,marginBottom:14}}>⚠️ {err}</div>}
+            <button className="btn btn-gold w100" style={{justifyContent:"center",padding:"12px",fontSize:14}} onClick={doRegister}>⚒️ Account erstellen</button>
+            <div style={{marginTop:12,fontSize:12,color:"var(--text3)",textAlign:"center"}}>Nur für Clan-Mitglieder von GERXY</div>
+          </>)}
+
+          {loading && <div className="text-muted text-sm text-center mt-12">Lade Daten…</div>}
         </div>
       </div>
     </>
