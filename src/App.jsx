@@ -925,10 +925,17 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
 
   async function savePoints(warId, pts) {
     const war = warList.find(w=>w.id===warId);
-    const merged = {...(war?.memberPoints||{}), ...pts};
-    Object.keys(merged).forEach(k => merged[k]=Number(merged[k])||0);
-    const ourTotal = Object.values(merged).reduce((s,v)=>s+Number(v),0);
-    await update(ref(db,`wars/${warId}`), {memberPoints:merged, ourPoints:ourTotal});
+    const raw = {...(war?.memberPoints||{}), ...pts};
+    // Normalisiere alle Namen: gleiche sie gegen Account-Namen ab (case-insensitiv)
+    // So werden friskydogbreath + Friskydogbreath zu einem Eintrag zusammengeführt
+    const normalized = {};
+    Object.entries(raw).forEach(([name, val]) => {
+      const matchedAccount = accountList.find(a => a.username.toLowerCase()===name.toLowerCase());
+      const finalName = matchedAccount ? matchedAccount.username : name;
+      normalized[finalName] = (normalized[finalName]||0) + (Number(val)||0);
+    });
+    const ourTotal = Object.values(normalized).reduce((s,v)=>s+Number(v),0);
+    await update(ref(db,`wars/${warId}`), {memberPoints:normalized, ourPoints:ourTotal});
     setEditingPoints(null);
   }
 
