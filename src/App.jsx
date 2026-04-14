@@ -355,7 +355,7 @@ export default function GerxyApp() {
             {tab==="mypage" && <MyPage user={user} memberList={memberList} db={db}/>}
             {tab==="notes" && <Notes noteList={noteList} isAdmin={isAdmin} db={db} user={user}/>}
             {tab==="messages" && <Messages messages={messages} currentUser={user} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
-            {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members}/>}
+            {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members} wars={wars}/>}
           </div>
         )}
       </div>
@@ -1631,7 +1631,7 @@ function Messages({ messages, currentUser, accountList, db }) {
 }
 
 // ── ADMIN ────────────────────────────────────────────────────
-function Admin({ accounts, memberList, db, currentUser }) {
+function Admin({ accounts, memberList, db, currentUser, wars }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({username:"",password:"",role:"R5"});
   const [editId, setEditId] = useState(null);
@@ -1678,6 +1678,30 @@ function Admin({ accounts, memberList, db, currentUser }) {
     setShowReset(false);
   }
 
+  // Bereinigt doppelte Namen in allen Wars (Groß/Kleinschreibung)
+  async function cleanupNames() {
+    const warSnap = Object.entries(wars).map(([id,w])=>({id,...w}));
+    let fixed = 0;
+    for (const war of warSnap) {
+      if (!war.memberPoints) continue;
+      const normalized = {};
+      let changed = false;
+      Object.entries(war.memberPoints).forEach(([name, val]) => {
+        // Finde den richtigen Account-Namen
+        const matchedAccount = accList.find(a => a.username.toLowerCase()===name.toLowerCase());
+        const finalName = matchedAccount ? matchedAccount.username : name;
+        if (finalName !== name) changed = true;
+        normalized[finalName] = (normalized[finalName]||0) + (Number(val)||0);
+      });
+      if (changed || Object.keys(normalized).length !== Object.keys(war.memberPoints).length) {
+        const ourTotal = Object.values(normalized).reduce((s,v)=>s+Number(v),0);
+        await update(ref(db,`wars/${war.id}`), {memberPoints:normalized, ourPoints:ourTotal});
+        fixed++;
+      }
+    }
+    alert(`Bereinigung abgeschlossen! ${fixed} War(s) wurden korrigiert.`);
+  }
+
   const PERMS = {
     "Anführer":   ["✅ Alles","✅ Accounts verwalten","✅ Einstellungen","✅ Wars & Mitglieder"],
     "Kommandant": ["✅ Alles","✅ Accounts verwalten","✅ Einstellungen","✅ Wars & Mitglieder"],
@@ -1712,6 +1736,14 @@ function Admin({ accounts, memberList, db, currentUser }) {
             <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>Wöchentliche Punkte zurücksetzen</div>
             <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>Setzt die Wochenpunkte aller Mitglieder auf 0 (Gesamtpunkte bleiben erhalten).</div>
             <button className="btn btn-red" onClick={()=>setShowReset(true)}>🔄 Wochenpunkte reset</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>Namen bereinigen</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>
+              Führt doppelte Namen in allen Wars zusammen (z.B. friskydogbreath + Friskydogbreath → Friskydogbreath). Einmalig ausführen um alte Daten zu korrigieren.
+            </div>
+            <button className="btn btn-ghost" style={{borderColor:"#f59e0b40",color:"#f59e0b"}} onClick={cleanupNames}>🔧 Namen bereinigen</button>
           </div>
         </div>
       </div>
