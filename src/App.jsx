@@ -26,7 +26,6 @@ const firebaseConfig = {
 
 };
 
-
 // ═══════════════════════════════════════════════════════════
 
 const app = initializeApp(firebaseConfig);
@@ -60,9 +59,8 @@ const WAR_DAYS = [
 ];
 
 function hashPw(pw) {
-  let h = 5381;
-  for (let i = 0; i < pw.length; i++) h = ((h << 5) + h) ^ pw.charCodeAt(i);
-  return (h >>> 0).toString(36);
+  // Passwort wird im Klartext gespeichert — einfacher für die Verwaltung
+  return pw;
 }
 
 function getWarStatus() {
