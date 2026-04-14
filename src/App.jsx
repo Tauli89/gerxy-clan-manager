@@ -24,7 +24,8 @@ const firebaseConfig = {
 
   measurementId: "G-ZMK0XJ4J45"
 
-};// ═══════════════════════════════════════════════════════════
+};
+// ═══════════════════════════════════════════════════════════
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -870,8 +871,11 @@ Falls keine Daten erkennbar sind, antworte mit: []`}
 function WarTab({ warList, accountList, isAdmin, db, timer }) {
   const today = new Date().toISOString().split("T")[0];
   const [showAdd, setShowAdd] = useState(false);
-  const [expandedWar, setExpandedWar] = useState(null);
-  const [editingPoints, setEditingPoints] = useState({}); // warId -> {username -> points}
+  const [selectedWar, setSelectedWar] = useState(null);
+  const [editingPoints, setEditingPoints] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [csvPreview, setCsvPreview] = useState(null);
   const [form, setForm] = useState({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:""});
   const warStatus = getWarStatus();
   const [ms, setMs] = useState(warStatus.msLeft);
@@ -880,7 +884,6 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const winrate = warList.length ? Math.round((wins/warList.length)*100) : 0;
 
-  // Gesamtpunkte pro Mitglied über alle Wars
   const totalPerMember = {};
   warList.forEach(w => {
     if (w.memberPoints) {
@@ -899,39 +902,195 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
     const memberPoints = {};
     accountList.forEach(a => { memberPoints[a.username] = 0; });
     await push(ref(db,"wars"), {
-      ...form,
-      theirPoints: Number(form.theirPoints)||0,
-      memberPoints,
-      ourPoints: 0,
+      ...form, theirPoints:Number(form.theirPoints)||0,
+      memberPoints, ourPoints:0,
     });
     setForm({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:""});
     setShowAdd(false);
   }
 
-  async function deleteWar(id) { await remove(ref(db,`wars/${id}`)); }
+  async function deleteWar(id) {
+    await remove(ref(db,`wars/${id}`));
+    if (selectedWar?.id===id) setSelectedWar(null);
+  }
 
-  async function savePoints(warId) {
-    const pts = editingPoints[warId] || {};
-    const updates = {};
-    Object.entries(pts).forEach(([name, val]) => {
-      updates[name] = Number(val)||0;
-    });
-    // Merge with existing
+  async function savePoints(warId, pts) {
     const war = warList.find(w=>w.id===warId);
-    const merged = {...(war?.memberPoints||{}), ...updates};
+    const merged = {...(war?.memberPoints||{}), ...pts};
+    Object.keys(merged).forEach(k => merged[k]=Number(merged[k])||0);
     const ourTotal = Object.values(merged).reduce((s,v)=>s+Number(v),0);
-    await update(ref(db,`wars/${warId}`), { memberPoints: merged, ourPoints: ourTotal });
-    setEditingPoints(p=>({...p,[warId]:undefined}));
+    await update(ref(db,`wars/${warId}`), {memberPoints:merged, ourPoints:ourTotal});
+    setEditingPoints(null);
   }
 
-  function startEditing(war) {
-    setEditingPoints(p=>({...p,[war.id]: {...(war.memberPoints||{})}}));
-    setExpandedWar(war.id);
+  function parseCSV(text) {
+    const lines = text.trim().split("\n").filter(l=>l.trim());
+    const items = [];
+    for (const line of lines) {
+      const parts = line.split(/[,;\t]/).map(p=>p.trim().replace(/^"|"$/g,""));
+      if (parts.length>=3 && !isNaN(parts[0]) && !isNaN(parts[2].replace(/\./g,""))) {
+        items.push({name:parts[1], points:Number(parts[2].replace(/\./g,"").replace(",","."))});
+      } else if (parts.length>=2) {
+        const nameIdx = isNaN(parts[0]) ? 0 : 1;
+        const ptsIdx = nameIdx===0 ? 1 : 0;
+        if (parts[nameIdx] && !isNaN(parts[ptsIdx].replace(/\./g,""))) {
+          items.push({name:parts[nameIdx], points:Number(parts[ptsIdx].replace(/\./g,"").replace(",","."))});
+        }
+      }
+    }
+    return items;
   }
 
+  async function applyCSV(warId) {
+    if (!csvPreview||!csvPreview.length) return;
+    const pts = {};
+    csvPreview.forEach(item => { pts[item.name]=item.points; });
+    await savePoints(warId, pts);
+    setShowImport(false); setCsvText(""); setCsvPreview(null);
+  }
+
+  // War-Detailansicht
+  if (selectedWar) {
+    const war = warList.find(w=>w.id===selectedWar.id)||selectedWar;
+    const pts = editingPoints||war.memberPoints||{};
+    const allNames = [...new Set([...accountList.map(a=>a.username),...Object.keys(war.memberPoints||{})])];
+    const sorted = [...allNames].sort((a,b)=>(Number(pts[b]||0))-(Number(pts[a]||0)));
+    const maxP = Math.max(...sorted.map(n=>Number(pts[n]||0)),1);
+
+    return (
+      <div>
+        <div className="flex mb-16 gap-8">
+          <button className="btn btn-ghost" onClick={()=>{setSelectedWar(null);setEditingPoints(null);setShowImport(false);}}>← Zurück</button>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:16,color:"var(--gold2)",display:"flex",alignItems:"center",gap:8}}>
+            {war.result==="Sieg"?"🏆":"💀"} vs. {war.opponent}
+          </div>
+        </div>
+
+        <div className="card mb-16" style={{borderColor:war.result==="Sieg"?"#22c55e30":"#ef444430"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:16}}>
+            {[
+              ["📅 Zeitraum",`${war.dateFrom}${war.dateTo&&war.dateTo!==war.dateFrom?` → ${war.dateTo}`:""}`],
+              ["⚡ Unsere Punkte",fmt(war.ourPoints||0)],
+              ["💀 Gegner Punkte",fmt(war.theirPoints||0)],
+              ["🏆 Ergebnis",war.result],
+            ].map(([label,val])=>(
+              <div key={label} style={{textAlign:"center"}}>
+                <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,marginBottom:4}}>{label}</div>
+                <div style={{fontWeight:600,color:"var(--gold2)",fontSize:15}}>{val}</div>
+              </div>
+            ))}
+          </div>
+          {war.note&&<div style={{marginTop:12,fontSize:13,color:"var(--text2)",borderTop:"1px solid var(--border)",paddingTop:10}}>📝 {war.note}</div>}
+        </div>
+
+        <div className="card">
+          <div className="flex-between mb-16">
+            <div className="card-title" style={{marginBottom:0}}>⚔️ Punkte aller Mitglieder</div>
+            {isAdmin&&(
+              <div style={{display:"flex",gap:6}}>
+                {!editingPoints&&!showImport&&<>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>{setShowImport(true);setCsvText("");setCsvPreview(null);}}>📥 CSV Import</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setEditingPoints({...pts})}>✏️ Bearbeiten</button>
+                </>}
+                {editingPoints&&<>
+                  <button className="btn btn-gold btn-sm" onClick={()=>savePoints(war.id,editingPoints)}>💾 Speichern</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setEditingPoints(null)}>✕</button>
+                </>}
+                {!editingPoints&&<button className="btn btn-red btn-sm" onClick={()=>deleteWar(war.id)}>🗑️</button>}
+              </div>
+            )}
+          </div>
+
+          {showImport&&(
+            <div style={{marginBottom:20,padding:16,background:"var(--bg2)",borderRadius:10,border:"1px solid var(--border)"}}>
+              <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>
+                Format: <code style={{color:"var(--gold2)"}}>Name, Punkte</code> oder <code style={{color:"var(--gold2)"}}>Rang, Name, Punkte</code> — eine Zeile pro Mitglied
+              </div>
+              <textarea className="inp" rows={8} value={csvText}
+                onChange={e=>{setCsvText(e.target.value);setCsvPreview(null);}}
+                placeholder={"RAF904, 2429349\nAlphA15518, 847523\nTauli, 829173\n\noder:\n1, RAF904, 2429349\n2, AlphA15518, 847523"}/>
+              <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center",flexWrap:"wrap"}}>
+                {!csvPreview&&<button className="btn btn-gold btn-sm" onClick={()=>{const p=parseCSV(csvText);setCsvPreview(p);}}>🔍 Analysieren</button>}
+                {csvPreview&&csvPreview.length===0&&<span style={{fontSize:13,color:"#fca5a5"}}>⚠️ Keine Daten erkannt</span>}
+                {csvPreview&&csvPreview.length>0&&<>
+                  <span style={{fontSize:13,color:"#22c55e"}}>✅ {csvPreview.length} Einträge erkannt</span>
+                  <button className="btn btn-gold btn-sm" onClick={()=>applyCSV(war.id)}>✅ Übernehmen</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setCsvPreview(null)}>↩ Nochmal</button>
+                </>}
+                <button className="btn btn-ghost btn-sm" onClick={()=>{setShowImport(false);setCsvText("");setCsvPreview(null);}}>✕ Schließen</button>
+              </div>
+              {csvPreview&&csvPreview.length>0&&(
+                <div style={{marginTop:10,maxHeight:150,overflowY:"auto",background:"var(--bg3)",borderRadius:8,border:"1px solid var(--border)"}}>
+                  {csvPreview.map((r,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 12px",borderBottom:"1px solid var(--border)",fontSize:13}}>
+                      <span>{r.name}</span><span style={{color:"var(--gold2)",fontWeight:600}}>{fmt(r.points)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{overflowX:"auto"}}>
+            <table className="member-table" style={{width:"100%"}}>
+              <thead>
+                <tr>
+                  <th style={{width:32}}>#</th>
+                  <th>Mitglied</th>
+                  <th>Punkte</th>
+                  <th className="hide-mobile">Fortschritt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((name,i)=>{
+                  const role = accountList.find(a=>a.username===name)?.role;
+                  const p = editingPoints?(editingPoints[name]??""):(Number(pts[name])||0);
+                  return (
+                    <tr key={name}>
+                      <td style={{color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:12}}>{i+1}</td>
+                      <td>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:16}}>{RANK_ICONS[role]||"⚒️"}</span>
+                          <div>
+                            <div style={{fontWeight:600,fontSize:14}}>{name}</div>
+                            {role&&<span style={{fontSize:11,color:RANK_COLORS[role]||"var(--text3)"}}>{role}</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {editingPoints?(
+                          <input className="inp" type="number" value={editingPoints[name]??""} placeholder="0"
+                            onChange={e=>setEditingPoints(prev=>({...prev,[name]:e.target.value}))}
+                            style={{maxWidth:120,padding:"4px 8px",fontSize:13}}/>
+                        ):(
+                          <span style={{color:"var(--gold2)",fontWeight:600,fontSize:15}}>{fmt(Number(p)||0)}</span>
+                        )}
+                      </td>
+                      <td className="hide-mobile">
+                        {!editingPoints&&(
+                          <div className="pbar" style={{minWidth:80}}>
+                            <div className="pfill" style={{width:`${(Number(p)||0)/maxP*100}%`}}/>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{marginTop:14,padding:"10px 16px",background:"var(--bg2)",borderRadius:8,display:"flex",justifyContent:"space-between",fontSize:14,borderTop:"2px solid var(--border)"}}>
+            <span style={{color:"var(--text3)"}}>Gesamt unsere Punkte</span>
+            <span style={{color:"var(--gold2)",fontWeight:700,fontFamily:"'Cinzel',serif"}}>{fmt(war.ourPoints||0)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Übersichts-Ansicht
   return (
     <div>
-      {/* Timer Banner */}
       <div className="war-banner section-gap">
         <div className="flex-between">
           <div>
@@ -946,7 +1105,6 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid-3 section-gap">
         {[
           {label:"Siege",value:wins,color:"#22c55e",icon:"🏆"},
@@ -962,93 +1120,40 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
       </div>
 
       <div className="grid-2 section-gap">
-        {/* War Liste */}
         <div>
           <div className="flex-between mb-12">
             <div className="card-title" style={{marginBottom:0}}>⚔️ War-Historie</div>
-            {isAdmin && <button className="btn btn-gold btn-sm" onClick={()=>setShowAdd(true)}>+ War</button>}
+            {isAdmin&&<button className="btn btn-gold btn-sm" onClick={()=>setShowAdd(true)}>+ War</button>}
           </div>
-
-          {warList.length===0 && <div className="card"><div className="text-muted text-sm">Noch keine Wars eingetragen</div></div>}
-
-          {warList.map(w=>{
-            const isExpanded = expandedWar===w.id;
-            const editing = editingPoints[w.id];
-            const members = accountList.map(a=>a.username);
-            const pts = editing || w.memberPoints || {};
-            const sortedMembers = [...members].sort((a,b)=>(Number(pts[b]||0))-(Number(pts[a]||0)));
-
-            return (
-              <div key={w.id} style={{background:"var(--bg3)",border:`1px solid ${w.result==="Sieg"?"#22c55e20":"#ef444420"}`,borderRadius:12,marginBottom:10,overflow:"hidden"}}>
-                {/* War Header */}
-                <div style={{padding:"14px 16px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>setExpandedWar(isExpanded?null:w.id)}>
-                  <div style={{fontSize:24,flexShrink:0}}>{w.result==="Sieg"?"🏆":"💀"}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:600,fontSize:15}}>vs. {w.opponent}</div>
-                    <div style={{fontSize:12,color:"var(--text3)"}}>
-                      {w.dateFrom}{w.dateTo&&w.dateTo!==w.dateFrom?` → ${w.dateTo}`:""}
-                    </div>
-                    {w.note && <div style={{fontSize:12,color:"var(--text2)",marginTop:2}}>📝 {w.note}</div>}
-                  </div>
-                  <div style={{textAlign:"center",flexShrink:0}}>
-                    <div style={{color:"var(--gold2)",fontWeight:600,fontSize:16}}>{fmt(w.ourPoints||0)}</div>
-                    <div style={{fontSize:11,color:"var(--text3)"}}>vs {fmt(w.theirPoints||0)}</div>
-                  </div>
-                  <span style={{padding:"4px 10px",borderRadius:16,fontSize:12,background:w.result==="Sieg"?"#22c55e20":"#ef444420",color:w.result==="Sieg"?"#22c55e":"#ef4444",border:`1px solid ${w.result==="Sieg"?"#22c55e":"#ef4444"}`,flexShrink:0}}>
-                    {w.result==="Sieg"?"SIEG":"NIE."}
-                  </span>
-                  <span style={{color:"var(--text3)",fontSize:12,flexShrink:0}}>{isExpanded?"▲":"▼"}</span>
+          {warList.length===0&&<div className="card"><div className="text-muted text-sm">Noch keine Wars eingetragen</div></div>}
+          {warList.map(w=>(
+            <div key={w.id} onClick={()=>setSelectedWar(w)}
+              style={{padding:"14px 16px",background:"var(--bg3)",border:`1px solid ${w.result==="Sieg"?"#22c55e30":"#ef444430"}`,borderRadius:12,marginBottom:10,display:"flex",alignItems:"center",gap:12,cursor:"pointer",transition:"all .2s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=w.result==="Sieg"?"#22c55e70":"#ef444470"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor=w.result==="Sieg"?"#22c55e30":"#ef444430"}>
+              <div style={{fontSize:26,flexShrink:0}}>{w.result==="Sieg"?"🏆":"💀"}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600,fontSize:15}}>vs. {w.opponent}</div>
+                <div style={{fontSize:12,color:"var(--text3)"}}>
+                  {w.dateFrom}{w.dateTo&&w.dateTo!==w.dateFrom?` → ${w.dateTo}`:""}
+                  {" · "}{Object.values(w.memberPoints||{}).filter(v=>Number(v)>0).length} mit Punkten
                 </div>
-
-                {/* Expanded: Mitglieder-Punkte */}
-                {isExpanded && (
-                  <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px"}}>
-                    <div className="flex-between mb-12">
-                      <div style={{fontSize:12,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase"}}>Punkte der Mitglieder</div>
-                      <div style={{display:"flex",gap:6}}>
-                        {isAdmin && !editing && <button className="btn btn-ghost btn-sm" onClick={()=>startEditing(w)}>✏️ Bearbeiten</button>}
-                        {isAdmin && editing && <button className="btn btn-gold btn-sm" onClick={()=>savePoints(w.id)}>💾 Speichern</button>}
-                        {isAdmin && editing && <button className="btn btn-ghost btn-sm" onClick={()=>setEditingPoints(p=>({...p,[w.id]:undefined}))}>✕</button>}
-                        {isAdmin && <button className="btn btn-red btn-sm" onClick={()=>deleteWar(w.id)}>🗑️</button>}
-                      </div>
-                    </div>
-                    {sortedMembers.map(name=>{
-                      const p = editing ? (editing[name]||"") : (w.memberPoints?.[name]||0);
-                      const maxP = Math.max(...sortedMembers.map(n=>Number(pts[n]||0)),1);
-                      return (
-                        <div key={name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                          <div style={{width:130,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0}}>{name}</div>
-                          {editing ? (
-                            <input className="inp" type="number" value={editing[name]||""} placeholder="0"
-                              onChange={e=>setEditingPoints(prev=>({...prev,[w.id]:{...prev[w.id],[name]:e.target.value}}))}
-                              style={{maxWidth:110,padding:"4px 8px",fontSize:13}}/>
-                          ) : (
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                                <span style={{fontSize:12,color:"var(--text3)"}}></span>
-                                <span style={{color:"var(--gold2)",fontSize:13,fontWeight:600}}>{fmt(Number(p)||0)}</span>
-                              </div>
-                              <div className="pbar"><div className="pfill" style={{width:`${(Number(p)||0)/maxP*100}%`}}/></div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <div style={{marginTop:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,display:"flex",justifyContent:"space-between",fontSize:13}}>
-                      <span style={{color:"var(--text3)"}}>Gesamt unsere Punkte:</span>
-                      <span style={{color:"var(--gold2)",fontWeight:600}}>{fmt(w.ourPoints||0)}</span>
-                    </div>
-                  </div>
-                )}
               </div>
-            );
-          })}
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{color:"var(--gold2)",fontWeight:700,fontSize:16}}>{fmt(w.ourPoints||0)}</div>
+                <div style={{fontSize:11,color:"var(--text3)"}}>vs {fmt(w.theirPoints||0)}</div>
+              </div>
+              <span style={{padding:"4px 10px",borderRadius:16,fontSize:12,background:w.result==="Sieg"?"#22c55e20":"#ef444420",color:w.result==="Sieg"?"#22c55e":"#ef4444",border:`1px solid ${w.result==="Sieg"?"#22c55e":"#ef4444"}`,flexShrink:0}}>
+                {w.result==="Sieg"?"SIEG":"NIE."}
+              </span>
+              <span style={{color:"var(--text3)",fontSize:18,flexShrink:0}}>›</span>
+            </div>
+          ))}
         </div>
 
-        {/* Gesamtpunkte Ranking über alle Wars */}
         <div className="card">
-          <div className="card-title">🏅 Gesamtpunkte Ranking (alle Wars)</div>
-          {totalRanking.length===0 && <div className="text-muted text-sm">Noch keine Punkte eingetragen</div>}
+          <div className="card-title">🏅 Gesamtranking (alle Wars)</div>
+          {totalRanking.length===0&&<div className="text-muted text-sm">Noch keine Punkte eingetragen</div>}
           {totalRanking.map((m,i)=>(
             <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
               <div style={{width:22,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
@@ -1064,16 +1169,15 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
         </div>
       </div>
 
-      {/* Add War Modal */}
-      {showAdd && (
+      {showAdd&&(
         <div className="overlay" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
           <div className="modal">
             <div className="modal-title">⚔️ Neuer Clan War</div>
             <div style={{display:"grid",gap:12}}>
               <div><label className="lbl">Gegner-Clan *</label><input className="inp" value={form.opponent} onChange={e=>setForm(p=>({...p,opponent:e.target.value}))} placeholder="Clan-Name"/></div>
               <div className="grid-2">
-                <div><label className="lbl">Von (Datum)</label><input className="inp" type="date" value={form.dateFrom} onChange={e=>setForm(p=>({...p,dateFrom:e.target.value}))}/></div>
-                <div><label className="lbl">Bis (Datum)</label><input className="inp" type="date" value={form.dateTo} onChange={e=>setForm(p=>({...p,dateTo:e.target.value}))}/></div>
+                <div><label className="lbl">Von</label><input className="inp" type="date" value={form.dateFrom} onChange={e=>setForm(p=>({...p,dateFrom:e.target.value}))}/></div>
+                <div><label className="lbl">Bis</label><input className="inp" type="date" value={form.dateTo} onChange={e=>setForm(p=>({...p,dateTo:e.target.value}))}/></div>
               </div>
               <div><label className="lbl">Gegner-Gesamtpunkte</label><input className="inp" type="number" value={form.theirPoints} onChange={e=>setForm(p=>({...p,theirPoints:e.target.value}))} placeholder="0"/></div>
               <div><label className="lbl">Ergebnis</label>
@@ -1081,9 +1185,9 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
                   <option>Sieg</option><option>Niederlage</option>
                 </select>
               </div>
-              <div><label className="lbl">Notiz</label><textarea className="inp" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{minHeight:60}}/></div>
+              <div><label className="lbl">Notiz</label><textarea className="inp" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{minHeight:50}}/></div>
               <div style={{padding:"10px 14px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text3)"}}>
-                💡 Nach dem Erstellen kannst du auf den War klicken und die Punkte jedes Mitglieds eintragen. Unsere Gesamtpunkte werden automatisch berechnet.
+                💡 Nach dem Erstellen auf den War klicken → CSV importieren oder Punkte manuell eintragen.
               </div>
             </div>
             <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20}}>
