@@ -24,7 +24,8 @@ const firebaseConfig = {
 
   measurementId: "G-ZMK0XJ4J45"
 
-};// ═══════════════════════════════════════════════════════════
+};
+// ═══════════════════════════════════════════════════════════
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -56,9 +57,12 @@ const WAR_DAYS = [
   { day:"Sonntag",   mult:2,  actions:["Rivalen besiegen: 1–50 Pkt","All-Out Brawl gewinnen: 1.000 Pkt","5 Tickets zu Beginn, Reset nach allen Niederlagen"] },
 ];
 
-function hashPw(pw) {
-  // Passwort wird im Klartext gespeichert — einfacher für die Verwaltung
-  return pw;
+// SHA-256 Hash via Web Crypto API — Passwort wird NIE im Klartext gespeichert
+async function hashPw(pw) {
+  const encoded = new TextEncoder().encode(pw);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 function getWarStatus() {
@@ -267,9 +271,10 @@ export default function GerxyApp() {
     return () => clearInterval(id);
   }, []);
 
-  function login(username, password) {
+  async function login(username, password) {
     const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
-    const found = accList.find(a => a.username===username && a.passwordHash===hashPw(password));
+    const hashed = await hashPw(password);
+    const found = accList.find(a => a.username===username && a.passwordHash===hashed);
     if (found) {
       const u = { id:found.id, username:found.username, role:found.role };
       setUser(u); sessionStorage.setItem("gerxy_user", JSON.stringify(u));
@@ -279,9 +284,10 @@ export default function GerxyApp() {
   }
 
   async function register(username, password) {
+    const hashed = await hashPw(password);
     await push(ref(db,"accounts"), {
       username,
-      passwordHash: hashPw(password),
+      passwordHash: hashed,
       role: "R5"
     });
   }
@@ -367,10 +373,11 @@ function LoginScreen({ onLogin, onRegister, accounts, loading }) {
   const [show, setShow] = useState(false);
   const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
 
-  function doLogin() {
+  async function doLogin() {
     setErr("");
     if (!user || !pass) { setErr("Bitte Benutzername und Passwort eingeben."); return; }
-    if (!onLogin(user, pass)) setErr("Benutzername oder Passwort falsch.");
+    const ok = await onLogin(user, pass);
+    if (!ok) setErr("Benutzername oder Passwort falsch.");
   }
 
   async function doRegister() {
@@ -1320,7 +1327,8 @@ function Admin({ accounts, memberList, db, currentUser }) {
   async function addAccount() {
     if (!form.username||!form.password) return;
     if (accList.find(a=>a.username===form.username)) { alert("Benutzername bereits vergeben!"); return; }
-    await push(ref(db,"accounts"), {username:form.username,passwordHash:hashPw(form.password),role:form.role});
+    const hashed = await hashPw(form.password);
+    await push(ref(db,"accounts"), {username:form.username,passwordHash:hashed,role:form.role});
     setForm({username:"",password:"",role:"R5"}); setShowAdd(false);
   }
 
