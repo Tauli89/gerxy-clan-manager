@@ -7,23 +7,14 @@ import { getDatabase, ref, onValue, set, push, remove, update } from "https://ww
 //  (Anleitung in der SETUP.md Datei)
 // ═══════════════════════════════════════════════════════════
 const firebaseConfig = {
-
   apiKey: "AIzaSyC-xmgkfbcrjK9ENTEnGBLbBralF8BeZCw",
-
   authDomain: "gerxy-clan.firebaseapp.com",
-
   databaseURL: "https://gerxy-clan-default-rtdb.europe-west1.firebasedatabase.app",
-
   projectId: "gerxy-clan",
-
   storageBucket: "gerxy-clan.firebasestorage.app",
-
   messagingSenderId: "312086208111",
-
   appId: "1:312086208111:web:2e9acdae2a471809a5779a",
-
   measurementId: "G-ZMK0XJ4J45"
-
 };
 // ═══════════════════════════════════════════════════════════
 
@@ -276,7 +267,8 @@ export default function GerxyApp() {
   async function login(username, password) {
     const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
     const hashed = await hashPw(password);
-    const found = accList.find(a => a.username===username && a.passwordHash===hashed);
+    // Benutzername-Vergleich ignoriert Groß/Kleinschreibung
+    const found = accList.find(a => a.username.toLowerCase()===username.toLowerCase() && a.passwordHash===hashed);
     if (found) {
       const u = { id:found.id, username:found.username, role:found.role };
       setUser(u); sessionStorage.setItem("gerxy_user", JSON.stringify(u));
@@ -394,8 +386,9 @@ function LoginScreen({ onLogin, onRegister, accounts, loading }) {
     if (!user || !pass) { setErr("Bitte alle Felder ausfüllen."); return; }
     if (pass !== pass2) { setErr("Passwörter stimmen nicht überein."); return; }
     if (pass.length < 4) { setErr("Passwort muss mindestens 4 Zeichen lang sein."); return; }
+    // Duplikat-Check ignoriert Groß/Kleinschreibung
     if (accList.find(a => a.username.toLowerCase() === user.toLowerCase())) {
-      setErr("Dieser Benutzername ist bereits vergeben."); return;
+      setErr("Dieser Benutzername ist bereits vergeben (auch mit anderer Schreibweise)."); return;
     }
     await onRegister(user, pass);
     setSuccess("Account erstellt! Du kannst dich jetzt einloggen.");
@@ -477,7 +470,22 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
   const totalPoints = memberList.reduce((s,m) => s+(Number(m.weeklyPoints)||0), 0);
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const activeMembers = memberList.filter(m=>m.active!==false).length;
-  const maxPoints = Math.max(...memberList.map(m=>Number(m.weeklyPoints)||0), 1);
+
+  // Gesamtpunkte aus allen Wars — Groß/Kleinschreibung ignorieren
+  const totalPerMember = {};
+  warList.forEach(w => {
+    if (w.memberPoints) {
+      Object.entries(w.memberPoints).forEach(([name, pts]) => {
+        const key = name.toLowerCase();
+        if (!totalPerMember[key]) totalPerMember[key] = { displayName: name, pts: 0 };
+        totalPerMember[key].pts += Number(pts)||0;
+      });
+    }
+  });
+  const topWarRanking = Object.values(totalPerMember)
+    .sort((a,b) => b.pts - a.pts)
+    .slice(0, 8);
+  const maxWarPts = topWarRanking[0]?.pts || 1;
 
   return (
     <div>
@@ -534,20 +542,20 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
       {/* Top Performers + War Days */}
       <div className="grid-2">
         <div className="card">
-          <div className="card-title">🥇 Top Wochenpunkte</div>
-          {[...memberList].sort((a,b)=>(Number(b.weeklyPoints)||0)-(Number(a.weeklyPoints)||0)).slice(0,8).map((m,i)=>(
-            <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <div className="card-title">🥇 Top War-Gesamtpunkte</div>
+          {topWarRanking.map((m,i)=>(
+            <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
               <div style={{fontSize:16,width:24,textAlign:"center",flexShrink:0}}>{["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣"][i]}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{RANK_ICONS[m.rank]} {m.name}</span>
-                  <span style={{color:"var(--gold2)",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.weeklyPoints||0)}</span>
+                  <span style={{fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.displayName}</span>
+                  <span style={{color:"var(--gold2)",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.pts)}</span>
                 </div>
-                <div className="pbar"><div className="pfill" style={{width:`${((Number(m.weeklyPoints)||0)/maxPoints)*100}%`}}/></div>
+                <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxWarPts)*100}%`}}/></div>
               </div>
             </div>
           ))}
-          {memberList.length===0 && <div className="text-muted text-sm">Noch keine Mitglieder</div>}
+          {topWarRanking.length===0 && <div className="text-muted text-sm">Noch keine War-Punkte eingetragen</div>}
         </div>
         <div className="card">
           <div className="card-title">📅 War-Tagesplan</div>
@@ -884,16 +892,17 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const winrate = warList.length ? Math.round((wins/warList.length)*100) : 0;
 
-  const totalPerMember = {};
+  const totalPerMemberWar = {};
   warList.forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
-        totalPerMember[name] = (totalPerMember[name]||0) + Number(pts);
+        const key = name.toLowerCase();
+        if (!totalPerMemberWar[key]) totalPerMemberWar[key] = { displayName: name, pts: 0 };
+        totalPerMemberWar[key].pts += Number(pts)||0;
       });
     }
   });
-  const totalRanking = Object.entries(totalPerMember)
-    .map(([name,pts])=>({name,pts}))
+  const totalRanking = Object.values(totalPerMemberWar)
     .sort((a,b)=>b.pts-a.pts);
   const maxTotal = totalRanking[0]?.pts || 1;
 
@@ -944,7 +953,12 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   async function applyCSV(warId) {
     if (!csvPreview||!csvPreview.length) return;
     const pts = {};
-    csvPreview.forEach(item => { pts[item.name]=item.points; });
+    csvPreview.forEach(item => {
+      // Versuche den Account-Namen zu finden (Groß/Kleinschreibung ignorieren)
+      const matchedAccount = accountList.find(a => a.username.toLowerCase()===item.name.toLowerCase());
+      const finalName = matchedAccount ? matchedAccount.username : item.name;
+      pts[finalName] = item.points;
+    });
     await savePoints(warId, pts);
     setShowImport(false); setCsvText(""); setCsvPreview(null);
   }
@@ -1155,11 +1169,11 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
           <div className="card-title">🏅 Gesamtranking (alle Wars)</div>
           {totalRanking.length===0&&<div className="text-muted text-sm">Noch keine Punkte eingetragen</div>}
           {totalRanking.map((m,i)=>(
-            <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
               <div style={{width:22,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
+                  <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.displayName}</span>
                   <span style={{color:"#a855f7",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.pts)}</span>
                 </div>
                 <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxTotal)*100}%`,background:"linear-gradient(90deg,#7c3aed,#a855f7)"}}/></div>
@@ -1628,7 +1642,7 @@ function Admin({ accounts, memberList, db, currentUser }) {
 
   async function addAccount() {
     if (!form.username||!form.password) return;
-    if (accList.find(a=>a.username===form.username)) { alert("Benutzername bereits vergeben!"); return; }
+    if (accList.find(a=>a.username.toLowerCase()===form.username.toLowerCase())) { alert("Benutzername bereits vergeben (auch mit anderer Schreibweise)!"); return; }
     const hashed = await hashPw(form.password);
     await push(ref(db,"accounts"), {username:form.username,passwordHash:hashed,role:form.role});
     setForm({username:"",password:"",role:"R5"}); setShowAdd(false);
