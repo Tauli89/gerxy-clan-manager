@@ -297,8 +297,19 @@ export default function GerxyApp() {
   if (!user) return <><style>{CSS}</style><LoginScreen onLogin={login} onRegister={register} accounts={accounts} loading={loading}/></>;
 
   const memberList = Object.entries(members).map(([id,m])=>({id,...m}));
-  const warList = Object.entries(wars).map(([id,w])=>({id,...w})).sort((a,b)=>b.date?.localeCompare(a.date));
+  const warList = Object.entries(wars).map(([id,w])=>({id,...w})).sort((a,b)=>b.dateFrom?.localeCompare(a.dateFrom));
   const noteList = Object.entries(notes).map(([id,n])=>({id,...n})).sort((a,b)=>b.createdAt-a.createdAt);
+  const [messages, setMessages] = useState({});
+
+  useEffect(() => {
+    const unsub = onValue(ref(db,"messages"), s => setMessages(s.val()||{}));
+    return () => unsub();
+  }, []);
+
+  // Ungelesene Nachrichten zählen
+  const unreadCount = Object.values(messages).filter(m =>
+    m.to === user.username && !m.read
+  ).length;
 
   const tabs = [
     {id:"dashboard",label:"⚔️ Dashboard"},
@@ -306,6 +317,7 @@ export default function GerxyApp() {
     {id:"war",label:"🏆 Clan War"},
     {id:"mypage",label:"📊 Meine Seite"},
     {id:"notes",label:"📋 Notizen"},
+    {id:"messages",label:`💬 Nachrichten${unreadCount>0?` (${unreadCount})`:""}` },
     ...(isAdmin ? [{id:"admin",label:"⚙️ Admin"}] : []),
   ];
 
@@ -350,10 +362,11 @@ export default function GerxyApp() {
         ) : (
           <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px"}}>
             {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer}/>}
-            {tab==="members" && <Members memberList={memberList} isAdmin={isAdmin} db={db} currentUser={user}/>}
-            {tab==="war" && <WarTab warList={warList} memberList={memberList} isAdmin={isAdmin} db={db} timer={timer}/>}
+            {tab==="members" && <Members accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} currentUser={user}/>}
+            {tab==="war" && <WarTab warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} timer={timer}/>}
             {tab==="mypage" && <MyPage user={user} memberList={memberList} db={db}/>}
             {tab==="notes" && <Notes noteList={noteList} isAdmin={isAdmin} db={db} user={user}/>}
+            {tab==="messages" && <Messages messages={messages} currentUser={user} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
             {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members}/>}
           </div>
         )}
@@ -560,42 +573,29 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
 }
 
 // ── MEMBERS ──────────────────────────────────────────────────
-function Members({ memberList, isAdmin, db, currentUser }) {
+// ── MEMBERS (zeigt registrierte Accounts) ───────────────────
+function Members({ accountList, isAdmin, db, currentUser }) {
   const [search, setSearch] = useState("");
   const [filterRank, setFilterRank] = useState("Alle");
-  const [showAdd, setShowAdd] = useState(false);
-  const [editM, setEditM] = useState(null);
-  const [showImport, setShowImport] = useState(false);
-  const [form, setForm] = useState({name:"",rank:"R5",weeklyPoints:0,totalPoints:0,active:true,note:""});
+  const [editAcc, setEditAcc] = useState(null);
 
-  const filtered = memberList
-    .filter(m => m.name?.toLowerCase().includes(search.toLowerCase()))
-    .filter(m => filterRank==="Alle" || m.rank===filterRank)
+  const filtered = accountList
+    .filter(a => a.username?.toLowerCase().includes(search.toLowerCase()))
+    .filter(a => filterRank==="Alle" || a.role===filterRank)
     .sort((a,b) => {
-      const ro = ALL_RANKS.indexOf(a.rank)-ALL_RANKS.indexOf(b.rank);
-      if (ro!==0) return ro;
-      return (Number(b.weeklyPoints)||0)-(Number(a.weeklyPoints)||0);
+      const ro = ALL_RANKS.indexOf(a.role)-ALL_RANKS.indexOf(b.role);
+      return ro !== 0 ? ro : a.username?.localeCompare(b.username);
     });
 
-  // Rank slot checker
-  function getRankCount(rank) { return memberList.filter(m=>m.rank===rank).length; }
-  function rankFull(rank) { return RANK_LIMITS[rank] && getRankCount(rank)>=RANK_LIMITS[rank]; }
-
-  async function saveMember() {
-    if (!form.name) return;
-    await push(ref(db,"members"), {...form, weeklyPoints:Number(form.weeklyPoints)||0, totalPoints:Number(form.totalPoints)||0});
-    setForm({name:"",rank:"R5",weeklyPoints:0,totalPoints:0,active:true,note:""}); setShowAdd(false);
+  async function saveRole() {
+    await update(ref(db,`accounts/${editAcc.id}`), { role: editAcc.role });
+    setEditAcc(null);
   }
 
-  async function updateMember() {
-    const {id,...d} = editM;
-    await update(ref(db,`members/${id}`), {...d, weeklyPoints:Number(d.weeklyPoints)||0, totalPoints:Number(d.totalPoints)||0});
-    setEditM(null);
+  async function deleteAcc(id) {
+    if (id === currentUser.id) { alert("Du kannst deinen eigenen Account nicht löschen!"); return; }
+    await remove(ref(db,`accounts/${id}`));
   }
-
-  async function deleteMember(id) { await remove(ref(db,`members/${id}`)); }
-
-  const maxPoints = Math.max(...memberList.map(m=>Number(m.weeklyPoints)||0), 1);
 
   return (
     <div>
@@ -607,18 +607,13 @@ function Members({ memberList, isAdmin, db, currentUser }) {
             {ALL_RANKS.map(r=><option key={r}>{r}</option>)}
           </select>
         </div>
-        {isAdmin && (
-          <div style={{display:"flex",gap:8}}>
-            <button className="btn btn-ghost btn-sm" onClick={()=>setShowImport(true)}>📥 Import</button>
-            <button className="btn btn-gold btn-sm" onClick={()=>setShowAdd(true)}>+ Mitglied</button>
-          </div>
-        )}
+        <div style={{fontSize:13,color:"var(--text3)"}}>{accountList.length} Mitglieder registriert</div>
       </div>
 
-      {/* Rank Overview */}
+      {/* Rang Übersicht */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
         {ALL_RANKS.map(r=>{
-          const cnt = memberList.filter(m=>m.rank===r).length;
+          const cnt = accountList.filter(a=>a.role===r).length;
           const limit = RANK_LIMITS[r];
           return cnt>0 ? (
             <span key={r} style={{padding:"3px 10px",borderRadius:20,fontSize:12,background:`${RANK_COLORS[r]}15`,border:`1px solid ${RANK_COLORS[r]}40`,color:RANK_COLORS[r]}}>
@@ -628,49 +623,46 @@ function Members({ memberList, isAdmin, db, currentUser }) {
         })}
       </div>
 
-      {/* Table */}
+      {/* Tabelle */}
       <div className="card" style={{padding:0,overflow:"hidden"}}>
         <div style={{overflowX:"auto"}}>
           <table className="member-table">
             <thead>
               <tr>
                 <th>Mitglied</th>
-                <th>Wochenpunkte</th>
-                <th className="hide-mobile">Gesamtpunkte</th>
-                <th className="hide-mobile">Fortschritt</th>
-                <th>Status</th>
-                {isAdmin && <th></th>}
+                <th>Rang</th>
+                <th className="hide-mobile">Account-ID</th>
+                {isAdmin && <th>Aktionen</th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.map(m=>(
-                <tr key={m.id}>
+              {filtered.map(a=>(
+                <tr key={a.id}>
                   <td>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div style={{width:36,height:36,borderRadius:"50%",background:`${RANK_COLORS[m.rank]||"#5a3a00"}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,border:`1.5px solid ${RANK_COLORS[m.rank]||"#5a3a00"}50`,flexShrink:0}}>
-                        {RANK_ICONS[m.rank]||"⚒️"}
+                      <div style={{width:36,height:36,borderRadius:"50%",background:`${RANK_COLORS[a.role]||"#5a3a00"}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,border:`1.5px solid ${RANK_COLORS[a.role]||"#5a3a00"}50`,flexShrink:0}}>
+                        {RANK_ICONS[a.role]||"⚒️"}
                       </div>
                       <div>
-                        <div style={{fontWeight:600,fontSize:14}}>{m.name}</div>
-                        <span className="rank-badge" style={{color:RANK_COLORS[m.rank]||"#c88500",borderColor:`${RANK_COLORS[m.rank]||"#c88500"}40`,background:`${RANK_COLORS[m.rank]||"#c88500"}10`}}>{m.rank}</span>
+                        <div style={{fontWeight:600,fontSize:14}}>
+                          {a.username}
+                          {a.id===currentUser.id && <span style={{fontSize:11,color:"#22c55e",marginLeft:6}}>(Du)</span>}
+                        </div>
+                        <span className="rank-badge" style={{color:RANK_COLORS[a.role]||"#c88500",borderColor:`${RANK_COLORS[a.role]||"#c88500"}40`,background:`${RANK_COLORS[a.role]||"#c88500"}10`}}>
+                          {a.role}
+                        </span>
                       </div>
                     </div>
                   </td>
-                  <td><span style={{color:"var(--gold2)",fontWeight:600,fontSize:16}}>{fmt(m.weeklyPoints||0)}</span></td>
-                  <td className="hide-mobile" style={{color:"var(--text2)"}}>{fmt(m.totalPoints||0)}</td>
-                  <td className="hide-mobile" style={{minWidth:100}}>
-                    <div className="pbar"><div className="pfill" style={{width:`${((Number(m.weeklyPoints)||0)/maxPoints)*100}%`}}/></div>
-                  </td>
                   <td>
-                    <span style={{fontSize:12,padding:"2px 8px",borderRadius:12,background:m.active!==false?"#22c55e15":"#6b728015",color:m.active!==false?"#22c55e":"#6b7280",border:`1px solid ${m.active!==false?"#22c55e":"#6b7280"}30`}}>
-                      {m.active!==false?"✅ Aktiv":"⬛ Inaktiv"}
-                    </span>
+                    <span style={{color:RANK_COLORS[a.role]||"var(--gold2)",fontWeight:600}}>{RANK_ICONS[a.role]} {a.role}</span>
                   </td>
+                  <td className="hide-mobile" style={{color:"var(--text3)",fontSize:12,fontFamily:"var(--font-mono)"}}>{a.id?.slice(0,12)}…</td>
                   {isAdmin && (
                     <td>
                       <div style={{display:"flex",gap:4}}>
-                        <button className="btn btn-ghost btn-sm" onClick={()=>setEditM({...m})}>✏️</button>
-                        <button className="btn btn-red btn-sm" onClick={()=>deleteMember(m.id)}>🗑️</button>
+                        <button className="btn btn-ghost btn-sm" onClick={()=>setEditAcc({...a})}>🔑 Rang</button>
+                        {a.id!==currentUser.id && <button className="btn btn-red btn-sm" onClick={()=>deleteAcc(a.id)}>🗑️</button>}
                       </div>
                     </td>
                   )}
@@ -682,63 +674,30 @@ function Members({ memberList, isAdmin, db, currentUser }) {
         {filtered.length===0 && <div style={{padding:40,textAlign:"center",color:"var(--text3)"}}>Keine Mitglieder gefunden</div>}
       </div>
 
-      {/* Add Member Modal */}
-      {showAdd && (
-        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
+      {/* Edit Rang Modal */}
+      {editAcc && (
+        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setEditAcc(null)}>
           <div className="modal">
-            <div className="modal-title">⚒️ Neues Mitglied</div>
-            <MemberForm form={form} setForm={setForm} rankFull={rankFull}/>
-            <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20}}>
-              <button className="btn btn-ghost" onClick={()=>setShowAdd(false)}>Abbrechen</button>
-              <button className="btn btn-gold" onClick={saveMember}>Hinzufügen</button>
+            <div className="modal-title">🔑 Rang ändern — {editAcc.username}</div>
+            <div className="mb-16">
+              <label className="lbl">Rang</label>
+              <select className="inp" value={editAcc.role} onChange={e=>setEditAcc(p=>({...p,role:e.target.value}))}>
+                {ALL_RANKS.map(r=><option key={r}>{r}</option>)}
+              </select>
+            </div>
+            <div style={{padding:"10px 14px",background:"var(--bg2)",borderRadius:8,marginBottom:16}}>
+              <div style={{fontSize:12,color:"var(--text3)",marginBottom:4}}>Rechte für <strong style={{color:RANK_COLORS[editAcc.role]||"var(--gold2)"}}>{editAcc.role}</strong>:</div>
+              <div style={{fontSize:13,color:"var(--text2)"}}>
+                {ADMIN_ROLES.includes(editAcc.role) ? "✅ Vollzugriff — kann alles verwalten" : "👁️ Lesezugriff — kann nur lesen & Nachrichten schreiben"}
+              </div>
+            </div>
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <button className="btn btn-ghost" onClick={()=>setEditAcc(null)}>Abbrechen</button>
+              <button className="btn btn-gold" onClick={saveRole}>Speichern</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Edit Modal */}
-      {editM && (
-        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setEditM(null)}>
-          <div className="modal">
-            <div className="modal-title">✏️ Mitglied bearbeiten</div>
-            <MemberForm form={editM} setForm={setEditM} rankFull={rankFull}/>
-            <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20}}>
-              <button className="btn btn-ghost" onClick={()=>setEditM(null)}>Abbrechen</button>
-              <button className="btn btn-gold" onClick={updateMember}>Speichern</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import Modal */}
-      {showImport && isAdmin && (
-        <ImportModal db={db} memberList={memberList} onClose={()=>setShowImport(false)}/>
-      )}
-    </div>
-  );
-}
-
-function MemberForm({ form, setForm, rankFull }) {
-  const f = (k,v) => setForm(p=>({...p,[k]:v}));
-  return (
-    <div style={{display:"grid",gap:12}}>
-      <div><label className="lbl">Name *</label><input className="inp" value={form.name||""} onChange={e=>f("name",e.target.value)} placeholder="In-Game Name"/></div>
-      <div><label className="lbl">Rang</label>
-        <select className="inp" value={form.rank||"R5"} onChange={e=>f("rank",e.target.value)}>
-          {ALL_RANKS.map(r=><option key={r} value={r}>{RANK_ICONS[r]} {r}{rankFull(r)&&form.rank!==r?" (voll)":""}</option>)}
-        </select>
-      </div>
-      <div className="grid-2">
-        <div><label className="lbl">Wochenpunkte</label><input className="inp" type="number" value={form.weeklyPoints||""} onChange={e=>f("weeklyPoints",e.target.value)}/></div>
-        <div><label className="lbl">Gesamtpunkte</label><input className="inp" type="number" value={form.totalPoints||""} onChange={e=>f("totalPoints",e.target.value)}/></div>
-      </div>
-      <div><label className="lbl">Notiz</label><textarea className="inp" value={form.note||""} onChange={e=>f("note",e.target.value)} placeholder="Optionale Anmerkung…" style={{minHeight:60}}/></div>
-      <div>
-        <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:14}}>
-          <input type="checkbox" checked={form.active!==false} onChange={e=>f("active",e.target.checked)} style={{width:16,height:16}}/>
-          <span>Aktives Mitglied</span>
-        </label>
-      </div>
     </div>
   );
 }
@@ -913,9 +872,12 @@ Falls keine Daten erkennbar sind, antworte mit: []`}
 }
 
 // ── WAR TAB ──────────────────────────────────────────────────
-function WarTab({ warList, memberList, isAdmin, db, timer }) {
+function WarTab({ warList, accountList, isAdmin, db, timer }) {
+  const today = new Date().toISOString().split("T")[0];
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({opponent:"",result:"Sieg",ourPoints:"",theirPoints:"",date:new Date().toISOString().split("T")[0],participants:0,note:""});
+  const [expandedWar, setExpandedWar] = useState(null);
+  const [editingPoints, setEditingPoints] = useState({}); // warId -> {username -> points}
+  const [form, setForm] = useState({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:""});
   const warStatus = getWarStatus();
   const [ms, setMs] = useState(warStatus.msLeft);
   useEffect(() => { setMs(prev => prev-1000); }, [timer]);
@@ -923,26 +885,64 @@ function WarTab({ warList, memberList, isAdmin, db, timer }) {
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const winrate = warList.length ? Math.round((wins/warList.length)*100) : 0;
 
+  // Gesamtpunkte pro Mitglied über alle Wars
+  const totalPerMember = {};
+  warList.forEach(w => {
+    if (w.memberPoints) {
+      Object.entries(w.memberPoints).forEach(([name, pts]) => {
+        totalPerMember[name] = (totalPerMember[name]||0) + Number(pts);
+      });
+    }
+  });
+  const totalRanking = Object.entries(totalPerMember)
+    .map(([name,pts])=>({name,pts}))
+    .sort((a,b)=>b.pts-a.pts);
+  const maxTotal = totalRanking[0]?.pts || 1;
+
   async function addWar() {
     if (!form.opponent) return;
-    await push(ref(db,"wars"), {...form,ourPoints:Number(form.ourPoints)||0,theirPoints:Number(form.theirPoints)||0});
-    setForm({opponent:"",result:"Sieg",ourPoints:"",theirPoints:"",date:new Date().toISOString().split("T")[0],participants:0,note:""});
+    const memberPoints = {};
+    accountList.forEach(a => { memberPoints[a.username] = 0; });
+    await push(ref(db,"wars"), {
+      ...form,
+      theirPoints: Number(form.theirPoints)||0,
+      memberPoints,
+      ourPoints: 0,
+    });
+    setForm({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:""});
     setShowAdd(false);
   }
 
   async function deleteWar(id) { await remove(ref(db,`wars/${id}`)); }
 
-  const maxWarPoints = Math.max(...memberList.map(m=>Number(m.weeklyPoints)||0), 1);
+  async function savePoints(warId) {
+    const pts = editingPoints[warId] || {};
+    const updates = {};
+    Object.entries(pts).forEach(([name, val]) => {
+      updates[name] = Number(val)||0;
+    });
+    // Merge with existing
+    const war = warList.find(w=>w.id===warId);
+    const merged = {...(war?.memberPoints||{}), ...updates};
+    const ourTotal = Object.values(merged).reduce((s,v)=>s+Number(v),0);
+    await update(ref(db,`wars/${warId}`), { memberPoints: merged, ourPoints: ourTotal });
+    setEditingPoints(p=>({...p,[warId]:undefined}));
+  }
+
+  function startEditing(war) {
+    setEditingPoints(p=>({...p,[war.id]: {...(war.memberPoints||{})}}));
+    setExpandedWar(war.id);
+  }
 
   return (
     <div>
-      {/* War Status Banner */}
+      {/* Timer Banner */}
       <div className="war-banner section-gap">
         <div className="flex-between">
           <div>
-            <div style={{fontSize:11,letterSpacing:3,color:"var(--text3)",textTransform:"uppercase"}}>Nächster/Aktueller Clan War</div>
+            <div style={{fontSize:11,letterSpacing:3,color:"var(--text3)",textTransform:"uppercase"}}>Clan War Status</div>
             <div style={{color:warStatus.isActive?"#22c55e":"var(--text2)",marginTop:4}}>
-              {warStatus.isActive?"🔥 War läuft (Dienstag → Sonntag UTC)":"⏳ War beginnt Dienstag UTC"}
+              {warStatus.isActive?"🔥 War läuft (Dienstag → Sonntag UTC)":"⏳ Nächster War startet Dienstag UTC"}
             </div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -951,7 +951,7 @@ function WarTab({ warList, memberList, isAdmin, db, timer }) {
         </div>
       </div>
 
-      {/* War Stats */}
+      {/* Stats */}
       <div className="grid-3 section-gap">
         {[
           {label:"Siege",value:wins,color:"#22c55e",icon:"🏆"},
@@ -966,78 +966,110 @@ function WarTab({ warList, memberList, isAdmin, db, timer }) {
         ))}
       </div>
 
-      <div className="grid-2">
-        {/* War History */}
+      <div className="grid-2 section-gap">
+        {/* War Liste */}
         <div>
           <div className="flex-between mb-12">
             <div className="card-title" style={{marginBottom:0}}>⚔️ War-Historie</div>
             {isAdmin && <button className="btn btn-gold btn-sm" onClick={()=>setShowAdd(true)}>+ War</button>}
           </div>
-          {warList.length===0 && <div className="card"><div className="text-muted text-sm">Noch keine Wars</div></div>}
-          {warList.map(w=>(
-            <div key={w.id} style={{padding:"14px 16px",background:"var(--bg3)",border:`1px solid ${w.result==="Sieg"?"#22c55e20":"#ef444420"}`,borderRadius:10,marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
-              <div style={{fontSize:26,flexShrink:0}}>{w.result==="Sieg"?"🏆":"💀"}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600}}>vs. {w.opponent}</div>
-                <div style={{fontSize:12,color:"var(--text3)"}}>{w.date}{w.participants?` · ${w.participants} Teilnehmer`:""}</div>
-                {w.note && <div style={{fontSize:12,color:"var(--text2)",marginTop:2}}>📝 {w.note}</div>}
+
+          {warList.length===0 && <div className="card"><div className="text-muted text-sm">Noch keine Wars eingetragen</div></div>}
+
+          {warList.map(w=>{
+            const isExpanded = expandedWar===w.id;
+            const editing = editingPoints[w.id];
+            const members = accountList.map(a=>a.username);
+            const pts = editing || w.memberPoints || {};
+            const sortedMembers = [...members].sort((a,b)=>(Number(pts[b]||0))-(Number(pts[a]||0)));
+
+            return (
+              <div key={w.id} style={{background:"var(--bg3)",border:`1px solid ${w.result==="Sieg"?"#22c55e20":"#ef444420"}`,borderRadius:12,marginBottom:10,overflow:"hidden"}}>
+                {/* War Header */}
+                <div style={{padding:"14px 16px",display:"flex",alignItems:"center",gap:12,cursor:"pointer"}} onClick={()=>setExpandedWar(isExpanded?null:w.id)}>
+                  <div style={{fontSize:24,flexShrink:0}}>{w.result==="Sieg"?"🏆":"💀"}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:15}}>vs. {w.opponent}</div>
+                    <div style={{fontSize:12,color:"var(--text3)"}}>
+                      {w.dateFrom}{w.dateTo&&w.dateTo!==w.dateFrom?` → ${w.dateTo}`:""}
+                    </div>
+                    {w.note && <div style={{fontSize:12,color:"var(--text2)",marginTop:2}}>📝 {w.note}</div>}
+                  </div>
+                  <div style={{textAlign:"center",flexShrink:0}}>
+                    <div style={{color:"var(--gold2)",fontWeight:600,fontSize:16}}>{fmt(w.ourPoints||0)}</div>
+                    <div style={{fontSize:11,color:"var(--text3)"}}>vs {fmt(w.theirPoints||0)}</div>
+                  </div>
+                  <span style={{padding:"4px 10px",borderRadius:16,fontSize:12,background:w.result==="Sieg"?"#22c55e20":"#ef444420",color:w.result==="Sieg"?"#22c55e":"#ef4444",border:`1px solid ${w.result==="Sieg"?"#22c55e":"#ef4444"}`,flexShrink:0}}>
+                    {w.result==="Sieg"?"SIEG":"NIE."}
+                  </span>
+                  <span style={{color:"var(--text3)",fontSize:12,flexShrink:0}}>{isExpanded?"▲":"▼"}</span>
+                </div>
+
+                {/* Expanded: Mitglieder-Punkte */}
+                {isExpanded && (
+                  <div style={{borderTop:"1px solid var(--border)",padding:"14px 16px"}}>
+                    <div className="flex-between mb-12">
+                      <div style={{fontSize:12,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase"}}>Punkte der Mitglieder</div>
+                      <div style={{display:"flex",gap:6}}>
+                        {isAdmin && !editing && <button className="btn btn-ghost btn-sm" onClick={()=>startEditing(w)}>✏️ Bearbeiten</button>}
+                        {isAdmin && editing && <button className="btn btn-gold btn-sm" onClick={()=>savePoints(w.id)}>💾 Speichern</button>}
+                        {isAdmin && editing && <button className="btn btn-ghost btn-sm" onClick={()=>setEditingPoints(p=>({...p,[w.id]:undefined}))}>✕</button>}
+                        {isAdmin && <button className="btn btn-red btn-sm" onClick={()=>deleteWar(w.id)}>🗑️</button>}
+                      </div>
+                    </div>
+                    {sortedMembers.map(name=>{
+                      const p = editing ? (editing[name]||"") : (w.memberPoints?.[name]||0);
+                      const maxP = Math.max(...sortedMembers.map(n=>Number(pts[n]||0)),1);
+                      return (
+                        <div key={name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                          <div style={{width:130,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flexShrink:0}}>{name}</div>
+                          {editing ? (
+                            <input className="inp" type="number" value={editing[name]||""} placeholder="0"
+                              onChange={e=>setEditingPoints(prev=>({...prev,[w.id]:{...prev[w.id],[name]:e.target.value}}))}
+                              style={{maxWidth:110,padding:"4px 8px",fontSize:13}}/>
+                          ) : (
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                                <span style={{fontSize:12,color:"var(--text3)"}}></span>
+                                <span style={{color:"var(--gold2)",fontSize:13,fontWeight:600}}>{fmt(Number(p)||0)}</span>
+                              </div>
+                              <div className="pbar"><div className="pfill" style={{width:`${(Number(p)||0)/maxP*100}%`}}/></div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div style={{marginTop:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,display:"flex",justifyContent:"space-between",fontSize:13}}>
+                      <span style={{color:"var(--text3)"}}>Gesamt unsere Punkte:</span>
+                      <span style={{color:"var(--gold2)",fontWeight:600}}>{fmt(w.ourPoints||0)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{color:"var(--gold2)",fontSize:15,fontWeight:600}}>{fmt(w.ourPoints)}</div>
-                <div style={{color:"var(--text3)",fontSize:12}}>vs {fmt(w.theirPoints)}</div>
-              </div>
-              <span style={{padding:"4px 10px",borderRadius:16,fontSize:12,fontFamily:"'Cinzel',serif",background:w.result==="Sieg"?"#22c55e20":"#ef444420",color:w.result==="Sieg"?"#22c55e":"#ef4444",border:`1px solid ${w.result==="Sieg"?"#22c55e":"#ef4444"}`,flexShrink:0}}>
-                {w.result==="Sieg"?"SIEG":"NIE."}
-              </span>
-              {isAdmin && <button className="btn btn-red btn-sm" onClick={()=>deleteWar(w.id)}>🗑️</button>}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* War Points Ranking */}
+        {/* Gesamtpunkte Ranking über alle Wars */}
         <div className="card">
-          <div className="card-title">⚒️ War-Punkte Ranking</div>
-          {[...memberList].sort((a,b)=>(Number(b.weeklyPoints)||0)-(Number(a.weeklyPoints)||0)).map((m,i)=>(
-            <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <div className="card-title">🏅 Gesamtpunkte Ranking (alle Wars)</div>
+          {totalRanking.length===0 && <div className="text-muted text-sm">Noch keine Punkte eingetragen</div>}
+          {totalRanking.map((m,i)=>(
+            <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
               <div style={{width:22,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{RANK_ICONS[m.rank]} {m.name}</span>
-                  <span style={{color:"#a855f7",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.weeklyPoints||0)}</span>
+                  <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
+                  <span style={{color:"#a855f7",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.pts)}</span>
                 </div>
-                <div className="pbar"><div className="pfill" style={{width:`${((Number(m.weeklyPoints)||0)/maxWarPoints)*100}%`,background:"linear-gradient(90deg,#7c3aed,#a855f7)"}}/></div>
+                <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxTotal)*100}%`,background:"linear-gradient(90deg,#7c3aed,#a855f7)"}}/></div>
               </div>
             </div>
           ))}
-          {memberList.length===0 && <div className="text-muted text-sm">Noch keine Mitglieder</div>}
         </div>
       </div>
 
-      {/* War Rewards Table */}
-      <div className="card mt-20">
-        <div className="card-title">🎁 Individuelle War-Belohnungen</div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead>
-              <tr>
-                {["Punkte","Hämmer","Grüne Tickets","Ei-Schlüssel","Münzen","Tränke","Winder"].map(h=>(
-                  <th key={h} style={{padding:"6px 10px",textAlign:"left",color:"var(--text3)",fontSize:10,letterSpacing:1,textTransform:"uppercase",borderBottom:"1px solid var(--border)"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[[10000,100,60,1,"-","-","-"],[50000,140,84,1,"-","-","-"],[100000,200,118,1,"-","-","-"],[200000,280,165,1,"-","-","-"],[300000,380,230,1,"-","-","-"],[400000,550,323,1,"-","-","-"],[500000,750,452,1,"-","-","-"]].map((row,i)=>(
-                <tr key={i} style={{borderBottom:"1px solid #2a180040"}}>
-                  {row.map((cell,j)=>(
-                    <td key={j} style={{padding:"6px 10px",color:j===0?"var(--gold2)":cell==="-"?"var(--text3)":"var(--text)"}}>{j===0?fmt(cell):cell}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+      {/* Add War Modal */}
       {showAdd && (
         <div className="overlay" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
           <div className="modal">
@@ -1045,23 +1077,23 @@ function WarTab({ warList, memberList, isAdmin, db, timer }) {
             <div style={{display:"grid",gap:12}}>
               <div><label className="lbl">Gegner-Clan *</label><input className="inp" value={form.opponent} onChange={e=>setForm(p=>({...p,opponent:e.target.value}))} placeholder="Clan-Name"/></div>
               <div className="grid-2">
-                <div><label className="lbl">Unsere Punkte</label><input className="inp" type="number" value={form.ourPoints} onChange={e=>setForm(p=>({...p,ourPoints:e.target.value}))}/></div>
-                <div><label className="lbl">Gegner-Punkte</label><input className="inp" type="number" value={form.theirPoints} onChange={e=>setForm(p=>({...p,theirPoints:e.target.value}))}/></div>
+                <div><label className="lbl">Von (Datum)</label><input className="inp" type="date" value={form.dateFrom} onChange={e=>setForm(p=>({...p,dateFrom:e.target.value}))}/></div>
+                <div><label className="lbl">Bis (Datum)</label><input className="inp" type="date" value={form.dateTo} onChange={e=>setForm(p=>({...p,dateTo:e.target.value}))}/></div>
               </div>
-              <div className="grid-2">
-                <div><label className="lbl">Datum</label><input className="inp" type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}/></div>
-                <div><label className="lbl">Teilnehmer</label><input className="inp" type="number" value={form.participants} onChange={e=>setForm(p=>({...p,participants:e.target.value}))}/></div>
-              </div>
+              <div><label className="lbl">Gegner-Gesamtpunkte</label><input className="inp" type="number" value={form.theirPoints} onChange={e=>setForm(p=>({...p,theirPoints:e.target.value}))} placeholder="0"/></div>
               <div><label className="lbl">Ergebnis</label>
                 <select className="inp" value={form.result} onChange={e=>setForm(p=>({...p,result:e.target.value}))}>
                   <option>Sieg</option><option>Niederlage</option>
                 </select>
               </div>
               <div><label className="lbl">Notiz</label><textarea className="inp" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{minHeight:60}}/></div>
+              <div style={{padding:"10px 14px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text3)"}}>
+                💡 Nach dem Erstellen kannst du auf den War klicken und die Punkte jedes Mitglieds eintragen. Unsere Gesamtpunkte werden automatisch berechnet.
+              </div>
             </div>
             <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:20}}>
               <button className="btn btn-ghost" onClick={()=>setShowAdd(false)}>Abbrechen</button>
-              <button className="btn btn-gold" onClick={addWar}>Hinzufügen</button>
+              <button className="btn btn-gold" onClick={addWar}>Erstellen</button>
             </div>
           </div>
         </div>
@@ -1303,6 +1335,177 @@ function Notes({ noteList, isAdmin, db, user }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── MESSAGES ─────────────────────────────────────────────────
+function Messages({ messages, currentUser, accountList, db }) {
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [text, setText] = useState("");
+  const msgList = Object.entries(messages).map(([id,m])=>({id,...m}));
+
+  // Konversationen: alle User mit denen ich Nachrichten habe
+  const conversations = {};
+  msgList.forEach(m => {
+    const other = m.from===currentUser.username ? m.to : m.from;
+    if (m.from===currentUser.username || m.to===currentUser.username) {
+      if (!conversations[other]) conversations[other] = [];
+      conversations[other].push(m);
+    }
+  });
+
+  // Alle anderen User für neue Konversation
+  const otherUsers = accountList
+    .filter(a => a.username !== currentUser.username)
+    .sort((a,b) => a.username.localeCompare(b.username));
+
+  // Nachrichten der aktuellen Konversation
+  const currentMsgs = selectedUser
+    ? (conversations[selectedUser]||[]).sort((a,b)=>a.createdAt-b.createdAt)
+    : [];
+
+  // Ungelesene markieren als gelesen
+  useEffect(() => {
+    if (!selectedUser) return;
+    msgList.forEach(m => {
+      if (m.to===currentUser.username && m.from===selectedUser && !m.read) {
+        update(ref(db,`messages/${m.id}`), {read:true});
+      }
+    });
+  }, [selectedUser, messages]);
+
+  async function sendMsg() {
+    if (!text.trim() || !selectedUser) return;
+    await push(ref(db,"messages"), {
+      from: currentUser.username,
+      to: selectedUser,
+      text: text.trim(),
+      createdAt: Date.now(),
+      read: false,
+    });
+    setText("");
+  }
+
+  function unreadFrom(username) {
+    return msgList.filter(m=>m.from===username&&m.to===currentUser.username&&!m.read).length;
+  }
+
+  const lastMsg = (username) => {
+    const msgs = (conversations[username]||[]).sort((a,b)=>b.createdAt-a.createdAt);
+    return msgs[0];
+  };
+
+  // Alle User die eine Konversation haben + Rest
+  const convUsers = Object.keys(conversations).sort((a,b)=>{
+    const la = lastMsg(a)?.createdAt||0;
+    const lb = lastMsg(b)?.createdAt||0;
+    return lb-la;
+  });
+
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16,height:"calc(100vh - 200px)",minHeight:400}}>
+      {/* Sidebar */}
+      <div className="card" style={{padding:0,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",fontFamily:"'Cinzel',serif",fontSize:12,color:"var(--gold2)",letterSpacing:1}}>
+          💬 NACHRICHTEN
+        </div>
+        <div style={{overflowY:"auto",flex:1}}>
+          {/* Neue Konversation */}
+          <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)"}}>
+            <select className="inp" style={{fontSize:12,padding:"5px 8px"}} value="" onChange={e=>{ if(e.target.value) setSelectedUser(e.target.value); }}>
+              <option value="">+ Neue Nachricht…</option>
+              {otherUsers.map(u=><option key={u.id} value={u.username}>{u.username}</option>)}
+            </select>
+          </div>
+          {/* Konversationsliste */}
+          {convUsers.length===0 && (
+            <div style={{padding:"20px 16px",fontSize:13,color:"var(--text3)",textAlign:"center"}}>
+              Noch keine Nachrichten.<br/>Wähle oben einen Spieler aus.
+            </div>
+          )}
+          {convUsers.map(username=>{
+            const unread = unreadFrom(username);
+            const last = lastMsg(username);
+            const isSelected = selectedUser===username;
+            return (
+              <div key={username} onClick={()=>setSelectedUser(username)}
+                style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid var(--border)",background:isSelected?"var(--bg4)":"transparent",borderLeft:isSelected?"3px solid var(--gold2)":"3px solid transparent"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                  <span style={{fontWeight:600,fontSize:13,color:isSelected?"var(--gold2)":"var(--text)"}}>{username}</span>
+                  {unread>0 && <span style={{background:"var(--gold2)",color:"#000",borderRadius:10,fontSize:10,padding:"1px 6px",fontWeight:700}}>{unread}</span>}
+                </div>
+                {last && <div style={{fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {last.from===currentUser.username?"Du: ":""}{last.text}
+                </div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Chat Bereich */}
+      <div className="card" style={{padding:0,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        {!selectedUser ? (
+          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"var(--text3)"}}>
+            <div style={{fontSize:40}}>💬</div>
+            <div style={{fontSize:14}}>Wähle einen Spieler aus um eine Nachricht zu schreiben</div>
+          </div>
+        ) : (<>
+          {/* Header */}
+          <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:"var(--bg4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>
+              {RANK_ICONS[accountList.find(a=>a.username===selectedUser)?.role]||"⚒️"}
+            </div>
+            <div>
+              <div style={{fontWeight:600,fontSize:14}}>{selectedUser}</div>
+              <div style={{fontSize:11,color:"var(--text3)"}}>
+                {accountList.find(a=>a.username===selectedUser)?.role||""}
+              </div>
+            </div>
+          </div>
+
+          {/* Nachrichten */}
+          <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
+            {currentMsgs.length===0 && (
+              <div style={{textAlign:"center",color:"var(--text3)",fontSize:13,marginTop:20}}>
+                Noch keine Nachrichten. Schreib etwas!
+              </div>
+            )}
+            {currentMsgs.map(m=>{
+              const isMe = m.from===currentUser.username;
+              return (
+                <div key={m.id} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start"}}>
+                  <div style={{
+                    maxWidth:"75%",padding:"8px 12px",borderRadius:isMe?"12px 12px 4px 12px":"12px 12px 12px 4px",
+                    background:isMe?"linear-gradient(135deg,var(--gold),#8a5c00)":"var(--bg4)",
+                    color:isMe?"#000":"var(--text)",
+                    fontSize:14,lineHeight:1.5,
+                    border:isMe?"none":"1px solid var(--border)"
+                  }}>
+                    <div>{m.text}</div>
+                    <div style={{fontSize:10,marginTop:4,opacity:.6,textAlign:"right"}}>
+                      {new Date(m.createdAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}
+                      {isMe && <span style={{marginLeft:4}}>{m.read?"✓✓":"✓"}</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Input */}
+          <div style={{padding:"12px 16px",borderTop:"1px solid var(--border)",display:"flex",gap:8}}>
+            <input className="inp" placeholder="Nachricht schreiben…" value={text}
+              onChange={e=>setText(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMsg()}
+              style={{flex:1}}/>
+            <button className="btn btn-gold" onClick={sendMsg} disabled={!text.trim()} style={{flexShrink:0}}>
+              Senden
+            </button>
+          </div>
+        </>)}
+      </div>
     </div>
   );
 }
