@@ -40,12 +40,52 @@ const RANK_ICONS = {
   "R1":"💎","R2":"🔥","R3":"⚡","R4":"🌙","R5":"⚒️"
 };
 const WAR_DAYS = [
-  { day:"Dienstag",  mult:1,  actions:["Schmieden (Primitiv/Mittelalt/Frühneuzeit): 1 Pkt","Schmieden (Modern/Weltraum/Interstellar): 2 Pkt","Schmieden (Unterwelt): 2 Pkt","Schmieden (Multiversum/Quanten/Göttlich): 3 Pkt","Tech Tree I: 300 | II: 7.5k | III: 20k | IV: 35k | V: 62k","Skill-Upgrades: 50–175 Pkt"] },
-  { day:"Mittwoch",  mult:2,  actions:["1.000 Münzen für Schmiede: 10 Pkt","Schmied-Upgrade starten/abschließen: 10.000 Pkt","Dungeon-Schlüssel nutzen: 1.000 Pkt","Eier ausbrüten: 250–16.000 Pkt","Haustiere zusammenführen: 50–3.200 Pkt"] },
-  { day:"Donnerstag",mult:3,  actions:["Alle Schmied-Aktionen","Skill-Upgrades: 50–175 Pkt","Mount-Beschwörungen: 400–3.000 Pkt"] },
-  { day:"Freitag",   mult:4,  actions:["1.000 Münzen für Schmiede: 10 Pkt","Schmied-Upgrade starten/abschließen: 10.000 Pkt","Tech Tree Upgrades (I–V)","Eier ausbrüten & Haustiere zusammenführen"] },
-  { day:"Samstag",   mult:5,  actions:["Alle Schmied-Aktionen","Dungeon-Schlüssel nutzen: 1.000 Pkt","Mount-Beschwörungen & Zusammenführungen"] },
-  { day:"Sonntag",   mult:2,  actions:["Rivalen besiegen: 1–50 Pkt","All-Out Brawl gewinnen: 1.000 Pkt","5 Tickets zu Beginn, Reset nach allen Niederlagen"] },
+  { day:"Dienstag", color:"#22c55e", actions:[
+    "Primitiv/Mittelalter/Fruehmodern: 1 Pkt",
+    "Modern/Weltraum/Interstellar: 2 Pkt",
+    "Multiversum/Quanten/Unterwelt/Goettlich: 3 Pkt",
+    "Skill beschwören (125–250 Pkt)",
+    "Skill upgraden (125–250 Pkt)",
+    "Tech Tree I: 1.000 | II: 10.000 | III: 30.000 | IV: 50.000 | V: 100.000 Pkt",
+  ]},
+  { day:"Mittwoch", color:"#3b82f6", actions:[
+    "1.000 Münzen für Schmiede: 27 Pkt",
+    "1 Edelstein für Schmiede: 50 Pkt",
+    "Dungeon-Schlüssel nutzen: 3.000 Pkt",
+    "Gewöhnliches Ei: 200 | Selten: 800 | Episch: 1.600 Pkt",
+    "Legendär Ei: 3.200 | Ultimate: 6.400 | Mythisch: 12.800 Pkt",
+    "Haustiere zusammenführen: 50–3.200 Pkt",
+  ]},
+  { day:"Donnerstag", color:"#a855f7", actions:[
+    "Primitiv/Mittelalter/Fruehmodern: 1 Pkt",
+    "Modern/Weltraum/Interstellar: 2 Pkt",
+    "Multiversum/Quanten/Unterwelt/Goettlich: 3 Pkt",
+    "Skill beschwören (125–250 Pkt)",
+    "Skill upgraden (125–250 Pkt)",
+    "Reittier beschwören: 50–2.500 Pkt",
+    "Reittier zusammenführen: 50–2.500 Pkt",
+  ]},
+  { day:"Freitag", color:"#f59e0b", actions:[
+    "1.000 Münzen für Schmiede: 27 Pkt",
+    "1 Edelstein für Schmiede: 50 Pkt",
+    "Tech Tree I: 1.000 | II: 10.000 | III: 30.000 | IV: 50.000 | V: 100.000 Pkt",
+    "Gewöhnliches Ei: 200 | Selten: 800 | Episch: 1.600 Pkt",
+    "Legendär Ei: 3.200 | Ultimate: 6.400 | Mythisch: 12.800 Pkt",
+    "Haustiere zusammenführen: 50–3.200 Pkt",
+  ]},
+  { day:"Samstag", color:"#ef4444", actions:[
+    "Primitiv/Mittelalter/Fruehmodern: 1 Pkt",
+    "Modern/Weltraum/Interstellar: 2 Pkt",
+    "Multiversum/Quanten/Unterwelt/Goettlich: 3 Pkt",
+    "Dungeon-Schlüssel nutzen: 3.000 Pkt",
+    "Reittier beschwören: 50–2.500 Pkt",
+    "Reittier zusammenführen: 50–2.500 Pkt",
+  ]},
+  { day:"Sonntag", color:"#ec4899", actions:[
+    "Rivalen-Clan-Mitglied besiegen: 1–50 Pkt",
+    "All-Out Brawl gewinnen: 1.000 Pkt",
+    "5 Tickets zu Beginn, Reset nach allen Niederlagen",
+  ]},
 ];
 
 // SHA-256 Hash via Web Crypto API — Passwort wird NIE im Klartext gespeichert
@@ -288,7 +328,7 @@ export default function GerxyApp() {
 
   function logout() { setUser(null); sessionStorage.removeItem("gerxy_user"); setTab("dashboard"); }
 
-  if (!user) return <><style>{CSS}</style><LoginScreen onLogin={login} onRegister={register} accounts={accounts} loading={loading}/></>;
+  if (!user) return <><style>{CSS}</style><LoginScreen onLogin={login} onRegister={register} onGuest={()=>{ const g={id:"guest",username:"Gast",role:"Gast",isGuest:true}; setUser(g); sessionStorage.setItem("gerxy_user",JSON.stringify(g)); }} accounts={accounts} loading={loading}/></>;
 
   const memberList = Object.entries(members).map(([id,m])=>({id,...m}));
   const warList = Object.entries(wars).map(([id,w])=>({id,...w})).sort((a,b)=>b.dateFrom?.localeCompare(a.dateFrom));
@@ -303,9 +343,9 @@ export default function GerxyApp() {
     {id:"dashboard",label:"⚔️ Dashboard"},
     {id:"members",label:"👥 Mitglieder"},
     {id:"war",label:"🏆 Clan War"},
-    {id:"mypage",label:"📊 Meine Seite"},
+    ...(user.isGuest ? [] : [{id:"mypage",label:"📊 Meine Seite"}]),
     {id:"notes",label:"📋 Notizen"},
-    {id:"messages",label:`💬 Nachrichten${unreadCount>0?` (${unreadCount})`:""}` },
+    ...(user.isGuest ? [] : [{id:"messages",label:`💬 Nachrichten${unreadCount>0?` (${unreadCount})`:""}`}]),
     {id:"spielinfo",label:"📖 Spielinfo"},
     ...(isAdmin ? [{id:"admin",label:"⚙️ Admin"}] : []),
   ];
@@ -332,7 +372,8 @@ export default function GerxyApp() {
                   <span className="live-dot" style={{background:connected?"#22c55e":"#ef4444"}}/>
                   {connected?"Live":"Offline"}
                 </span>
-                <button className="btn btn-ghost btn-sm" onClick={logout}>🚪</button>
+                {user.isGuest && <span className="badge" style={{color:"#9ca3af",borderColor:"#9ca3af40",background:"#9ca3af10",fontSize:11}}>👁️ Gast</span>}
+              <button className="btn btn-ghost btn-sm" onClick={logout}>{user.isGuest?"✕ Verlassen":"🚪"}</button>
               </div>
             </div>
             <div className="tabs">
@@ -353,9 +394,9 @@ export default function GerxyApp() {
             {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer}/>}
             {tab==="members" && <Members accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} currentUser={user}/>}
             {tab==="war" && <WarTab warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} timer={timer}/>}
-            {tab==="mypage" && <MyPage user={user} memberList={memberList} db={db}/>}
+            {tab==="mypage" && !user.isGuest && <MyPage user={user} memberList={memberList} warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
             {tab==="notes" && <Notes noteList={noteList} isAdmin={isAdmin} db={db} user={user}/>}
-            {tab==="messages" && <Messages messages={messages} currentUser={user} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
+            {tab==="messages" && !user.isGuest && <Messages messages={messages} currentUser={user} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
             {tab==="spielinfo" && <Spielinfo/>}
             {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members} wars={wars}/>}
           </div>
@@ -366,7 +407,7 @@ export default function GerxyApp() {
 }
 
 // ── LOGIN ────────────────────────────────────────────────────
-function LoginScreen({ onLogin, onRegister, accounts, loading }) {
+function LoginScreen({ onLogin, onRegister, onGuest, accounts, loading }) {
   const [mode, setMode] = useState("login");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
@@ -432,6 +473,14 @@ function LoginScreen({ onLogin, onRegister, accounts, loading }) {
             {err && <div style={{padding:"8px 12px",background:"#7f1d1d40",border:"1px solid #ef444440",borderRadius:8,color:"#fca5a5",fontSize:13,marginBottom:14}}>⚠️ {err}</div>}
             {success && <div style={{padding:"8px 12px",background:"#14390060",border:"1px solid #22c55e40",borderRadius:8,color:"#22c55e",fontSize:13,marginBottom:14}}>✅ {success}</div>}
             <button className="btn btn-gold w100" style={{justifyContent:"center",padding:"12px",fontSize:14}} onClick={doLogin}>⚔️ Einloggen</button>
+            <button onClick={onGuest} style={{width:"100%",marginTop:10,padding:"10px",borderRadius:8,border:"1px solid var(--border2)",background:"transparent",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:12,letterSpacing:1,color:"var(--text3)",transition:"all .2s"}}
+              onMouseEnter={e=>e.target.style.color="var(--gold)"}
+              onMouseLeave={e=>e.target.style.color="var(--text3)"}>
+              👁️ Als Gast fortfahren
+            </button>
+            <div style={{marginTop:8,fontSize:11,color:"var(--text3)",textAlign:"center",lineHeight:1.5}}>
+              Gäste können das Tool lesen aber nichts bearbeiten.<br/>Meine Seite und Nachrichten sind nicht verfügbar.
+            </div>
           </>)}
 
           {mode==="register" && (<>
@@ -453,6 +502,11 @@ function LoginScreen({ onLogin, onRegister, accounts, loading }) {
             </div>
             {err && <div style={{padding:"8px 12px",background:"#7f1d1d40",border:"1px solid #ef444440",borderRadius:8,color:"#fca5a5",fontSize:13,marginBottom:14}}>⚠️ {err}</div>}
             <button className="btn btn-gold w100" style={{justifyContent:"center",padding:"12px",fontSize:14}} onClick={doRegister}>⚒️ Account erstellen</button>
+            <button onClick={onGuest} style={{width:"100%",marginTop:10,padding:"10px",borderRadius:8,border:"1px solid var(--border2)",background:"transparent",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:12,letterSpacing:1,color:"var(--text3)",transition:"all .2s"}}
+              onMouseEnter={e=>e.target.style.color="var(--gold)"}
+              onMouseLeave={e=>e.target.style.color="var(--text3)"}>
+              👁️ Als Gast fortfahren
+            </button>
             <div style={{marginTop:12,fontSize:12,color:"var(--text3)",textAlign:"center"}}>Nur für Clan-Mitglieder von GERXY</div>
           </>)}
 
@@ -505,7 +559,7 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
           <div>
             <div style={{fontSize:11,letterSpacing:3,textTransform:"uppercase",color:"var(--text3)"}}>Clan War</div>
             <div style={{fontSize:13,color:warStatus.isActive?"#22c55e":"var(--text2)"}}>
-              {warStatus.isActive ? `🔥 AKTIV — ${warStatus.todayInfo?.day} (${warStatus.todayInfo?.mult}x Multiplikator)` : "⏳ Nächster War startet in"}
+              {warStatus.isActive ? `🔥 AKTIV — ${warStatus.todayInfo?.day}` : "⏳ Nächster War startet in"}
             </div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -514,11 +568,13 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
           </div>
         </div>
         {warStatus.isActive && warStatus.todayInfo && (
-          <div style={{marginTop:8}}>
-            <div style={{fontSize:12,color:"var(--text3)",marginBottom:6,letterSpacing:1}}>HEUTIGE AKTIONEN:</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          <div style={{marginTop:10}}>
+            <div style={{fontSize:11,color:"var(--text3)",marginBottom:8,letterSpacing:1,textTransform:"uppercase"}}>
+              Heutige Aktionen — {warStatus.todayInfo.day}:
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:4}}>
               {warStatus.todayInfo.actions.map((a,i) => (
-                <span key={i} style={{fontSize:12,padding:"3px 8px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:6,color:"var(--text2)"}}>{a}</span>
+                <div key={i} style={{fontSize:12,padding:"5px 10px",background:`${warStatus.todayInfo.color||"#c8850a"}15`,border:`1px solid ${warStatus.todayInfo.color||"#c8850a"}30`,borderRadius:6,color:"var(--text2)",lineHeight:1.4}}>{a}</div>
               ))}
             </div>
           </div>
@@ -567,7 +623,7 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
               <div key={i} className="war-day-card" style={{borderColor:isToday?"var(--gold)":"var(--border)",background:isToday?"#c8850a15":"var(--bg2)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{fontSize:13,fontFamily:"'Cinzel',serif",color:isToday?"var(--gold2)":"var(--text2)"}}>{isToday?"🔥 ":""}{wd.day}</span>
-                  <span style={{padding:"2px 8px",borderRadius:12,background:"#c8850a20",color:"var(--gold)",fontSize:11,fontFamily:"'Cinzel',serif"}}>{wd.mult}x Mult.</span>
+                  <span style={{padding:"2px 8px",borderRadius:12,background:`${wd.color||"#c8850a"}20`,color:wd.color||"var(--gold)",fontSize:11,border:`1px solid ${wd.color||"#c8850a"}40`,borderRadius:10}}>Tag {i+1}</span>
                 </div>
               </div>
             );
@@ -963,7 +1019,12 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   if (selectedWar) {
     const war = warList.find(w=>w.id===selectedWar.id)||selectedWar;
     const pts = editingPoints||war.memberPoints||{};
-    const allNames = [...new Set([...accountList.map(a=>a.username),...Object.keys(war.memberPoints||{})])];
+    // Nur Mitglieder anzeigen die tatsächlich Punkte haben (aus CSV importiert)
+    // Plus editierbare Felder für alle Accounts wenn im Bearbeitungsmodus
+    const participantNames = editingPoints
+      ? [...new Set([...accountList.map(a=>a.username),...Object.keys(war.memberPoints||{})])]
+      : Object.keys(war.memberPoints||{}).filter(n => Number(war.memberPoints[n])>0);
+    const allNames = [...new Set(participantNames)];
     const sorted = [...allNames].sort((a,b)=>(Number(pts[b]||0))-(Number(pts[a]||0)));
     const maxP = Math.max(...sorted.map(n=>Number(pts[n]||0)),1);
 
@@ -1212,8 +1273,17 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
 }
 
 // ── MY PAGE ──────────────────────────────────────────────────
-function MyPage({ user, memberList, db }) {
+function MyPage({ user, memberList, warList, accountList, db }) {
+  // Rang aus Account-System holen (korrekt), nicht aus members
+  const myAccount = accountList?.find(a => a.username?.toLowerCase()===user.username?.toLowerCase()) || {};
+  const myRank = myAccount.role || user.role;
   const myData = memberList.find(m => m.name?.toLowerCase()===user.username?.toLowerCase()) || {};
+  // Gesamtpunkte aus allen Wars berechnen
+  const myTotalWarPts = (warList||[]).reduce((sum, w) => {
+    if (!w.memberPoints) return sum;
+    const entry = Object.entries(w.memberPoints).find(([name]) => name.toLowerCase()===user.username?.toLowerCase());
+    return sum + (entry ? Number(entry[1])||0 : 0);
+  }, 0);
   const [activeCalc, setActiveCalc] = useState("forge");
   const [forgeLevel, setForgeLevel] = useState(10);
   const [freeForge, setFreeForge] = useState(0);
@@ -1325,12 +1395,15 @@ function MyPage({ user, memberList, db }) {
   return (
     <div>
       <div style={{marginBottom:20,padding:"12px 16px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:12,display:"flex",alignItems:"center",gap:12}}>
-        <div style={{width:44,height:44,borderRadius:"50%",background:`${RANK_COLORS[myData.rank||user.role]||"#5a3a00"}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`2px solid ${RANK_COLORS[myData.rank||user.role]||"#5a3a00"}50`}}>
-          {RANK_ICONS[myData.rank||user.role]||".."}
+        <div style={{width:44,height:44,borderRadius:"50%",background:`${RANK_COLORS[myRank]||"#5a3a00"}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`2px solid ${RANK_COLORS[myRank]||"#5a3a00"}50`}}>
+          {RANK_ICONS[myRank]||"⚒️"}
         </div>
         <div>
           <div style={{fontFamily:"'Cinzel',serif",fontSize:17,color:"var(--gold2)"}}>{user.username}</div>
-          <span className="rank-badge" style={{color:RANK_COLORS[myData.rank||user.role]||"#c88500",borderColor:`${RANK_COLORS[myData.rank||user.role]||"#c88500"}40`,background:`${RANK_COLORS[myData.rank||user.role]||"#c88500"}10`}}>{myData.rank||user.role}</span>
+          <span className="rank-badge" style={{color:RANK_COLORS[myRank]||"#c88500",borderColor:`${RANK_COLORS[myRank]||"#c88500"}40`,background:`${RANK_COLORS[myRank]||"#c88500"}10`}}>{myRank}</span>
+        </div>
+        <div style={{marginLeft:"auto",textAlign:"right"}}>
+          {myTotalWarPts>0 && <><div style={{color:"var(--gold2)",fontSize:18,fontWeight:700,fontFamily:"'Cinzel',serif"}}>{fmt(myTotalWarPts)}</div><div style={{fontSize:11,color:"var(--text3)"}}>War-Gesamtpunkte</div></>}
         </div>
       </div>
 
@@ -1614,7 +1687,7 @@ function Spielinfo() {
       {section==="war" && (
         <div>
           <div style={{padding:"10px 16px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,marginBottom:16,fontSize:13,color:"var(--text3)"}}>
-            Strategie: Dungeons, Eier und Reittiere fuer Tag 5 (Samstag) aufsparen - beste Punkteausbeute! Tech Tree Upgrades an Tag 1/4 starten und an Tag 4 abschliessen.
+            Strategie: Eier und Reittiere fuer Tag 5 (Samstag) aufsparen - beste Punkteausbeute! Tech Tree Upgrades an Tag 1/4 starten und an Tag 4 abschliessen.
           </div>
           {WAR_ACTIONS.map((day,di)=>(
             <div key={di} className="card mb-16" style={{borderColor:`${day.color}30`}}>
@@ -1702,7 +1775,6 @@ function Spielinfo() {
             {title:"Clan War Strategie",tips:[
               "Samstag = beste Punkteausbeute (alle Aktionen verfuegbar)",
               "Tech Tree Upgrades an Tag 1/4 starten - an Tag 4 abschliessen (100k Pkt)",
-              "Dungeon-Schluessel fuer Tag 2 und 5 aufsparen (3.000 Pkt/Schluessel)",
               "Eier an Tag 2 und 4 ausbrueten (bis 12.800 Pkt fuer Mythisch)",
               "Reittiere an Tag 3 und 5 beschworen/zusammenfuehren",
               "Sonntag: Alle 5 Tickets fuer Brawl nutzen - 1.000 Pkt beim Sieg",
