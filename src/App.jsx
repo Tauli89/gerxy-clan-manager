@@ -1289,13 +1289,47 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const [freeForge, setFreeForge] = useState(0);
   const [hammers, setHammers] = useState(100);
   const [calcResult, setCalcResult] = useState(null);
-  const [myNote, setMyNote] = useState(myData.personalNote||"");
+  const [myNote, setMyNote] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
   const [eggTimerLevel, setEggTimerLevel] = useState(0);
   const [eggRarity, setEggRarity] = useState("Gewoehnlich");
   const [offlineTechLevel, setOfflineTechLevel] = useState(0);
   const [summonType, setSummonType] = useState("Haustier");
   const [summonLevel, setSummonLevel] = useState(1);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // Profil aus Firebase laden beim ersten Render
+  useEffect(() => {
+    const profileRef = ref(db, `profiles/${user.username}`);
+    const unsub = onValue(profileRef, snap => {
+      if (snap.val() && !profileLoaded) {
+        const p = snap.val();
+        if (p.forgeLevel) setForgeLevel(p.forgeLevel);
+        if (p.freeForge !== undefined) setFreeForge(p.freeForge);
+        if (p.eggTimerLevel !== undefined) setEggTimerLevel(p.eggTimerLevel);
+        if (p.offlineTechLevel !== undefined) setOfflineTechLevel(p.offlineTechLevel);
+        if (p.summonType) setSummonType(p.summonType);
+        if (p.summonLevel) setSummonLevel(p.summonLevel);
+        if (p.myNote !== undefined) setMyNote(p.myNote);
+        setProfileLoaded(true);
+      } else if (!snap.val()) {
+        setProfileLoaded(true);
+      }
+    });
+    return () => unsub();
+  }, [user.username]);
+
+  // Profil in Firebase speichern
+  async function saveProfile() {
+    await update(ref(db, `profiles/${user.username}`), {
+      forgeLevel, freeForge, eggTimerLevel, offlineTechLevel,
+      summonType, summonLevel, myNote,
+      lastUpdated: Date.now(),
+    });
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2000);
+  }
 
   const FORGE_DATA = [
     [1,null,null,"N/A","N/A",100,0,0,0,0,0,0,0,0,0],
@@ -1381,8 +1415,9 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   }
 
   async function saveNote() {
-    const m = memberList.find(m2 => m2.name?.toLowerCase()===user.username?.toLowerCase());
-    if(m){await update(ref(db,`members/${m.id}`),{personalNote:myNote});setNoteSaved(true);setTimeout(()=>setNoteSaved(false),2000);}
+    await saveProfile();
+    setNoteSaved(true);
+    setTimeout(() => setNoteSaved(false), 2000);
   }
 
   const offlineRow = OFFLINE_DATA[offlineTechLevel]||OFFLINE_DATA[0];
@@ -1419,10 +1454,10 @@ function MyPage({ user, memberList, warList, accountList, db }) {
             <div className="card-title">War-Punkte Kalkulator</div>
             <div style={{display:"grid",gap:12}}>
               <div><label className="lbl">Schmied-Level: {forgeLevel}</label>
-                <input type="range" min={1} max={35} value={forgeLevel} onChange={e=>{setForgeLevel(Number(e.target.value));setCalcResult(null);}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+                <input type="range" min={1} max={35} value={forgeLevel} onChange={e=>{const v=Number(e.target.value);setForgeLevel(v);setCalcResult(null);update(ref(db,`profiles/${user.username}`),{forgeLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div><label className="lbl">Gratis-Schmiede: {freeForge}%</label>
-                <input type="range" min={0} max={50} value={freeForge} onChange={e=>setFreeForge(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+                <input type="range" min={0} max={50} value={freeForge} onChange={e=>{const v=Number(e.target.value);setFreeForge(v);update(ref(db,`profiles/${user.username}`),{freeForge:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div><label className="lbl">Hämmer</label><input className="inp" type="number" value={hammers} onChange={e=>setHammers(Number(e.target.value))}/></div>
               <button className="btn btn-gold" onClick={calcWarPoints} style={{justifyContent:"center"}}>Berechnen</button>
@@ -1468,7 +1503,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
                 </select>
               </div>
               <div><label className="lbl">Timer Speed Tech Level: {eggTimerLevel} ({eggTimerLevel*10}%)</label>
-                <input type="range" min={0} max={25} value={eggTimerLevel} onChange={e=>setEggTimerLevel(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+                <input type="range" min={0} max={25} value={eggTimerLevel} onChange={e=>{const v=Number(e.target.value);setEggTimerLevel(v);update(ref(db,`profiles/${user.username}`),{eggTimerLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div style={{padding:16,background:"var(--bg2)",borderRadius:10,textAlign:"center"}}>
                 <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,letterSpacing:1}}>SCHLÜPFZEIT</div>
@@ -1500,7 +1535,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
             <div className="card-title">Offline-Zeit Kalkulator</div>
             <div style={{display:"grid",gap:12}}>
               <div><label className="lbl">Offline-Zeit Tech Level: {offlineTechLevel===0?"Basis":offlineTechLevel}</label>
-                <input type="range" min={0} max={25} value={offlineTechLevel} onChange={e=>setOfflineTechLevel(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+                <input type="range" min={0} max={25} value={offlineTechLevel} onChange={e=>{const v=Number(e.target.value);setOfflineTechLevel(v);update(ref(db,`profiles/${user.username}`),{offlineTechLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div style={{padding:16,background:"var(--bg2)",borderRadius:10,textAlign:"center"}}>
                 <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,letterSpacing:1}}>MAX OFFLINE-ZEIT</div>
@@ -1534,11 +1569,11 @@ function MyPage({ user, memberList, warList, accountList, db }) {
             <div style={{display:"grid",gap:12}}>
               <div style={{display:"flex",gap:6}}>
                 {["Haustier","Reittier","Skill"].map(t=>(
-                  <button key={t} className={`btn ${summonType===t?"btn-gold":"btn-ghost"}`} style={{flex:1,fontSize:12,justifyContent:"center"}} onClick={()=>setSummonType(t)}>{t}</button>
+                  <button key={t} className={`btn ${summonType===t?"btn-gold":"btn-ghost"}`} style={{flex:1,fontSize:12,justifyContent:"center"}} onClick={()=>{setSummonType(t);update(ref(db,`profiles/${user.username}`),{summonType:t});}}>{t}</button>
                 ))}
               </div>
               <div><label className="lbl">Level: {summonLevel}</label>
-                <input type="range" min={1} max={100} value={summonLevel} onChange={e=>setSummonLevel(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+                <input type="range" min={1} max={100} value={summonLevel} onChange={e=>{const v=Number(e.target.value);setSummonLevel(v);update(ref(db,`profiles/${user.username}`),{summonLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div style={{fontSize:11,color:"var(--text3)"}}>Naechste Auswertung bei Level {nearestLvl}</div>
             </div>
@@ -1575,7 +1610,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
         <div style={{display:"flex",justifyContent:"flex-end",marginTop:10,gap:8,alignItems:"center"}}>
-          {noteSaved && <span style={{color:"#22c55e",fontSize:13}}>Gespeichert</span>}
+          {(noteSaved||profileSaved) && <span style={{color:"#22c55e",fontSize:13}}>✅ Gespeichert</span>}
           <button className="btn btn-gold btn-sm" onClick={saveNote}>Speichern</button>
         </div>
       </div>
