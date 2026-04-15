@@ -306,6 +306,7 @@ export default function GerxyApp() {
     {id:"mypage",label:"📊 Meine Seite"},
     {id:"notes",label:"📋 Notizen"},
     {id:"messages",label:`💬 Nachrichten${unreadCount>0?` (${unreadCount})`:""}` },
+    {id:"spielinfo",label:"📖 Spielinfo"},
     ...(isAdmin ? [{id:"admin",label:"⚙️ Admin"}] : []),
   ];
 
@@ -355,6 +356,7 @@ export default function GerxyApp() {
             {tab==="mypage" && <MyPage user={user} memberList={memberList} db={db}/>}
             {tab==="notes" && <Notes noteList={noteList} isAdmin={isAdmin} db={db} user={user}/>}
             {tab==="messages" && <Messages messages={messages} currentUser={user} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
+            {tab==="spielinfo" && <Spielinfo/>}
             {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members} wars={wars}/>}
           </div>
         )}
@@ -892,17 +894,16 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const winrate = warList.length ? Math.round((wins/warList.length)*100) : 0;
 
-  const totalPerMemberWar = {};
+  const totalPerMember = {};
   warList.forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
-        const key = name.toLowerCase();
-        if (!totalPerMemberWar[key]) totalPerMemberWar[key] = { displayName: name, pts: 0 };
-        totalPerMemberWar[key].pts += Number(pts)||0;
+        totalPerMember[name] = (totalPerMember[name]||0) + Number(pts);
       });
     }
   });
-  const totalRanking = Object.values(totalPerMemberWar)
+  const totalRanking = Object.entries(totalPerMember)
+    .map(([name,pts])=>({name,pts}))
     .sort((a,b)=>b.pts-a.pts);
   const maxTotal = totalRanking[0]?.pts || 1;
 
@@ -925,17 +926,10 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
 
   async function savePoints(warId, pts) {
     const war = warList.find(w=>w.id===warId);
-    const raw = {...(war?.memberPoints||{}), ...pts};
-    // Normalisiere alle Namen: gleiche sie gegen Account-Namen ab (case-insensitiv)
-    // So werden friskydogbreath + Friskydogbreath zu einem Eintrag zusammengeführt
-    const normalized = {};
-    Object.entries(raw).forEach(([name, val]) => {
-      const matchedAccount = accountList.find(a => a.username.toLowerCase()===name.toLowerCase());
-      const finalName = matchedAccount ? matchedAccount.username : name;
-      normalized[finalName] = (normalized[finalName]||0) + (Number(val)||0);
-    });
-    const ourTotal = Object.values(normalized).reduce((s,v)=>s+Number(v),0);
-    await update(ref(db,`wars/${warId}`), {memberPoints:normalized, ourPoints:ourTotal});
+    const merged = {...(war?.memberPoints||{}), ...pts};
+    Object.keys(merged).forEach(k => merged[k]=Number(merged[k])||0);
+    const ourTotal = Object.values(merged).reduce((s,v)=>s+Number(v),0);
+    await update(ref(db,`wars/${warId}`), {memberPoints:merged, ourPoints:ourTotal});
     setEditingPoints(null);
   }
 
@@ -960,12 +954,7 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   async function applyCSV(warId) {
     if (!csvPreview||!csvPreview.length) return;
     const pts = {};
-    csvPreview.forEach(item => {
-      // Versuche den Account-Namen zu finden (Groß/Kleinschreibung ignorieren)
-      const matchedAccount = accountList.find(a => a.username.toLowerCase()===item.name.toLowerCase());
-      const finalName = matchedAccount ? matchedAccount.username : item.name;
-      pts[finalName] = item.points;
-    });
+    csvPreview.forEach(item => { pts[item.name]=item.points; });
     await savePoints(warId, pts);
     setShowImport(false); setCsvText(""); setCsvPreview(null);
   }
@@ -1176,11 +1165,11 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
           <div className="card-title">🏅 Gesamtranking (alle Wars)</div>
           {totalRanking.length===0&&<div className="text-muted text-sm">Noch keine Punkte eingetragen</div>}
           {totalRanking.map((m,i)=>(
-            <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
               <div style={{width:22,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.displayName}</span>
+                  <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
                   <span style={{color:"#a855f7",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.pts)}</span>
                 </div>
                 <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxTotal)*100}%`,background:"linear-gradient(90deg,#7c3aed,#a855f7)"}}/></div>
@@ -1225,141 +1214,536 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
 // ── MY PAGE ──────────────────────────────────────────────────
 function MyPage({ user, memberList, db }) {
   const myData = memberList.find(m => m.name?.toLowerCase()===user.username?.toLowerCase()) || {};
+  const [activeCalc, setActiveCalc] = useState("forge");
   const [forgeLevel, setForgeLevel] = useState(10);
   const [freeForge, setFreeForge] = useState(0);
   const [hammers, setHammers] = useState(100);
   const [calcResult, setCalcResult] = useState(null);
   const [myNote, setMyNote] = useState(myData.personalNote||"");
   const [noteSaved, setNoteSaved] = useState(false);
+  const [eggTimerLevel, setEggTimerLevel] = useState(0);
+  const [eggRarity, setEggRarity] = useState("Gewoehnlich");
+  const [offlineTechLevel, setOfflineTechLevel] = useState(0);
+  const [summonType, setSummonType] = useState("Haustier");
+  const [summonLevel, setSummonLevel] = useState(1);
 
-  const FORGE_COSTS = [0,400,700,1500,3500,10000,25000,50000,33300*3,50000*3,83300*3,112000*3,113000*4,153000*4,166000*5,224000*5,252000*6,291000*7,344000*8,413000*9,502000*10];
+  const FORGE_DATA = [
+    [1,null,null,"N/A","N/A",100,0,0,0,0,0,0,0,0,0],
+    [2,400,400,1,"5m",99,1,0,0,0,0,0,0,0,0],
+    [3,700,700,1,"15m",98,2,0,0,0,0,0,0,0,0],
+    [4,1500,1500,1,"30m",96,4,0,0,0,0,0,0,0,0],
+    [5,3500,3500,1,"1h",91.5,8,0.5,0,0,0,0,0,0,0],
+    [6,10000,10000,1,"2h",82,16,2,0,0,0,0,0,0,0],
+    [7,25000,25000,1,"7h 33m",64,32,4,0,0,0,0,0,0,0],
+    [8,50000,50000,1,"13h 6m",27.8,64,8,0.2,0,0,0,0,0,0],
+    [9,99000,99000,3,"18h 39m",13,70,16,1,0,0,0,0,0,0],
+    [10,150000,150000,3,"24h 13m",6,60,32,2,0,0,0,0,0,0],
+    [11,249900,249900,3,"1d 5h",0,31.9,64,4,0.1,0,0,0,0,0],
+    [12,348000,348000,3,"1d 11h",0,27.5,64,8,0.5,0,0,0,0,0],
+    [13,448000,448000,4,"1d 16h",0,8,75,16,1,0,0,0,0,0],
+    [14,600000,600000,4,"1d 22h",0,0,66,32,2,0.05,0,0,0,0],
+    [15,800000,800000,5,"2d 4h",0,0,31.7,64,4,0.25,0,0,0,0],
+    [16,910000,910000,5,"2d 9h",0,0,21.5,70,8,0.5,0,0,0,0],
+    [17,1020000,1020000,6,"2d 15h",0,0,0,82.9,16,1,0.05,0,0,0],
+    [18,1130000,1130000,7,"2d 20h",0,0,0,65.7,32,2,0.25,0,0,0],
+    [19,1240000,1240000,8,"3d 5h",0,0,0,31.5,64,4,0.5,0,0,0],
+    [20,1350000,1350000,9,"3d 13h",0,0,0,0,91,8,1,0.05,0,0],
+    [21,1460000,1460000,10,"3d 21h",0,0,0,0,81.7,16,2,0.25,0,0],
+    [22,1570000,1570000,10,"4d 5h",0,0,0,0,63.5,32,4,0.5,0,0],
+    [23,1680000,1680000,10,"4d 14h",0,0,0,0,27,64,8,1,0,0],
+    [24,1790000,1790000,10,"4d 22h",0,0,0,0,0,82,16,2,0.02,0],
+    [25,1900000,1900000,10,"5d 7h",0,0,0,0,0,64,32,4,0.05,0],
+    [26,2010000,2010000,10,"5d 15h",0,0,0,0,0,43.8,50,6,0.25,0],
+    [27,2120000,2120000,10,"5d 23h",0,0,0,0,0,31.5,60,8,0.5,0],
+    [28,2230000,2230000,10,"6d 8h",0,0,0,0,0,21,65,13,1,0],
+    [29,2340000,2340000,10,"6d 16h",0,0,0,0,0,6.99,68,23,2,0.02],
+    [30,2450000,2450000,10,"7d 40m",0,0,0,0,0,0,60,36,4,0.05],
+    [31,2560000,2560000,10,"7d 8h",0,0,0,0,0,0,50.8,43,6,0.25],
+    [32,2670000,2670000,10,"7d 17h",0,0,0,0,0,0,41.5,50,8,0.5],
+    [33,2780000,2780000,10,"8d 1h",0,0,0,0,0,0,28,58,13,1],
+    [34,2890000,2890000,10,"8d 10h",0,0,0,0,0,0,11,64,23,2],
+    [35,3000000,3000000,10,"8d 18h",0,0,0,0,0,0,0,60,36,4],
+  ];
+  const ZEITALTER = ["Primitiv","Mittelalter","Fruehmodern","Modern","Weltraum","Interstellar","Multiversum","Quanten","Unterwelt","Goettlich"];
+
+  const OFFLINE_DATA = [
+    [null,0,"4h"],[1,16,"4h 38m"],[2,32,"5h 17m"],[3,48,"5h 55m"],[4,64,"6h 34m"],
+    [5,80,"7h 12m"],[6,96,"7h 50m"],[7,112,"8h 29m"],[8,128,"9h 7m"],[9,144,"9h 46m"],
+    [10,160,"10h 24m"],[11,176,"11h 2m"],[12,192,"11h 41m"],[13,208,"12h 19m"],[14,224,"12h 58m"],
+    [15,240,"13h 36m"],[16,256,"14h 14m"],[17,272,"14h 53m"],[18,288,"15h 31m"],[19,304,"16h 10m"],
+    [20,320,"16h 48m"],[21,336,"17h 26m"],[22,352,"18h 5m"],[23,368,"18h 43m"],[24,384,"19h 22m"],
+    [25,400,"20h"],
+  ];
+
+  const EGG_TIMES = {
+    "Gewoehnlich": ["30m","27m 16s","25m","23m 5s","21m 26s","20m","18m 45s","17m 39s","16m 40s","15m 47s","15m","14m 17s","13m 38s","13m 3s","12m 30s","12m","11m 32s","11m 7s","10m 43s","10m 21s","10m","9m 41s","9m 23s","9m 5s","8m 49s","8m 34s"],
+    "Selten": ["2h","1h 49m","1h 40m","1h 32m","1h 26m","1h 20m","1h 15m","1h 11m","1h 7m","1h 3m","1h","57m 9s","54m 33s","52m 10s","50m","48m","46m 9s","44m 27s","42m 51s","41m 23s","40m","38m 43s","37m 30s","36m 22s","35m 18s","34m 17s"],
+    "Episch": ["4h","3h 38m","3h 20m","3h 5m","2h 51m","2h 40m","2h 30m","2h 21m","2h 13m","2h 6m","2h","1h 54m","1h 49m","1h 44m","1h 40m","1h 36m","1h 32m","1h 29m","1h 26m","1h 23m","1h 20m","1h 17m","1h 15m","1h 13m","1h 11m","1h 9m"],
+    "Legendaer": ["8h","7h 16m","6h 40m","6h 9m","5h 43m","5h 20m","5h","4h 42m","4h 27m","4h 13m","4h","3h 49m","3h 38m","3h 29m","3h 20m","3h 12m","3h 5m","2h 58m","2h 51m","2h 46m","2h 40m","2h 35m","2h 30m","2h 25m","2h 21m","2h 17m"],
+    "Ultimate": ["16h","14h 33m","13h 20m","12h 18m","11h 26m","10h 40m","10h","9h 24m","8h 53m","8h 25m","8h","7h 37m","7h 16m","6h 57m","6h 40m","6h 24m","6h 9m","5h 56m","5h 43m","5h 31m","5h 20m","5h 10m","5h","4h 51m","4h 42m","4h 34m"],
+    "Mythisch": ["32h","29h 5m","26h 40m","24h 37m","22h 51m","21h 20m","20h","18h 49m","17h 47m","16h 51m","16h","15h 14m","14h 33m","13h 55m","13h 20m","12h 48m","12h 18m","11h 51m","11h 26m","11h 2m","10h 40m","10h 19m","10h","9h 42m","9h 25m","9h 9m"],
+  };
+  const EGG_RARITY_LABELS = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
+  const EGG_RARITY_DISPLAY = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
+
+  const PET_PROBS = {1:[99,1,0,0,0,0],10:[77.21,21.95,0.84,0,0,0],20:[17.5,74.19,8.31,0,0,0],
+    25:[17.5,68.66,13.82,0.02,0,0],40:[17.5,16.5,65.99,0.01,0,0],50:[17.5,16.5,48.3,17.39,0.31,0],
+    69:[17.5,16.5,16.5,37.67,11.78,0.05],82:[17.5,16.5,16.5,16.5,28,5],100:[17.5,16.5,16.5,16.5,16.5,16.5]};
+  const MOUNT_PROBS = {1:[100,0,0,0,0,0],24:[17.5,82.49,0.01,0,0,0],33:[17.5,77.5,5,0,0,0],
+    40:[17.5,16.5,65.99,0.01,0,0],57:[17.5,16.5,44.49,21.5,0.01,0],
+    67:[17.5,16.5,16.5,43.75,5.75,0],80:[17.5,16.5,16.5,16.5,31.75,1.25],100:[17.5,16.5,16.5,16.5,16.5,16.5]};
+  const SKILL_PROBS = {1:[99.5,0.5,0,0,0,0],10:[77.88,21.95,0.17,0,0,0],20:[17.5,80.86,1.47,0.17,0,0],
+    40:[17.5,15.31,62.89,4.18,0.12,0],67:[17.5,16.5,16.5,42.1,7.4,0],82:[17.5,16.5,16.5,16.5,30.79,2.21],100:[17.5,16.5,16.5,16.5,16.5,16.5]};
+
+  const WAR_PTS = [1,1,1,2,2,2,3,3,3,3];
+  const RARITY_COLORS_ARR = ["#9ca3af","#22c55e","#a855f7","#f59e0b","#ef4444","#ec4899"];
+  const RARITY_NAMES = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
 
   function calcWarPoints() {
-    const pointsPerHammer = forgeLevel >= 20 ? 3 : forgeLevel >= 12 ? 2.5 : forgeLevel >= 7 ? 2 : 1.2;
-    const effectiveHammers = hammers * (1 + freeForge/100);
-    const expected = Math.round(effectiveHammers * pointsPerHammer);
-    const low = Math.round(expected * 0.7);
-    const high = Math.round(expected * 1.3);
-    setCalcResult({ expected, low, high, effectiveHammers: Math.round(effectiveHammers) });
+    const row = FORGE_DATA[forgeLevel-1];
+    if(!row) return;
+    const probs = row.slice(5);
+    const avgPts = probs.reduce((s,p,i) => s+(p/100)*WAR_PTS[i], 0);
+    const eff = hammers*(1+freeForge/100);
+    const exp = Math.round(eff*avgPts);
+    const topIdx = probs.indexOf(Math.max(...probs));
+    setCalcResult({expected:exp,low:Math.round(exp*0.75),high:Math.round(exp*1.25),eff:Math.round(eff),topZ:ZEITALTER[topIdx],topC:probs[topIdx]?.toFixed(1)});
   }
 
   async function saveNote() {
     const m = memberList.find(m2 => m2.name?.toLowerCase()===user.username?.toLowerCase());
-    if (m) { await update(ref(db,`members/${m.id}`), {personalNote:myNote}); setNoteSaved(true); setTimeout(()=>setNoteSaved(false),2000); }
+    if(m){await update(ref(db,`members/${m.id}`),{personalNote:myNote});setNoteSaved(true);setTimeout(()=>setNoteSaved(false),2000);}
   }
 
-  const forgeCost = FORGE_COSTS[forgeLevel] || 0;
+  const offlineRow = OFFLINE_DATA[offlineTechLevel]||OFFLINE_DATA[0];
+  const forgeRow = FORGE_DATA[forgeLevel-1]||FORGE_DATA[0];
+  const eggTime = EGG_TIMES[eggRarity]?.[eggTimerLevel]||"?";
+  const probData = summonType==="Haustier"?PET_PROBS:summonType==="Reittier"?MOUNT_PROBS:SKILL_PROBS;
+  const nearestLvl = Object.keys(probData).map(Number).reduce((a,b)=>Math.abs(b-summonLevel)<Math.abs(a-summonLevel)?b:a);
+  const curProbs = probData[nearestLvl];
 
   return (
     <div>
-      <div style={{marginBottom:20,padding:"14px 18px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:12,display:"flex",alignItems:"center",gap:12}}>
-        <div style={{width:48,height:48,borderRadius:"50%",background:`${RANK_COLORS[myData.rank||user.role]||"#5a3a00"}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,border:`2px solid ${RANK_COLORS[myData.rank||user.role]||"#5a3a00"}50`}}>
-          {RANK_ICONS[myData.rank||user.role]||"⚒️"}
+      <div style={{marginBottom:20,padding:"12px 16px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:12,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:44,height:44,borderRadius:"50%",background:`${RANK_COLORS[myData.rank||user.role]||"#5a3a00"}20`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`2px solid ${RANK_COLORS[myData.rank||user.role]||"#5a3a00"}50`}}>
+          {RANK_ICONS[myData.rank||user.role]||".."}
         </div>
         <div>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:18,color:"var(--gold2)"}}>{user.username}</div>
-          <span className="rank-badge" style={{color:RANK_COLORS[myData.rank||user.role]||"#c88500",borderColor:`${RANK_COLORS[myData.rank||user.role]||"#c88500"}40`,background:`${RANK_COLORS[myData.rank||user.role]||"#c88500"}10`}}>
-            {myData.rank||user.role}
-          </span>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:17,color:"var(--gold2)"}}>{user.username}</div>
+          <span className="rank-badge" style={{color:RANK_COLORS[myData.rank||user.role]||"#c88500",borderColor:`${RANK_COLORS[myData.rank||user.role]||"#c88500"}40`,background:`${RANK_COLORS[myData.rank||user.role]||"#c88500"}10`}}>{myData.rank||user.role}</span>
         </div>
-        {myData.weeklyPoints && (
-          <div style={{marginLeft:"auto",textAlign:"right"}}>
-            <div style={{color:"var(--gold2)",fontSize:20,fontWeight:600}}>{fmt(myData.weeklyPoints)}</div>
-            <div style={{fontSize:11,color:"var(--text3)"}}>Wochenpunkte</div>
-          </div>
-        )}
       </div>
 
-      <div className="grid-2">
-        {/* Forge War Points Calculator */}
-        <div className="card">
-          <div className="card-title">⚒️ War-Punkte Kalkulator</div>
-          <div style={{display:"grid",gap:12}}>
-            <div>
-              <label className="lbl">Schmied-Level ({forgeLevel})</label>
-              <input type="range" min={1} max={35} value={forgeLevel} onChange={e=>setForgeLevel(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text3)"}}>
-                <span>1</span><span style={{color:"var(--gold2)"}}>{forgeLevel}</span><span>35</span>
+      <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
+        {[["forge",".. Schmiede"],["egg",".. Eier"],["offline",".. Offline"],["summon",".. Beschwoerunq"]].map(([id,label])=>(
+          <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label.replace("..","")}</button>
+        ))}
+      </div>
+
+      {activeCalc==="forge" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">War-Punkte Kalkulator</div>
+            <div style={{display:"grid",gap:12}}>
+              <div><label className="lbl">Schmied-Level: {forgeLevel}</label>
+                <input type="range" min={1} max={35} value={forgeLevel} onChange={e=>{setForgeLevel(Number(e.target.value));setCalcResult(null);}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              </div>
+              <div><label className="lbl">Gratis-Schmiede: {freeForge}%</label>
+                <input type="range" min={0} max={50} value={freeForge} onChange={e=>setFreeForge(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              </div>
+              <div><label className="lbl">Hämmer</label><input className="inp" type="number" value={hammers} onChange={e=>setHammers(Number(e.target.value))}/></div>
+              <button className="btn btn-gold" onClick={calcWarPoints} style={{justifyContent:"center"}}>Berechnen</button>
+            </div>
+            {calcResult && (
+              <div className="calc-result" style={{marginTop:12}}>
+                <div className="calc-row"><span>Effektive Hämmer</span><span>{calcResult.eff}</span></div>
+                <div className="calc-row"><span>Bestes Zeitalter</span><span style={{color:"var(--gold2)"}}>{calcResult.topZ} ({calcResult.topC}%)</span></div>
+                <div className="calc-row"><span>Erwartete Punkte</span><span style={{color:"var(--gold2)",fontWeight:600,fontSize:16}}>{fmt(calcResult.expected)}</span></div>
+                <div className="calc-row"><span>Spanne</span><span>{fmt(calcResult.low)} - {fmt(calcResult.high)}</span></div>
+              </div>
+            )}
+          </div>
+          <div className="card">
+            <div className="card-title">Schmied Lvl {forgeLevel} - Wahrscheinlichkeiten</div>
+            {ZEITALTER.map((z,i)=>{const p=forgeRow[5+i]||0;return p>0?(
+              <div key={z} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
+                <div style={{width:90,fontSize:12,color:"var(--text2)",flexShrink:0}}>{z}</div>
+                <div style={{flex:1,height:14,background:"var(--bg)",borderRadius:3,overflow:"hidden"}}>
+                  <div style={{height:"100%",background:"linear-gradient(90deg,var(--gold),var(--gold2))",width:`${Math.min(p,100)}%`,borderRadius:3}}/>
+                </div>
+                <div style={{width:44,fontSize:12,color:"var(--gold2)",textAlign:"right"}}>{p}%</div>
+              </div>
+            ):null;})}
+            {forgeRow[1] && (
+              <div style={{marginTop:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12,display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                <span style={{color:"var(--text3)"}}>Kosten: <span style={{color:"var(--gold2)"}}>{fmt(forgeRow[1])}</span></span>
+                <span style={{color:"var(--text3)"}}>Zeit: <span style={{color:"var(--gold2)"}}>{forgeRow[4]}</span></span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeCalc==="egg" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">Ei-Schlüpfzeit Kalkulator</div>
+            <div style={{display:"grid",gap:12}}>
+              <div><label className="lbl">Seltenheit</label>
+                <select className="inp" value={eggRarity} onChange={e=>setEggRarity(e.target.value)}>
+                  {EGG_RARITY_LABELS.map(r=><option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div><label className="lbl">Timer Speed Tech Level: {eggTimerLevel} ({eggTimerLevel*10}%)</label>
+                <input type="range" min={0} max={25} value={eggTimerLevel} onChange={e=>setEggTimerLevel(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              </div>
+              <div style={{padding:16,background:"var(--bg2)",borderRadius:10,textAlign:"center"}}>
+                <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,letterSpacing:1}}>SCHLÜPFZEIT</div>
+                <div style={{fontSize:34,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{eggTime}</div>
+                <div style={{fontSize:12,color:"var(--text3)",marginTop:4}}>{eggRarity} - {eggTimerLevel*10}% Timer Speed</div>
               </div>
             </div>
-            <div><label className="lbl">Gratis-Schmiede % ({freeForge}%)</label>
-              <input type="range" min={0} max={50} value={freeForge} onChange={e=>setFreeForge(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
-            </div>
-            <div><label className="lbl">Verfügbare Hämmer</label>
-              <input className="inp" type="number" value={hammers} onChange={e=>setHammers(Number(e.target.value))}/></div>
-            <button className="btn btn-gold" onClick={calcWarPoints} style={{justifyContent:"center"}}>🔢 Berechnen</button>
           </div>
-          {calcResult && (
-            <div className="calc-result">
-              <div className="calc-row"><span>Effektive Hämmer</span><span>{calcResult.effectiveHammers}</span></div>
-              <div className="calc-row"><span>Erwartete Punkte</span><span style={{color:"var(--gold2)"}}>{fmt(calcResult.expected)}</span></div>
-              <div className="calc-row"><span>Spanne</span><span>{fmt(calcResult.low)} – {fmt(calcResult.high)}</span></div>
-            </div>
-          )}
-          {forgeCost>0 && (
-            <div style={{marginTop:12,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13,color:"var(--text2)"}}>
-              💰 Nächstes Upgrade (Lvl {forgeLevel}→{forgeLevel+1}): ca. {fmt(forgeCost)} Münzen
-            </div>
-          )}
+          <div className="card">
+            <div className="card-title">Alle Schlüpfzeiten (Tech {eggTimerLevel})</div>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead><tr><th style={{padding:"5px 8px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>Seltenheit</th><th style={{padding:"5px 8px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>Zeit</th></tr></thead>
+              <tbody>
+                {EGG_RARITY_LABELS.map((r,ri)=>(
+                  <tr key={r} style={{background:r===eggRarity?"var(--bg4)":"transparent"}}>
+                    <td style={{padding:"5px 8px",color:RARITY_COLORS_ARR[ri]}}>{r}</td>
+                    <td style={{padding:"5px 8px",color:"var(--gold2)",fontWeight:r===eggRarity?600:400}}>{EGG_TIMES[r]?.[eggTimerLevel]||"-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+      )}
 
-        {/* Game Tips */}
-        <div className="card">
-          <div className="card-title">💡 Tipps & Strategie</div>
-          <div style={{display:"grid",gap:8,fontSize:13,lineHeight:1.6}}>
+      {activeCalc==="offline" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">Offline-Zeit Kalkulator</div>
+            <div style={{display:"grid",gap:12}}>
+              <div><label className="lbl">Offline-Zeit Tech Level: {offlineTechLevel===0?"Basis":offlineTechLevel}</label>
+                <input type="range" min={0} max={25} value={offlineTechLevel} onChange={e=>setOfflineTechLevel(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              </div>
+              <div style={{padding:16,background:"var(--bg2)",borderRadius:10,textAlign:"center"}}>
+                <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,letterSpacing:1}}>MAX OFFLINE-ZEIT</div>
+                <div style={{fontSize:34,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{offlineRow[2]}</div>
+                <div style={{fontSize:12,color:"var(--text3)",marginTop:4}}>+{offlineRow[1]}% Bonus</div>
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">Offline-Zeit Übersicht</div>
+            <div style={{maxHeight:320,overflowY:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr>{["Tech Lvl","%","Dauer"].map(h=><th key={h} style={{padding:"5px 8px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)",position:"sticky",top:0,background:"var(--bg3)"}}>{h}</th>)}</tr></thead>
+                <tbody>{OFFLINE_DATA.map((row,i)=>(
+                  <tr key={i} style={{background:i===offlineTechLevel?"var(--bg4)":"transparent",borderBottom:"1px solid #2a180040"}}>
+                    <td style={{padding:"5px 8px",color:"var(--text2)"}}>{row[0]===null?"Basis":row[0]}</td>
+                    <td style={{padding:"5px 8px",color:"var(--gold)"}}>{row[1]}%</td>
+                    <td style={{padding:"5px 8px",color:"var(--gold2)",fontWeight:i===offlineTechLevel?600:400}}>{row[2]}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeCalc==="summon" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">Beschwörungs-Wahrscheinlichkeit</div>
+            <div style={{display:"grid",gap:12}}>
+              <div style={{display:"flex",gap:6}}>
+                {["Haustier","Reittier","Skill"].map(t=>(
+                  <button key={t} className={`btn ${summonType===t?"btn-gold":"btn-ghost"}`} style={{flex:1,fontSize:12,justifyContent:"center"}} onClick={()=>setSummonType(t)}>{t}</button>
+                ))}
+              </div>
+              <div><label className="lbl">Level: {summonLevel}</label>
+                <input type="range" min={1} max={100} value={summonLevel} onChange={e=>setSummonLevel(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              </div>
+              <div style={{fontSize:11,color:"var(--text3)"}}>Naechste Auswertung bei Level {nearestLvl}</div>
+            </div>
+            <div style={{marginTop:14}}>
+              {RARITY_NAMES.map((r,i)=>curProbs[i]>0?(
+                <div key={r} style={{marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:3,fontSize:13}}>
+                    <span style={{color:RARITY_COLORS_ARR[i]}}>{r}</span>
+                    <span style={{color:RARITY_COLORS_ARR[i],fontWeight:600}}>{curProbs[i]}%</span>
+                  </div>
+                  <div className="pbar"><div className="pfill" style={{width:`${curProbs[i]}%`,background:RARITY_COLORS_ARR[i]}}/></div>
+                </div>
+              ):null)}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">Beschwörungs-Tipps</div>
             {[
-              ["⚡","Offline alle 3–4h sammeln (max. 4h Base)"],
-              ["🔨","Schmied-Timer vor Schlaf/Arbeit starten"],
-              ["🎯","Beste Dungeons: Hammer Thief (tgl.), Invasion (Pets)"],
-              ["📅","Ressourcen für War-Tage sparen (Sa = 5x Multiplik.)"],
-              ["🐾","Früh Regen-Pet nutzen für Überleben"],
-              ["⚔️","Angriffsspeed + Lifesteal + Double Chance priorisieren"],
-              ["🏰","Premium Pass = bestes Preis-Leistungs-Verhältnis"],
-              ["🎲","Skill-Tickets nur wenn die gewünschte Seltenheit steigt"],
-              ["🚀","Fernkampf-Waffen > Nahkampf für die meisten Spieler"],
-              ["🔗","Tech Tree: Schmied-Ast zuerst ausbauen"],
-            ].map(([icon,tip],i)=>(
-              <div key={i} style={{display:"flex",gap:10,padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
-                <span style={{flexShrink:0}}>{icon}</span>
-                <span style={{color:"var(--text2)"}}>{tip}</span>
+              ["Haustier","Ab Level 25: Legendaer moeglich (0.02%)\nAb Level 43: Ultimate moeglich\nAb Level 69: Mythisch moeglich\nLevel 82+: Legendaer Mindest-16.5%"],
+              ["Reittier","Ab Level 24: Selten stark (82%+)\nAb Level 33: Episch moeglich (5%)\nAb Level 40: Legendaer moeglich\nLevel 67+: Ultimate moeglich"],
+              ["Skill","Kosten steigen stark (400 bis 4.400)\nAb Level 40: Legendaer moeglich\nAb Level 68: Mythisch moeglich\nLevel 82+: Legendaer Mindest-16.5%"],
+              ["Allgemein","Tickets sparen bis 5%+ Chance\nPremium Pass gibt regelmaessig Tickets\nNur beschwören wenn Chance gut ist"],
+            ].map(([title,text])=>(
+              <div key={title} style={{marginBottom:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:"3px solid var(--gold)"}}>
+                <div style={{fontWeight:600,color:"var(--gold2)",marginBottom:3,fontSize:13}}>{title}</div>
+                <div style={{fontSize:12,color:"var(--text2)",whiteSpace:"pre-line"}}>{text}</div>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Personal Note */}
       <div className="card mt-20">
-        <div className="card-title">📝 Meine persönlichen Notizen</div>
-        <textarea className="inp" rows={5} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Pläne…"/>
+        <div className="card-title">Meine persönlichen Notizen</div>
+        <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
         <div style={{display:"flex",justifyContent:"flex-end",marginTop:10,gap:8,alignItems:"center"}}>
-          {noteSaved && <span style={{color:"#22c55e",fontSize:13}}>✅ Gespeichert</span>}
+          {noteSaved && <span style={{color:"#22c55e",fontSize:13}}>Gespeichert</span>}
           <button className="btn btn-gold btn-sm" onClick={saveNote}>Speichern</button>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Quick Reference */}
-      <div className="card mt-20">
-        <div className="card-title">📖 Quick Reference</div>
-        <div className="grid-2">
-          <div>
-            <div style={{fontSize:12,color:"var(--text3)",marginBottom:8,letterSpacing:1,textTransform:"uppercase"}}>Zeitalter & Punkte</div>
-            {[["Primitiv/Mittelalt./Früh","1 Pkt"],["Modern/Weltraum/Interstellar","2 Pkt"],["Unterwelt","2 Pkt"],["Multiversum/Quanten/Göttlich","3 Pkt"]].map(([era,pts])=>(
-              <div key={era} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--border)",fontSize:13}}>
-                <span style={{color:"var(--text2)"}}>{era}</span><span style={{color:"var(--gold2)"}}>{pts}</span>
-              </div>
-            ))}
+// ── SPIELINFO ────────────────────────────────────────────────
+function Spielinfo() {
+  const [section, setSection] = useState("war");
+
+  const WAR_ACTIONS = [
+    {day:"Tag 1 (Dienstag)",pts:"1 Pkt",color:"#22c55e",actions:[
+      ["Primitiv/Mittelalter/Fruehmodern schmieden","1"],["Modern/Weltraum/Interstellar schmieden","2"],
+      ["Multiversum/Quanten/Unterwelt/Goettlich schmieden","3"],
+      ["Gewoehnliche Skill beschworen","125"],["Seltene Skill beschworen","150"],["Epische Skill beschworen","175"],
+      ["Legendaere Skill beschworen","200"],["Ultimate Skill beschworen","225"],["Mythische Skill beschworen","250"],
+      ["Gewoehnliche Skill upgraden","125"],["Seltene Skill upgraden","150"],["Epische Skill upgraden","175"],
+      ["Legendaere Skill upgraden","200"],["Ultimate Skill upgraden","225"],["Mythische Skill upgraden","250"],
+      ["Tech Tree I abschliessen","1.000"],["Tech Tree II abschliessen","10.000"],
+      ["Tech Tree III abschliessen","30.000"],["Tech Tree IV abschliessen","50.000"],["Tech Tree V abschliessen","100.000"],
+    ]},
+    {day:"Tag 2 (Mittwoch)",pts:"2 Pkt",color:"#3b82f6",actions:[
+      ["1.000 Muenzen fuer Schmiede ausgeben","27"],["1 Edelstein fuer Schmiede ausgeben","50"],
+      ["Hammer Thief Dungeon Schluessel nutzen","3.000"],["Ghost Town Dungeon Schluessel nutzen","3.000"],
+      ["Invasion Dungeon Schluessel nutzen","3.000"],["Zombie Rush Dungeon Schluessel nutzen","3.000"],
+      ["Gewoehnliches Ei ausbrueten","200"],["Seltenes Ei ausbrueten","800"],["Episches Ei ausbrueten","1.600"],
+      ["Legendaeres Ei ausbrueten","3.200"],["Ultimate Ei ausbrueten","6.400"],["Mythisches Ei ausbrueten","12.800"],
+      ["Gewoehnliches Haustier zusammenfuehren","50"],["Seltenes Haustier zusammenfuehren","200"],
+      ["Episches Haustier zusammenfuehren","400"],["Legendaeres Haustier zusammenfuehren","800"],
+      ["Ultimate Haustier zusammenfuehren","1.600"],["Mythisches Haustier zusammenfuehren","3.200"],
+    ]},
+    {day:"Tag 3 (Donnerstag)",pts:"2 Pkt",color:"#a855f7",actions:[
+      ["Primitiv/Mittelalter/Fruehmodern schmieden","1"],["Modern/Weltraum/Interstellar schmieden","2"],
+      ["Multiversum/Quanten/Unterwelt/Goettlich schmieden","3"],
+      ["Gewoehnliche Skill beschworen","125"],["Seltene Skill beschworen","150"],["Epische Skill beschworen","175"],
+      ["Legendaere Skill beschworen","200"],["Ultimate Skill beschworen","225"],["Mythische Skill beschworen","250"],
+      ["Gewoehnliche Skill upgraden","125"],["Seltene Skill upgraden","150"],["Epische Skill upgraden","175"],
+      ["Legendaere Skill upgraden","200"],["Ultimate Skill upgraden","225"],["Mythische Skill upgraden","250"],
+      ["Gewoehnlichen Reittier beschworen","50"],["Seltenen Reittier beschworen","100"],
+      ["Epischen Reittier beschworen","250"],["Legendaeren Reittier beschworen","500"],
+      ["Ultimate Reittier beschworen","1.500"],["Mythischen Reittier beschworen","2.500"],
+      ["Gewoehnlichen Reittier zusammenfuehren","50"],["Seltenen Reittier zusammenfuehren","100"],
+      ["Epischen Reittier zusammenfuehren","250"],["Legendaeren Reittier zusammenfuehren","500"],
+      ["Ultimate Reittier zusammenfuehren","1.500"],["Mythischen Reittier zusammenfuehren","2.500"],
+    ]},
+    {day:"Tag 4 (Freitag)",pts:"2 Pkt",color:"#f59e0b",actions:[
+      ["1.000 Muenzen fuer Schmiede ausgeben","27"],["1 Edelstein fuer Schmiede ausgeben","50"],
+      ["Tech Tree I abschliessen","1.000"],["Tech Tree II abschliessen","10.000"],
+      ["Tech Tree III abschliessen","30.000"],["Tech Tree IV abschliessen","50.000"],["Tech Tree V abschliessen","100.000"],
+      ["Gewoehnliches Ei ausbrueten","200"],["Seltenes Ei ausbrueten","800"],["Episches Ei ausbrueten","1.600"],
+      ["Legendaeres Ei ausbrueten","3.200"],["Ultimate Ei ausbrueten","6.400"],["Mythisches Ei ausbrueten","12.800"],
+      ["Gewoehnliches Haustier zusammenfuehren","50"],["Seltenes Haustier zusammenfuehren","200"],
+      ["Episches Haustier zusammenfuehren","400"],["Legendaeres Haustier zusammenfuehren","800"],
+      ["Ultimate Haustier zusammenfuehren","1.600"],["Mythisches Haustier zusammenfuehren","3.200"],
+    ]},
+    {day:"Tag 5 (Samstag)",pts:"2 Pkt",color:"#ef4444",actions:[
+      ["Primitiv/Mittelalter/Fruehmodern schmieden","1"],["Modern/Weltraum/Interstellar schmieden","2"],
+      ["Multiversum/Quanten/Unterwelt/Goettlich schmieden","3"],
+      ["Hammer Thief Dungeon Schluessel nutzen","3.000"],["Ghost Town Dungeon Schluessel nutzen","3.000"],
+      ["Invasion Dungeon Schluessel nutzen","3.000"],["Zombie Rush Dungeon Schluessel nutzen","3.000"],
+      ["Gewoehnlichen Reittier beschworen","50"],["Seltenen Reittier beschworen","100"],
+      ["Epischen Reittier beschworen","250"],["Legendaeren Reittier beschworen","500"],
+      ["Ultimate Reittier beschworen","1.500"],["Mythischen Reittier beschworen","2.500"],
+      ["Gewoehnlichen Reittier zusammenfuehren","50"],["Seltenen Reittier zusammenfuehren","100"],
+      ["Epischen Reittier zusammenfuehren","250"],["Legendaeren Reittier zusammenfuehren","500"],
+      ["Ultimate Reittier zusammenfuehren","1.500"],["Mythischen Reittier zusammenfuehren","2.500"],
+    ]},
+    {day:"Tag 6 (Sonntag)",pts:"4 Pkt",color:"#ec4899",actions:[
+      ["Rivalen-Clan-Mitglied besiegen","1-50"],["All-Out Brawl gewinnen","1.000"],
+    ]},
+  ];
+
+  const INDIVIDUAL_REWARDS = [
+    ["10k","70","250","100","-","-","-"],["20k","-","-","-","15k","220","115"],
+    ["50k","70","250","100","-","-","-"],["75k","-","-","-","15k","220","115"],
+    ["100k","70","250","100","-","-","-"],["150k","-","-","-","15k","220","115"],
+    ["200k","70","250","100","-","-","-"],["250k","-","-","-","15k","220","115"],
+    ["300k","70","250","100","-","-","-"],["350k","-","-","-","15k","220","115"],
+    ["400k","70","250","100","-","-","-"],["450k","-","-","-","15k","220","115"],
+    ["500k","70","250","100","-","-","-"],
+  ];
+
+  const WAR_REWARDS = [
+    {tier:"S",pts:"25+",wH:"5.7k",wC:"150k",wT:"7.8k",wE:"3.15k",wP:"5.9k",wW:"3.15k",lH:"2.85k",lC:"75k",lT:"3.9k",lE:"1.5k",lP:"2.9k",lW:"1.5k"},
+    {tier:"A",pts:"20+",wH:"2.5k",wC:"80k",wT:"3.6k",wE:"1.5k",wP:"2.8k",wW:"1.5k",lH:"1.25k",lC:"40k",lT:"1.8k",lE:"750",lP:"1.4k",lW:"750"},
+    {tier:"B",pts:"15+",wH:"1.4k",wC:"55k",wT:"2.1k",wE:"840",wP:"1.58k",wW:"840",lH:"700",lC:"27.5k",lT:"1.05k",lE:"420",lP:"790",lW:"420"},
+    {tier:"C",pts:"10+",wH:"750",wC:"20k",wT:"1.05k",wE:"420",wP:"800",wW:"420",lH:"375",lC:"10k",lT:"525",lE:"210",lP:"400",lW:"210"},
+    {tier:"D",pts:"5+",wH:"380",wC:"10k",wT:"520",wE:"210",wP:"400",wW:"200",lH:"190",lC:"5k",lT:"260",lE:"105",lP:"200",lW:"100"},
+    {tier:"E",pts:"0+",wH:"190",wC:"5k",wT:"260",wE:"100",wP:"200",wW:"100",lH:"100",lC:"2.5k",lT:"130",lE:"50",lP:"100",lW:"50"},
+  ];
+
+  const TECH_DATA = [
+    ["I","1/5",40,"5m",1],["I","2/5",56,"10m",1],["I","3/5",78,"20m",3],["I","4/5",110,"40m",6],["I","5/5",154,"1h 20m",11],
+    ["II","1/5",214,"2h 40m",22],["II","2/5",301,"5h 20m",44],["II","3/5",422,"10h 40m",88],["II","4/5",590,"21h 20m",177],["II","5/5",826,"23h 28m",194],
+    ["III","1/5",1157,"1d 1h 48m",215],["III","2/5",1318,"1d 4h 23m",235],["III","3/5",1503,"1d 7h 14m",259],["III","4/5",1714,"1d 10h 21m",284],["III","5/5",1954,"1d 13h 47m",313],
+    ["IV","1/5",2227,"1d 17h 34m",344],["IV","2/5",2540,"1d 21h 43m",379],["IV","3/5",2895,"2d 2h 18m",417],["IV","4/5",3300,"2d 7h 19m",458],["IV","5/5",3762,"2d 12h 51m",504],
+    ["V","1/5",4289,"2d 18h 57m",554],["V","2/5",4889,"3d 1h 38m",610],["V","3/5",5574,"3d 9h 0m",671],["V","4/5",6354,"3d 17h 6m",738],["V","5/5",7244,"4d 2h 1m",812],
+  ];
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:20}}>
+        {[["war","War-Aktionen"],["rewards","Belohnungen"],["tech","Tech-Kosten"],["tips","Tipps"]].map(([id,label])=>(
+          <button key={id} className={`btn ${section===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setSection(id)}>{label}</button>
+        ))}
+      </div>
+
+      {section==="war" && (
+        <div>
+          <div style={{padding:"10px 16px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,marginBottom:16,fontSize:13,color:"var(--text3)"}}>
+            Strategie: Dungeons, Eier und Reittiere fuer Tag 5 (Samstag) aufsparen - beste Punkteausbeute! Tech Tree Upgrades an Tag 1/4 starten und an Tag 4 abschliessen.
           </div>
-          <div>
-            <div style={{fontSize:12,color:"var(--text3)",marginBottom:8,letterSpacing:1,textTransform:"uppercase"}}>Tägliche Limits</div>
-            {[["Offline-Timer","4h (Base)","var(--text)"],["Münzen/Sek","1","var(--gold2)"],["Hämmer/Min","1","var(--gold2)"],["PvP-Saison","Di–So UTC","var(--text)"],["IGN-Änderung","200 Gems","var(--text)"],["Max. Clan-Größe","50 Mitglieder","var(--text)"]].map(([k,v,c])=>(
-              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--border)",fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>{k}</span><span style={{color:c}}>{v}</span>
+          {WAR_ACTIONS.map((day,di)=>(
+            <div key={di} className="card mb-16" style={{borderColor:`${day.color}30`}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:14,color:day.color}}>{day.day}</div>
+                <span style={{padding:"2px 8px",borderRadius:12,fontSize:11,background:`${day.color}20`,color:day.color}}>{day.pts}</span>
               </div>
-            ))}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:4}}>
+                {day.actions.map(([action,pts],i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 10px",background:"var(--bg2)",borderRadius:6,fontSize:12}}>
+                    <span style={{color:"var(--text2)"}}>{action}</span>
+                    <span style={{color:"var(--gold2)",fontWeight:600,marginLeft:8,flexShrink:0}}>{pts} Pkt</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {section==="rewards" && (
+        <div>
+          <div className="card mb-16">
+            <div className="card-title">Individuelle War-Belohnungen (Meilensteine)</div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr>{["Meilenstein","Haemmer","Tickets","Eier","Muenzen","Traenke","Winder"].map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>{h}</th>)}</tr></thead>
+                <tbody>{INDIVIDUAL_REWARDS.map((row,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid #2a180040"}}>
+                    {row.map((cell,j)=><td key={j} style={{padding:"6px 10px",color:j===0?"var(--gold2)":cell==="-"?"var(--text3)":"var(--text2)"}}>{cell}</td>)}
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">Clan War Belohnungen (nach Tier)</div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr style={{borderBottom:"1px solid var(--border)"}}>
+                    {["Tier","Pkt","","Haemmer","Muenzen","Tickets","Eier","Traenke","Winder"].map(h=><th key={h} style={{padding:"5px 8px",textAlign:"left",color:"var(--text3)"}}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {WAR_REWARDS.map(w=>[
+                    <tr key={w.tier+"w"} style={{background:"#22c55e08"}}>
+                      <td rowSpan={2} style={{padding:"5px 8px",color:"var(--gold2)",fontWeight:600}}>{w.tier}</td>
+                      <td rowSpan={2} style={{padding:"5px 8px",color:"var(--text3)",fontSize:10}}>{w.pts}</td>
+                      <td style={{padding:"5px 8px",color:"#22c55e",fontSize:11}}>Sieg</td>
+                      {[w.wH,w.wC,w.wT,w.wE,w.wP,w.wW].map((v,i)=><td key={i} style={{padding:"5px 8px",color:"var(--text2)"}}>{v}</td>)}
+                    </tr>,
+                    <tr key={w.tier+"l"} style={{borderBottom:"1px solid var(--border)"}}>
+                      <td style={{padding:"5px 8px",color:"#ef4444",fontSize:11}}>Niederlage</td>
+                      {[w.lH,w.lC,w.lT,w.lE,w.lP,w.lW].map((v,i)=><td key={i} style={{padding:"5px 8px",color:"var(--text3)"}}>{v}</td>)}
+                    </tr>
+                  ])}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {section==="tech" && (
+        <div className="card">
+          <div className="card-title">Tech Tree Kosten und Zeiten</div>
+          <div style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Gilt pro Node. Jeder Node hat 5 Level pro Tier (I-V) = 25 Upgrades gesamt.</div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead><tr>{["Tier","Level","Rote Traenke","Zeit","Edelsteine"].map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>{h}</th>)}</tr></thead>
+              <tbody>{TECH_DATA.map((row,i)=>(
+                <tr key={i} style={{borderBottom:"1px solid #2a180040",background:row[1]==="1/5"?"var(--bg4)":"transparent"}}>
+                  {[`Tier ${row[0]}`,row[1],row[2],row[3],row[4]].map((cell,j)=><td key={j} style={{padding:"6px 10px",color:j===0?"var(--gold2)":"var(--text2)"}}>{cell}</td>)}
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {section==="tips" && (
+        <div className="grid-2">
+          {[
+            {title:"Clan War Strategie",tips:[
+              "Samstag = beste Punkteausbeute (alle Aktionen verfuegbar)",
+              "Tech Tree Upgrades an Tag 1/4 starten - an Tag 4 abschliessen (100k Pkt)",
+              "Dungeon-Schluessel fuer Tag 2 und 5 aufsparen (3.000 Pkt/Schluessel)",
+              "Eier an Tag 2 und 4 ausbrueten (bis 12.800 Pkt fuer Mythisch)",
+              "Reittiere an Tag 3 und 5 beschworen/zusammenfuehren",
+              "Sonntag: Alle 5 Tickets fuer Brawl nutzen - 1.000 Pkt beim Sieg",
+            ]},
+            {title:"Schmied-Tipps",tips:[
+              "Schmied-Upgrade vor Schlaf/Arbeit starten",
+              "Gratis-Forge % aus Tech Tree erhoeht effektive Hammeranzahl",
+              "Ab Schmied Level 17+ lohnt Weltraum-Ausruestung stark",
+              "Ab Level 23+ Interstellar, Level 26+ Multiversum",
+              "Schmied-Ast im Tech Tree als erstes ausbauen",
+              "Offline alle 3-4h sammeln (Base: 4h Maximum)",
+            ]},
+            {title:"Haustier/Reittier Tipps",tips:[
+              "Haustiere: Ab Level 25 lohnt Legendaer-Chance (0.02%)",
+              "Warte bis 5%+ Chance fuer gewuenschte Seltenheit",
+              "Fruehs: Regen-Pet nutzen fuer besseres Ueberleben",
+              "Reittiere sind langfristig eine der besten Investitionen",
+              "Reittiere aus Clan War, PvP Liga und Shop",
+              "Schwaechere Haustiere zum Upgraden/Mergen nutzen",
+            ]},
+            {title:"Allgemeine Tipps",tips:[
+              "Premium Pass = bestes Preis-Leistungs-Verhaeltnis",
+              "Fernkampf-Waffen > Nahkampf fuer die meisten Spieler",
+              "Build: Angriffsspeed + Lifesteal + Double Chance",
+              "Endgame: Crit Chance + Crit Damage Kombination",
+              "PvP-Tickets taeglich nutzen (Reset Mitternacht UTC)",
+              "Aufstieg: Schmiede-Ast zuerst maxen fuer guenstigere Kosten",
+            ]},
+          ].map(({title,tips})=>(
+            <div key={title} className="card">
+              <div className="card-title">{title}</div>
+              {tips.map((tip,i)=>(
+                <div key={i} style={{display:"flex",gap:8,padding:"5px 0",borderBottom:"1px solid var(--border)",fontSize:13}}>
+                  <span style={{color:"var(--gold)",flexShrink:0}}>-</span>
+                  <span style={{color:"var(--text2)",lineHeight:1.5}}>{tip}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
