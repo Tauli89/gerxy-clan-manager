@@ -444,12 +444,7 @@ export default function GerxyApp() {
             </div>
             <div className="tabs">
               {tabs.map(t=>(
-                <button key={t.id} className={`tab${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)} style={{position:"relative"}}>
-                  {t.label}
-                  {t.id==="messages" && unreadCount>0 && (
-                    <span style={{position:"absolute",top:4,right:4,width:8,height:8,borderRadius:"50%",background:"#ef4444",boxShadow:"0 0 6px #ef4444"}}/>
-                  )}
-                </button>
+                <button key={t.id} className={`tab${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)}>{t.label}</button>
               ))}
             </div>
           </div>
@@ -462,7 +457,7 @@ export default function GerxyApp() {
           </div>
         ) : (
           <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px"}}>
-            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer} currentUser={user}/>}
+            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer}/>}
             {tab==="members" && <Members accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} currentUser={user}/>}
             {tab==="war" && <WarTab warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} timer={timer}/>}
             {tab==="mypage" && !user.isGuest && <MyPage user={user} memberList={memberList} warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
@@ -589,7 +584,7 @@ function LoginScreen({ onLogin, onRegister, onGuest, accounts, loading }) {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
-function Dashboard({ memberList, warList, settings, isAdmin, db, timer, currentUser }) {
+function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
   const warStatus = getWarStatus();
   const [ms, setMs] = useState(warStatus.msLeft);
   useEffect(() => { setMs(prev => prev - 1000); }, [timer]);
@@ -597,17 +592,6 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer, currentU
   const totalPoints = memberList.reduce((s,m) => s+(Number(m.weeklyPoints)||0), 0);
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const activeMembers = memberList.filter(m=>m.active!==false).length;
-
-  // Eigene War-Punkte des eingeloggten Users (letzter War + Gesamt)
-  const myWarPtsTotal = currentUser && !currentUser.isGuest ? warList.reduce((sum,w) => {
-    if (!w.memberPoints) return sum;
-    const entry = Object.entries(w.memberPoints).find(([n]) => n.toLowerCase()===currentUser.username?.toLowerCase());
-    return sum + (entry ? Number(entry[1])||0 : 0);
-  }, 0) : 0;
-  const lastWar = warList[0];
-  const myLastWarPts = currentUser && !currentUser.isGuest && lastWar?.memberPoints
-    ? Number(Object.entries(lastWar.memberPoints).find(([n]) => n.toLowerCase()===currentUser.username?.toLowerCase())?.[1]||0)
-    : 0;
 
   // Gesamtpunkte aus allen Wars — Groß/Kleinschreibung ignorieren
   const totalPerMember = {};
@@ -662,20 +646,6 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer, currentU
           </div>
         )}
       </div>
-
-      {/* Persönliche Stats (nur wenn eingeloggt) */}
-      {currentUser && !currentUser.isGuest && (
-        <div className="grid-2 section-gap">
-          <div className="card" style={{background:"linear-gradient(135deg,#c8850a15,var(--bg3))",borderColor:"#c8850a30"}}>
-            <div style={{fontSize:11,color:"var(--text3)",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>⚔️ Deine War-Punkte (gesamt)</div>
-            <div style={{fontSize:28,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{fmt(myWarPtsTotal)}</div>
-          </div>
-          <div className="card" style={{background:"linear-gradient(135deg,#3b82f615,var(--bg3))",borderColor:"#3b82f630"}}>
-            <div style={{fontSize:11,color:"var(--text3)",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>📊 Letzter War ({lastWar?.opponent||"-"})</div>
-            <div style={{fontSize:28,fontWeight:700,color:"#3b82f6",fontFamily:"'Cinzel',serif"}}>{fmt(myLastWarPts)}</div>
-          </div>
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid-4 section-gap">
@@ -1577,7 +1547,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
+        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["dungeon","🗝️ Dungeon"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
           <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
@@ -1603,21 +1573,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
                 <div className="calc-row"><span>Effektive Hämmer</span><span>{calcResult.eff}</span></div>
                 <div className="calc-row"><span>Bestes Zeitalter</span><span style={{color:"var(--gold2)"}}>{calcResult.topZ} ({calcResult.topC}%)</span></div>
                 <div className="calc-row"><span>Erwartete Punkte</span><span style={{color:"var(--gold2)",fontWeight:600,fontSize:16}}>{fmt(calcResult.expected)}</span></div>
-                <div className="calc-row"><span>Spanne</span><span>{fmt(calcResult.low)} – {fmt(calcResult.high)}</span></div>
-                <hr style={{border:"none",borderTop:"1px solid var(--border)",margin:"8px 0"}}/>
-                <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,letterSpacing:1}}>ZIEL-RECHNER</div>
-                {[50000,100000,250000,500000].map(goal=>{
-                  const row = FORGE_DATA[forgeLevel-1];
-                  const probs = row?.slice(5)||[];
-                  const avgPts = probs.reduce((s,p,i)=>s+(p/100)*WAR_PTS[i],0);
-                  const needed = avgPts>0 ? Math.ceil(goal/(avgPts*(1+effectiveFreeForge/100))) : "∞";
-                  return (
-                    <div key={goal} className="calc-row">
-                      <span style={{color:"var(--text3)"}}>{fmt(goal)} Pkt</span>
-                      <span style={{color:calcResult.expected>=goal?"#22c55e":"var(--text2)"}}>{needed === "∞" ? "∞" : fmt(needed)} Hämmer {calcResult.expected>=goal?"✅":""}</span>
-                    </div>
-                  );
-                })}
+                <div className="calc-row"><span>Spanne</span><span>{fmt(calcResult.low)} - {fmt(calcResult.high)}</span></div>
               </div>
             )}
           </div>
@@ -1780,6 +1736,10 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         </div>
       )}
 
+      {activeCalc==="dungeon" && (
+        <DungeonCalc warList={warList} user={user} db={db}/>
+      )}
+
       {activeCalc==="techtree" && (
         <TechTreePanel
           techTree={techTree}
@@ -1799,6 +1759,203 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         <div style={{display:"flex",justifyContent:"flex-end",marginTop:10,gap:8,alignItems:"center"}}>
           {(noteSaved||profileSaved) && <span style={{color:"#22c55e",fontSize:13}}>✅ Gespeichert</span>}
           <button className="btn btn-gold btn-sm" onClick={saveNote}>Speichern</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── DUNGEON KALKULATOR ───────────────────────────────────────
+function DungeonCalc({ warList, user, db }) {
+  const DUNGEONS = [
+    { id:"hammer",  name:"Hammer Thief",  icon:"🔨", ptsPerKey:3000, color:"#f59e0b" },
+    { id:"ghost",   name:"Ghost Town",    icon:"👻", ptsPerKey:3000, color:"#a855f7" },
+    { id:"invasion",name:"Invasion",      icon:"⚔️", ptsPerKey:3000, color:"#ef4444" },
+    { id:"zombie",  name:"Zombie Rush",   icon:"🧟", ptsPerKey:3000, color:"#22c55e" },
+  ];
+
+  const KEYS_PER_DAY = 2;   // Max Schlüssel pro Dungeon pro Tag
+  const WAR_DAYS_COUNT = 6; // Dienstag bis Sonntag
+
+  // State: wie viele Schlüssel hat der User pro Dungeon heute verfügbar
+  const [keys, setKeys] = useState({hammer:2, ghost:2, invasion:2, zombie:2});
+  const [warDay, setWarDay] = useState(1); // War-Tag 1-6
+
+  // Gesamtberechnung
+  const totalKeys = Object.values(keys).reduce((s,v)=>s+v, 0);
+  const totalPts = DUNGEONS.reduce((s,d) => s + (keys[d.id]||0) * d.ptsPerKey, 0);
+
+  // Max mögliche Punkte wenn alle Schlüssel genutzt werden
+  const maxPtsPerDay = DUNGEONS.length * KEYS_PER_DAY * 3000; // 4 × 2 × 3000 = 24.000
+  const maxPtsWar = maxPtsPerDay * WAR_DAYS_COUNT; // 144.000
+
+  // Hochrechnung auf den Rest des Wars
+  const remainingDays = WAR_DAYS_COUNT - warDay + 1;
+  const projectedTotal = totalPts * remainingDays;
+
+  // Vergleich mit letztem War (eigene Punkte aus War-Tab)
+  const lastWar = warList?.[0];
+  const myLastWarPts = lastWar?.memberPoints
+    ? Number(Object.entries(lastWar.memberPoints).find(([n]) =>
+        n.toLowerCase()===user?.username?.toLowerCase())?.[1]||0)
+    : 0;
+
+  return (
+    <div>
+      <div className="grid-2">
+        {/* Linke Seite: Eingabe */}
+        <div className="card">
+          <div className="card-title">🗝️ Dungeon-Schlüssel Kalkulator</div>
+
+          {/* War-Tag Auswahl */}
+          <div style={{marginBottom:16}}>
+            <label className="lbl">Aktueller War-Tag: {warDay} / {WAR_DAYS_COUNT}</label>
+            <input type="range" min={1} max={WAR_DAYS_COUNT} value={warDay}
+              onChange={e=>setWarDay(Number(e.target.value))}
+              style={{width:"100%",accentColor:"var(--gold2)"}}/>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text3)",marginTop:2}}>
+              <span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+            </div>
+          </div>
+
+          {/* Hinweis */}
+          <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:16}}>
+            💡 Max. <strong style={{color:"var(--gold2)"}}>2 Schlüssel</strong> pro Dungeon pro Tag — nicht sammelbar!
+          </div>
+
+          {/* Dungeon Schlüssel Eingabe */}
+          <div style={{display:"grid",gap:10}}>
+            {DUNGEONS.map(d => {
+              const k = keys[d.id] || 0;
+              const pts = k * d.ptsPerKey;
+              return (
+                <div key={d.id} style={{
+                  padding:"12px 14px",
+                  background:`${d.color}10`,
+                  border:`1px solid ${d.color}30`,
+                  borderRadius:10,
+                  display:"flex",alignItems:"center",gap:12,
+                }}>
+                  <span style={{fontSize:20,flexShrink:0}}>{d.icon}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,fontSize:13,marginBottom:2}}>{d.name}</div>
+                    <div style={{fontSize:11,color:"var(--text3)"}}>{fmt(d.ptsPerKey)} Pkt / Schlüssel</div>
+                  </div>
+                  {/* Schlüssel Counter */}
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <button
+                      onClick={()=>setKeys(p=>({...p,[d.id]:Math.max(0,p[d.id]-1)}))}
+                      disabled={k===0}
+                      style={{width:28,height:28,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k>0?d.color:"var(--text3)",cursor:k>0?"pointer":"default",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                    <div style={{
+                      width:36,height:36,borderRadius:8,
+                      background:k>0?`${d.color}25`:"var(--bg2)",
+                      border:`2px solid ${k>0?d.color:`${d.color}30`}`,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,
+                      color:k>0?d.color:"var(--text3)",
+                    }}>{k}</div>
+                    <button
+                      onClick={()=>setKeys(p=>({...p,[d.id]:Math.min(KEYS_PER_DAY,p[d.id]+1)}))}
+                      disabled={k===KEYS_PER_DAY}
+                      style={{width:28,height:28,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k<KEYS_PER_DAY?d.color:"var(--text3)",cursor:k<KEYS_PER_DAY?"pointer":"default",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                  </div>
+                  {/* Punkte */}
+                  <div style={{textAlign:"right",minWidth:70,flexShrink:0}}>
+                    <div style={{color:pts>0?d.color:"var(--text3)",fontWeight:pts>0?700:400,fontSize:14}}>{fmt(pts)}</div>
+                    <div style={{fontSize:10,color:"var(--text3)"}}>Pkt heute</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Rechte Seite: Auswertung */}
+        <div style={{display:"grid",gap:16,alignContent:"start"}}>
+
+          {/* Heute */}
+          <div className="card">
+            <div className="card-title">📊 Heutige Auswertung</div>
+            <div style={{display:"grid",gap:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",background:"var(--bg2)",borderRadius:8}}>
+                <span style={{color:"var(--text3)"}}>Schlüssel heute</span>
+                <span style={{color:"var(--gold2)",fontWeight:600}}>{totalKeys} / {DUNGEONS.length * KEYS_PER_DAY}</span>
+              </div>
+              <div style={{padding:"14px",background:"linear-gradient(135deg,#c8850a20,var(--bg2))",borderRadius:10,textAlign:"center",border:"1px solid #c8850a30"}}>
+                <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>PUNKTE HEUTE</div>
+                <div style={{fontSize:32,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{fmt(totalPts)}</div>
+                <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>von max. {fmt(maxPtsPerDay)}</div>
+                {/* Fortschrittsbalken */}
+                <div className="pbar" style={{marginTop:8,height:6}}>
+                  <div className="pfill" style={{width:`${maxPtsPerDay>0?(totalPts/maxPtsPerDay)*100:0}%`}}/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hochrechnung */}
+          <div className="card">
+            <div className="card-title">📈 War-Hochrechnung</div>
+            <div style={{display:"grid",gap:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
+                <span style={{color:"var(--text3)"}}>Verbleibende Tage</span>
+                <span style={{color:"var(--text2)",fontWeight:600}}>{remainingDays}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
+                <span style={{color:"var(--text3)"}}>Hochrechnung (heute × Resttage)</span>
+                <span style={{color:"#3b82f6",fontWeight:600}}>{fmt(projectedTotal)}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
+                <span style={{color:"var(--text3)"}}>Theoretisches Maximum</span>
+                <span style={{color:"var(--text3)"}}>{fmt(maxPtsWar)}</span>
+              </div>
+              {myLastWarPts > 0 && (
+                <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}>
+                  <span style={{color:"var(--text3)"}}>Letzter War (gesamt)</span>
+                  <span style={{color:"#22c55e",fontWeight:600}}>{fmt(myLastWarPts)}</span>
+                </div>
+              )}
+              {/* Empfehlung */}
+              {totalKeys < DUNGEONS.length * KEYS_PER_DAY && (
+                <div style={{padding:"10px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>
+                  ⚠️ Du lässt {DUNGEONS.length * KEYS_PER_DAY - totalKeys} Schlüssel verfallen → {fmt((DUNGEONS.length * KEYS_PER_DAY - totalKeys) * 3000)} Pkt verloren!
+                </div>
+              )}
+              {totalKeys === DUNGEONS.length * KEYS_PER_DAY && (
+                <div style={{padding:"10px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>
+                  ✅ Alle Schlüssel werden heute genutzt — perfekt!
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tages-Übersicht */}
+          <div className="card">
+            <div className="card-title">📅 Punkte über den War</div>
+            <div style={{display:"grid",gap:4}}>
+              {Array.from({length:WAR_DAYS_COUNT},(_,i)=>{
+                const day = i+1;
+                const days = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+                const isToday = day === warDay;
+                const isPast = day < warDay;
+                return (
+                  <div key={day} style={{
+                    display:"flex",justifyContent:"space-between",alignItems:"center",
+                    padding:"6px 10px",borderRadius:6,fontSize:12,
+                    background:isToday?"#c8850a20":isPast?"var(--bg2)":"transparent",
+                    border:isToday?"1px solid #c8850a40":"1px solid transparent",
+                    color:isPast?"var(--text3)":"var(--text2)",
+                  }}>
+                    <span>{isToday?"▶ ":""}{days[i]}</span>
+                    <span style={{color:isToday?"var(--gold2)":isPast?"var(--text3)":"var(--text3)",fontWeight:isToday?700:400}}>
+                      {isToday ? fmt(totalPts) : isPast ? "—" : fmt(totalPts) + " (erwartet)"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>
