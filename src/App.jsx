@@ -88,6 +88,75 @@ const WAR_DAYS = [
   ]},
 ];
 
+// ── Tech Tree Daten ──────────────────────────────────────────
+const TECH_TREE_DATA = {
+  schmiede: {
+    label: "⚒️ Schmiede", color: "#c8850a",
+    tiers: ["Tier I","Tier II","Tier III","Tier IV","Tier V"],
+    nodes: [
+      { id:"schmiede_timer",      name:"Schmiede-Timer",           icon:"⏰",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"aufruest_kosten",     name:"Schmiede-Aufrüstungskosten",icon:"🏷️", effekt:0.01, maxLevel:5, calc:null },
+      { id:"verkaufspreis",       name:"Ausrüstungs-Verkaufspreis", icon:"💰",  effekt:0.01, maxLevel:5, calc:null },
+      { id:"hd_hammer",           name:"Hammerdieb-Hammer-Bonus",   icon:"🔑",  effekt:0.01, maxLevel:5, calc:null },
+      { id:"hd_muenzen",          name:"Hammerdieb-Münzen-Bonus",   icon:"🗝️",  effekt:0.01, maxLevel:5, calc:null },
+      { id:"auto_schmiede",       name:"Auto-Schmiede",             icon:"🔨",  effekt:1,    maxLevel:1, calc:null },
+      { id:"gratis_forge",        name:"Kostenlose Schmiede-Chance",icon:"🍀",  effekt:0.01, maxLevel:5, calc:"freeForge" },
+      { id:"offline_zeit",        name:"Maximale Offline-Zeit",     icon:"💤",  effekt:0.16, maxLevel:5, calc:"offlineTime" },
+      { id:"offline_muenzen",     name:"Münzen-Offline-Belohnung",  icon:"💰",  effekt:0.01, maxLevel:5, calc:null },
+      { id:"offline_hammer",      name:"Hammer-Offline-Belohnung",  icon:"🔨",  effekt:0.01, maxLevel:5, calc:null },
+    ]
+  },
+  macht: {
+    label: "⚔️ Macht", color: "#ef4444",
+    tiers: ["Tier I","Tier II","Tier III","Tier IV","Tier V"],
+    nodes: [
+      { id:"waffe_meis",     name:"Waffen-Meisterschaft",              icon:"⚔️",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"helm_meis",      name:"Helm-Meisterschaft",                icon:"🪖",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"hand_meis",      name:"Handschuh-Meisterschaft",           icon:"🧤",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"ruestung_meis",  name:"Rüstungs-Meisterschaft",            icon:"🧥",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"kette_meis",     name:"Halsketten-Meisterschaft",          icon:"📿",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"schuhe_meis",    name:"Schuh-Meisterschaft",               icon:"👟",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"ring_meis",      name:"Ring-Meisterschaft",                icon:"💍",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"guertel_meis",   name:"Gürtel-Meisterschaft",              icon:"🧣",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"reittier_schad", name:"Reittier-Schaden-Meisterschaft",    icon:"🐴",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"reittier_hp",    name:"Reittier-Gesundheit-Meisterschaft", icon:"🐴",  effekt:0.02, maxLevel:5, calc:null },
+      { id:"waffe_auf",      name:"Waffen-Aufstieg",                   icon:"⚔️⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"helm_auf",       name:"Helm-Aufstieg",                     icon:"🪖⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"hand_auf",       name:"Handschuh-Aufstieg",                icon:"🧤⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"ruestung_auf",   name:"Rüstungs-Aufstieg",                 icon:"🧥⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"kette_auf",      name:"Halsketten-Aufstieg",               icon:"📿⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"schuhe_auf",     name:"Schuh-Aufstieg",                    icon:"👟⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"ring_auf",       name:"Ring-Aufstieg",                     icon:"💍⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"guertel_auf",    name:"Gürtel-Aufstieg",                   icon:"🧣⭐", effekt:2,   maxLevel:5, calc:null },
+      { id:"reittier_kost",  name:"Reittier-Beschwörungskosten",       icon:"🐴⭐", effekt:0.01, maxLevel:5, calc:null },
+      { id:"reittier_chan",  name:"Zusätzliche Reittier-Chance",        icon:"🍀🐴", effekt:0.02, maxLevel:5, calc:null },
+    ]
+  },
+  faehigkeiten: {
+    label: "🐾 Fähigkeiten", color: "#a855f7",
+    tiers: ["Tier I","Tier II","Tier III","Tier IV","Tier V"],
+    nodes: [
+      { id:"tech_timer",     name:"Technik-Forschungs-Timer",              icon:"⏰",   effekt:0.04, maxLevel:5, calc:null },
+      { id:"faehig_schad",   name:"Fähigkeits-Schaden-Meisterschaft",      icon:"🟢⚔️", effekt:0.02, maxLevel:5, calc:null },
+      { id:"faehig_passiv",  name:"Fähigkeits-Passivschaden",              icon:"🔄⚔️", effekt:0.02, maxLevel:5, calc:null },
+      { id:"faehig_hp",      name:"Fähigkeits-Passivgesundheit",           icon:"❤️🔄", effekt:0.02, maxLevel:5, calc:null },
+      { id:"tech_kosten",    name:"Technik-Knoten-Aufrüstungskosten",      icon:"🏷️",   effekt:0.02, maxLevel:5, calc:null },
+      { id:"begl_schad",     name:"Begleiter-Schaden-Meisterschaft",       icon:"🐾⚔️", effekt:0.02, maxLevel:5, calc:null },
+      { id:"begl_hp",        name:"Begleiter-Gesundheit-Meisterschaft",    icon:"🐾❤️", effekt:0.02, maxLevel:5, calc:null },
+      { id:"faehig_beschwk", name:"Fähigkeits-Beschwörungskosten",         icon:"🟢⭐", effekt:0.01, maxLevel:5, calc:null },
+      { id:"ei_gewoeh",      name:"Gewöhnlicher Ei-Timer",                 icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer_0" },
+      { id:"ei_selten",      name:"Seltenes Ei-Timer",                     icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer_1" },
+      { id:"ei_episch",      name:"Episches Ei-Timer",                     icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer_2" },
+      { id:"ei_legend",      name:"Legendäres Ei-Timer",                   icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer_3" },
+      { id:"ei_ultimate",    name:"Ultimatives Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer_4" },
+      { id:"ei_mythisch",    name:"Mythisches Ei-Timer",                   icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer_5" },
+      { id:"ei_chance",      name:"Zusätzliche Ei-Chance",                 icon:"🐾🍀", effekt:0.02, maxLevel:5, calc:null },
+      { id:"ghost_ticket",   name:"Geisterstadt-Fähigkeits-Ticket-Bonus",  icon:"🔑🟢", effekt:0.01, maxLevel:5, calc:null },
+      { id:"zombie_trank",   name:"Zombieansturm-Techniktrank-Bonus",      icon:"🔑❤️", effekt:0.02, maxLevel:5, calc:null },
+    ]
+  }
+};
+
 // SHA-256 Hash via Web Crypto API — Passwort wird NIE im Klartext gespeichert
 async function hashPw(pw) {
   const encoded = new TextEncoder().encode(pw);
@@ -1298,6 +1367,42 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const [summonType, setSummonType] = useState("Haustier");
   const [summonLevel, setSummonLevel] = useState(1);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [techTree, setTechTree] = useState({}); // { nodeId_tier: level }
+
+  // Tech Tree Hilfsfunktionen
+  function getTechLevel(nodeId, tier) {
+    return techTree[`${nodeId}_${tier}`] || 0;
+  }
+
+  function getTotalTechBonus(nodeId) {
+    const node = Object.values(TECH_TREE_DATA)
+      .flatMap(tree => tree.nodes)
+      .find(n => n.id === nodeId);
+    if (!node) return 0;
+    const allTiers = ["Tier I","Tier II","Tier III","Tier IV","Tier V"];
+    return allTiers.reduce((sum, tier) => {
+      return sum + (getTechLevel(nodeId, tier) * node.effekt);
+    }, 0);
+  }
+
+  // Berechnete Boni aus Tech Tree
+  const techFreeForgeBonus = Math.round(getTotalTechBonus("gratis_forge") * 100); // in %
+  const techOfflineBonus = getTotalTechBonus("offline_zeit"); // in Stunden-Multiplikator
+  // Effektiver freeForge = manueller Wert + Tech Tree Bonus
+  const effectiveFreeForge = freeForge + techFreeForgeBonus;
+  // Effektiver eggTimerLevel = manueller Slider + Tech Tree Gesamt-Level
+  const allEggTiers = ["Tier I","Tier II","Tier III","Tier IV","Tier V"];
+  const techEggTimerBonus = allEggTiers.reduce((sum, tier) =>
+    sum + (getTechLevel("ei_gewoeh", tier) + getTechLevel("ei_selten", tier) +
+           getTechLevel("ei_episch", tier) + getTechLevel("ei_legend", tier) +
+           getTechLevel("ei_ultimate", tier) + getTechLevel("ei_mythisch", tier)), 0);
+
+  async function saveTechNode(nodeId, tier, level) {
+    const key = `${nodeId}_${tier}`;
+    const newTree = { ...techTree, [key]: level };
+    setTechTree(newTree);
+    await update(ref(db, `profiles/${user.username}`), { techTree: newTree });
+  }
 
   // Profil aus Firebase laden beim ersten Render
   useEffect(() => {
@@ -1312,6 +1417,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         if (p.summonType) setSummonType(p.summonType);
         if (p.summonLevel) setSummonLevel(p.summonLevel);
         if (p.myNote !== undefined) setMyNote(p.myNote);
+        if (p.techTree) setTechTree(p.techTree);
         setProfileLoaded(true);
       } else if (!snap.val()) {
         setProfileLoaded(true);
@@ -1324,7 +1430,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   async function saveProfile() {
     await update(ref(db, `profiles/${user.username}`), {
       forgeLevel, freeForge, eggTimerLevel, offlineTechLevel,
-      summonType, summonLevel, myNote,
+      summonType, summonLevel, myNote, techTree,
       lastUpdated: Date.now(),
     });
     setProfileSaved(true);
@@ -1408,7 +1514,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
     if(!row) return;
     const probs = row.slice(5);
     const avgPts = probs.reduce((s,p,i) => s+(p/100)*WAR_PTS[i], 0);
-    const eff = hammers*(1+freeForge/100);
+    const eff = hammers*(1+effectiveFreeForge/100);
     const exp = Math.round(eff*avgPts);
     const topIdx = probs.indexOf(Math.max(...probs));
     setCalcResult({expected:exp,low:Math.round(exp*0.75),high:Math.round(exp*1.25),eff:Math.round(eff),topZ:ZEITALTER[topIdx],topC:probs[topIdx]?.toFixed(1)});
@@ -1443,8 +1549,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge",".. Schmiede"],["egg",".. Eier"],["offline",".. Offline"],["summon",".. Beschwoerunq"]].map(([id,label])=>(
-          <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label.replace("..","")}</button>
+        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
+          <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
 
@@ -1456,7 +1562,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
               <div><label className="lbl">Schmied-Level: {forgeLevel}</label>
                 <input type="range" min={1} max={35} value={forgeLevel} onChange={e=>{const v=Number(e.target.value);setForgeLevel(v);setCalcResult(null);update(ref(db,`profiles/${user.username}`),{forgeLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
-              <div><label className="lbl">Gratis-Schmiede: {freeForge}%</label>
+              <div><label className="lbl">Gratis-Schmiede: {freeForge}% {techFreeForgeBonus>0&&<span style={{color:"#22c55e",fontSize:11}}>+{techFreeForgeBonus}% Tech = {effectiveFreeForge}%</span>}</label>
                 <input type="range" min={0} max={50} value={freeForge} onChange={e=>{const v=Number(e.target.value);setFreeForge(v);update(ref(db,`profiles/${user.username}`),{freeForge:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div><label className="lbl">Hämmer</label><input className="inp" type="number" value={hammers} onChange={e=>setHammers(Number(e.target.value))}/></div>
@@ -1606,6 +1712,15 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         </div>
       )}
 
+      {activeCalc==="techtree" && (
+        <TechTreePanel
+          techTree={techTree}
+          saveTechNode={saveTechNode}
+          techFreeForgeBonus={techFreeForgeBonus}
+          techOfflineBonus={techOfflineBonus}
+        />
+      )}
+
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
@@ -1613,6 +1728,156 @@ function MyPage({ user, memberList, warList, accountList, db }) {
           {(noteSaved||profileSaved) && <span style={{color:"#22c55e",fontSize:13}}>✅ Gespeichert</span>}
           <button className="btn btn-gold btn-sm" onClick={saveNote}>Speichern</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TECH TREE PANEL ──────────────────────────────────────────
+function TechTreePanel({ techTree, saveTechNode, techFreeForgeBonus, techOfflineBonus }) {
+  const [activeTree, setActiveTree] = useState("schmiede");
+  const TIERS = ["Tier I","Tier II","Tier III","Tier IV","Tier V"];
+  const TIER_COLORS = {"Tier I":"#22c55e","Tier II":"#3b82f6","Tier III":"#a855f7","Tier IV":"#f59e0b","Tier V":"#ef4444"};
+
+  function getLevel(nodeId, tier) {
+    return techTree[`${nodeId}_${tier}`] || 0;
+  }
+
+  function getTotalBonus(tree, nodeId) {
+    const node = tree.nodes.find(n => n.id === nodeId);
+    if (!node) return 0;
+    return TIERS.reduce((s, t) => s + (getLevel(nodeId, t) * node.effekt), 0);
+  }
+
+  function getTotalLevel(nodeId) {
+    return TIERS.reduce((s, t) => s + getLevel(nodeId, t), 0);
+  }
+
+  const currentTree = TECH_TREE_DATA[activeTree];
+
+  // Gesamtfortschritt berechnen
+  const totalNodes = Object.values(TECH_TREE_DATA).reduce((s, tree) =>
+    s + tree.nodes.length * TIERS.length, 0);
+  const totalMaxPoints = Object.values(TECH_TREE_DATA).reduce((s, tree) =>
+    s + tree.nodes.reduce((ns, node) => ns + node.maxLevel * TIERS.length, 0), 0);
+  const currentPoints = Object.values(TECH_TREE_DATA).reduce((s, tree) =>
+    s + tree.nodes.reduce((ns, node) =>
+      ns + TIERS.reduce((ts, tier) => ts + getLevel(node.id, tier), 0), 0), 0);
+
+  return (
+    <div>
+      {/* Aktive Kalkulator-Boni Anzeige */}
+      {(techFreeForgeBonus > 0 || techOfflineBonus > 0) && (
+        <div style={{padding:"12px 16px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:10,marginBottom:16,display:"flex",gap:16,flexWrap:"wrap"}}>
+          <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",width:"100%",marginBottom:4}}>🔗 Aktive Tech Tree Boni (Kalkulator)</div>
+          {techFreeForgeBonus > 0 && (
+            <div style={{fontSize:13,color:"#22c55e"}}>🍀 Gratis-Schmiede: <strong>+{techFreeForgeBonus}%</strong></div>
+          )}
+          {techOfflineBonus > 0 && (
+            <div style={{fontSize:13,color:"#22c55e"}}>💤 Offline-Zeit: <strong>+{(techOfflineBonus*100).toFixed(0)}%</strong></div>
+          )}
+        </div>
+      )}
+
+      {/* Gesamtfortschritt */}
+      <div className="card mb-16" style={{padding:"14px 18px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:"var(--gold2)",letterSpacing:1}}>GESAMTFORTSCHRITT</div>
+          <div style={{fontSize:13,color:"var(--gold2)",fontWeight:600}}>{currentPoints} / {totalMaxPoints} Punkte</div>
+        </div>
+        <div className="pbar" style={{height:8}}>
+          <div className="pfill" style={{width:`${totalMaxPoints>0?(currentPoints/totalMaxPoints)*100:0}%`}}/>
+        </div>
+      </div>
+
+      {/* Baum-Auswahl */}
+      <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+        {Object.entries(TECH_TREE_DATA).map(([key, tree]) => (
+          <button key={key} className={`btn ${activeTree===key?"btn-gold":"btn-ghost"}`}
+            style={{fontSize:12}} onClick={()=>setActiveTree(key)}>
+            {tree.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Node-Liste */}
+      <div style={{display:"grid",gap:10}}>
+        {currentTree.nodes.map(node => {
+          const totalLvl = getTotalLevel(node.id);
+          const maxTotal = node.maxLevel * TIERS.length;
+          const totalBonus = getTotalBonus(currentTree, node.id);
+          const isCalcLinked = node.calc !== null;
+
+          return (
+            <div key={node.id} className="card" style={{
+              padding:"14px 16px",
+              borderColor: isCalcLinked ? "#22c55e40" : "var(--border)",
+              background: isCalcLinked ? "linear-gradient(135deg,#22c55e08,var(--bg3))" : undefined
+            }}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10,flexWrap:"wrap",gap:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:18}}>{node.icon}</span>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:14,color:"var(--text)"}}>{node.name}</div>
+                    <div style={{fontSize:11,color:"var(--text3)"}}>
+                      {node.effekt < 1 ? `+${(node.effekt*100).toFixed(0)}% pro Level` : `+${node.effekt} pro Level`}
+                      {isCalcLinked && <span style={{color:"#22c55e",marginLeft:6}}>🔗 Kalkulator</span>}
+                    </div>
+                  </div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{color:"var(--gold2)",fontWeight:700,fontSize:14}}>
+                    {node.effekt < 1
+                      ? `+${(totalBonus*100).toFixed(0)}%`
+                      : `+${totalBonus.toFixed(0)}`}
+                  </div>
+                  <div style={{fontSize:11,color:"var(--text3)"}}>{totalLvl}/{maxTotal} gesamt</div>
+                </div>
+              </div>
+
+              {/* Tier-Slider */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
+                {TIERS.map(tier => {
+                  const lvl = getLevel(node.id, tier);
+                  const color = TIER_COLORS[tier];
+                  return (
+                    <div key={tier} style={{textAlign:"center"}}>
+                      <div style={{fontSize:10,color:"var(--text3)",marginBottom:3,letterSpacing:0.5}}>{tier.replace("Tier ","T")}</div>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
+                        <button
+                          onClick={()=>lvl>0&&saveTechNode(node.id,tier,lvl-1)}
+                          style={{width:20,height:20,borderRadius:4,border:`1px solid ${color}40`,background:"var(--bg2)",color:color,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,lineHeight:1}}
+                          disabled={lvl===0}>−</button>
+                        <div style={{
+                          minWidth:28,height:28,borderRadius:6,
+                          background:`${color}${lvl>0?"30":"10"}`,
+                          border:`1px solid ${color}${lvl>0?"60":"20"}`,
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          fontFamily:"'Cinzel',serif",fontSize:12,
+                          color:lvl>0?color:"var(--text3)",
+                          fontWeight:lvl>0?700:400,
+                        }}>
+                          {lvl}/{node.maxLevel}
+                        </div>
+                        <button
+                          onClick={()=>lvl<node.maxLevel&&saveTechNode(node.id,tier,lvl+1)}
+                          style={{width:20,height:20,borderRadius:4,border:`1px solid ${color}40`,background:"var(--bg2)",color:color,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,lineHeight:1}}
+                          disabled={lvl===node.maxLevel}>+</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Fortschrittsbalken gesamt */}
+              {maxTotal > 1 && (
+                <div className="pbar" style={{marginTop:8,height:4}}>
+                  <div className="pfill" style={{width:`${(totalLvl/maxTotal)*100}%`,background:`linear-gradient(90deg,${currentTree.color},${currentTree.color}99)`}}/>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
