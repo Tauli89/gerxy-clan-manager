@@ -444,7 +444,12 @@ export default function GerxyApp() {
             </div>
             <div className="tabs">
               {tabs.map(t=>(
-                <button key={t.id} className={`tab${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)}>{t.label}</button>
+                <button key={t.id} className={`tab${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)} style={{position:"relative"}}>
+                  {t.label}
+                  {t.id==="messages" && unreadCount>0 && (
+                    <span style={{position:"absolute",top:4,right:4,width:8,height:8,borderRadius:"50%",background:"#ef4444",boxShadow:"0 0 6px #ef4444"}}/>
+                  )}
+                </button>
               ))}
             </div>
           </div>
@@ -457,7 +462,7 @@ export default function GerxyApp() {
           </div>
         ) : (
           <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px"}}>
-            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer}/>}
+            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer} currentUser={user}/>}
             {tab==="members" && <Members accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} currentUser={user}/>}
             {tab==="war" && <WarTab warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} timer={timer}/>}
             {tab==="mypage" && !user.isGuest && <MyPage user={user} memberList={memberList} warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
@@ -584,7 +589,7 @@ function LoginScreen({ onLogin, onRegister, onGuest, accounts, loading }) {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
-function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
+function Dashboard({ memberList, warList, settings, isAdmin, db, timer, currentUser }) {
   const warStatus = getWarStatus();
   const [ms, setMs] = useState(warStatus.msLeft);
   useEffect(() => { setMs(prev => prev - 1000); }, [timer]);
@@ -592,6 +597,17 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
   const totalPoints = memberList.reduce((s,m) => s+(Number(m.weeklyPoints)||0), 0);
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const activeMembers = memberList.filter(m=>m.active!==false).length;
+
+  // Eigene War-Punkte des eingeloggten Users (letzter War + Gesamt)
+  const myWarPtsTotal = currentUser && !currentUser.isGuest ? warList.reduce((sum,w) => {
+    if (!w.memberPoints) return sum;
+    const entry = Object.entries(w.memberPoints).find(([n]) => n.toLowerCase()===currentUser.username?.toLowerCase());
+    return sum + (entry ? Number(entry[1])||0 : 0);
+  }, 0) : 0;
+  const lastWar = warList[0];
+  const myLastWarPts = currentUser && !currentUser.isGuest && lastWar?.memberPoints
+    ? Number(Object.entries(lastWar.memberPoints).find(([n]) => n.toLowerCase()===currentUser.username?.toLowerCase())?.[1]||0)
+    : 0;
 
   // Gesamtpunkte aus allen Wars — Groß/Kleinschreibung ignorieren
   const totalPerMember = {};
@@ -646,6 +662,20 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
           </div>
         )}
       </div>
+
+      {/* Persönliche Stats (nur wenn eingeloggt) */}
+      {currentUser && !currentUser.isGuest && (
+        <div className="grid-2 section-gap">
+          <div className="card" style={{background:"linear-gradient(135deg,#c8850a15,var(--bg3))",borderColor:"#c8850a30"}}>
+            <div style={{fontSize:11,color:"var(--text3)",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>⚔️ Deine War-Punkte (gesamt)</div>
+            <div style={{fontSize:28,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{fmt(myWarPtsTotal)}</div>
+          </div>
+          <div className="card" style={{background:"linear-gradient(135deg,#3b82f615,var(--bg3))",borderColor:"#3b82f630"}}>
+            <div style={{fontSize:11,color:"var(--text3)",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>📊 Letzter War ({lastWar?.opponent||"-"})</div>
+            <div style={{fontSize:28,fontWeight:700,color:"#3b82f6",fontFamily:"'Cinzel',serif"}}>{fmt(myLastWarPts)}</div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid-4 section-gap">
@@ -1573,7 +1603,21 @@ function MyPage({ user, memberList, warList, accountList, db }) {
                 <div className="calc-row"><span>Effektive Hämmer</span><span>{calcResult.eff}</span></div>
                 <div className="calc-row"><span>Bestes Zeitalter</span><span style={{color:"var(--gold2)"}}>{calcResult.topZ} ({calcResult.topC}%)</span></div>
                 <div className="calc-row"><span>Erwartete Punkte</span><span style={{color:"var(--gold2)",fontWeight:600,fontSize:16}}>{fmt(calcResult.expected)}</span></div>
-                <div className="calc-row"><span>Spanne</span><span>{fmt(calcResult.low)} - {fmt(calcResult.high)}</span></div>
+                <div className="calc-row"><span>Spanne</span><span>{fmt(calcResult.low)} – {fmt(calcResult.high)}</span></div>
+                <hr style={{border:"none",borderTop:"1px solid var(--border)",margin:"8px 0"}}/>
+                <div style={{fontSize:11,color:"var(--text3)",marginBottom:6,letterSpacing:1}}>ZIEL-RECHNER</div>
+                {[50000,100000,250000,500000].map(goal=>{
+                  const row = FORGE_DATA[forgeLevel-1];
+                  const probs = row?.slice(5)||[];
+                  const avgPts = probs.reduce((s,p,i)=>s+(p/100)*WAR_PTS[i],0);
+                  const needed = avgPts>0 ? Math.ceil(goal/(avgPts*(1+effectiveFreeForge/100))) : "∞";
+                  return (
+                    <div key={goal} className="calc-row">
+                      <span style={{color:"var(--text3)"}}>{fmt(goal)} Pkt</span>
+                      <span style={{color:calcResult.expected>=goal?"#22c55e":"var(--text2)"}}>{needed === "∞" ? "∞" : fmt(needed)} Hämmer {calcResult.expected>=goal?"✅":""}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
