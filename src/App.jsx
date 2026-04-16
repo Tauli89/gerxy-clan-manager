@@ -1415,7 +1415,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         if (p.freeForge !== undefined) setFreeForge(p.freeForge);
         if (p.summonType) setSummonType(p.summonType);
         if (p.summonLevels) setSummonLevels(p.summonLevels);
-        else if (p.summonLevel) setSummonLevels(l => ({...l, [p.summonType||"Haustier"]: p.summonLevel}));
+        else if (p.summonLevel) setSummonLevels(l=>({...l,[p.summonType||"Haustier"]:p.summonLevel}));
         if (p.myNote !== undefined) setMyNote(p.myNote);
         if (p.techTree) setTechTree(p.techTree);
         setProfileLoaded(true);
@@ -1739,11 +1739,16 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       )}
 
       {activeCalc==="dungeon" && (
-        <DungeonCalc warList={warList} user={user} db={db}/>
+        <DungeonCalc warList={warList} user={user}/>
       )}
 
       {activeCalc==="tagesplan" && (
-        <TagesplanOptimizer user={user} warList={warList}/>
+        <TagesplanOptimizer
+          user={user} warList={warList}
+          forgeLevel={forgeLevel} effectiveFreeForge={effectiveFreeForge}
+          hammers={hammers} setHammers={setHammers}
+          summonLevels={summonLevels}
+        />
       )}
 
       {activeCalc==="techtree" && (
@@ -1782,23 +1787,18 @@ function DungeonCalc({ warList, user }) {
   const PTS_PER_KEY = 3000;
   const KEYS_PER_DAY = 2;
   const WAR_DAYS = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-  // Nur Mittwoch (Index 1) und Samstag (Index 4) geben Punkte
-  const POINT_DAYS = [1, 4];
+  const POINT_DAYS = [1, 4]; // Mi=1, Sa=4
 
   const [keys, setKeys] = useState({hammer:2,ghost:2,invasion:2,zombie:2});
   const [warDay, setWarDay] = useState(1);
-
-  const dayIdx = warDay - 1; // 0-basiert
+  const dayIdx = warDay - 1;
   const todayGivesPoints = POINT_DAYS.includes(dayIdx);
   const totalKeys = Object.values(keys).reduce((s,v)=>s+v,0);
-  const totalPtsToday = todayGivesPoints ? DUNGEONS.reduce((s,d)=>(keys[d.id]||0)*PTS_PER_KEY+s,0) : 0;
-  const maxPtsPerPointDay = DUNGEONS.length * KEYS_PER_DAY * PTS_PER_KEY; // 24.000
-  const maxPtsWar = maxPtsPerPointDay * POINT_DAYS.length; // 48.000
-
-  // Hochrechnung: verbleibende Punkt-Tage ab heute
-  const remainingPointDays = POINT_DAYS.filter(d => d >= dayIdx).length;
+  const totalPtsToday = todayGivesPoints ? DUNGEONS.reduce((s,d)=>s+(keys[d.id]||0)*PTS_PER_KEY,0) : 0;
+  const maxPtsPerPointDay = DUNGEONS.length * KEYS_PER_DAY * PTS_PER_KEY;
+  const maxPtsWar = maxPtsPerPointDay * POINT_DAYS.length;
+  const remainingPointDays = POINT_DAYS.filter(d=>d>=dayIdx).length;
   const projectedTotal = totalPtsToday * remainingPointDays;
-
   const lastWar = warList?.[0];
   const myLastWarPts = lastWar?.memberPoints
     ? Number(Object.entries(lastWar.memberPoints).find(([n])=>n.toLowerCase()===user?.username?.toLowerCase())?.[1]||0)
@@ -1807,15 +1807,11 @@ function DungeonCalc({ warList, user }) {
   return (
     <div>
       <div className="grid-2">
-        {/* Eingabe */}
         <div className="card">
           <div className="card-title">🗝️ Dungeon-Schlüssel Kalkulator</div>
-
-          {/* War-Tag */}
-          <div style={{marginBottom:16}}>
+          <div style={{marginBottom:14}}>
             <label className="lbl">War-Tag: {warDay}/6 — {WAR_DAYS[dayIdx]}
-              {todayGivesPoints
-                ? <span style={{color:"#22c55e",marginLeft:8,fontSize:11}}>✅ Punkte-Tag</span>
+              {todayGivesPoints ? <span style={{color:"#22c55e",marginLeft:8,fontSize:11}}>✅ Punkte-Tag</span>
                 : <span style={{color:"var(--text3)",marginLeft:8,fontSize:11}}>⏸ Kein Punkte-Tag</span>}
             </label>
             <input type="range" min={1} max={6} value={warDay} onChange={e=>setWarDay(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
@@ -1827,12 +1823,9 @@ function DungeonCalc({ warList, user }) {
               ))}
             </div>
           </div>
-
-          <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:16}}>
+          <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:14}}>
             💡 Punkte nur an <strong style={{color:"#22c55e"}}>Mittwoch ⭐</strong> und <strong style={{color:"#22c55e"}}>Samstag ⭐</strong> — max. 2 Schlüssel/Dungeon/Tag, nicht sammelbar!
           </div>
-
-          {/* Dungeon Eingabe */}
           <div style={{display:"grid",gap:8}}>
             {DUNGEONS.map(d=>{
               const k = keys[d.id]||0;
@@ -1860,73 +1853,33 @@ function DungeonCalc({ warList, user }) {
             })}
           </div>
         </div>
-
-        {/* Auswertung */}
         <div style={{display:"grid",gap:14,alignContent:"start"}}>
           <div className="card">
             <div className="card-title">📊 Auswertung</div>
             <div style={{display:"grid",gap:8}}>
               <div style={{padding:"14px",background:"linear-gradient(135deg,#c8850a20,var(--bg2))",borderRadius:10,textAlign:"center",border:"1px solid #c8850a30"}}>
                 <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>PUNKTE HEUTE</div>
-                <div style={{fontSize:32,fontWeight:700,color:todayGivesPoints?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif"}}>
-                  {todayGivesPoints ? fmt(totalPtsToday) : "—"}
-                </div>
-                {todayGivesPoints && <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>von max. {fmt(maxPtsPerPointDay)}</div>}
-                {!todayGivesPoints && <div style={{fontSize:12,color:"var(--text3)",marginTop:4}}>Nächster Punkte-Tag: {WAR_DAYS[POINT_DAYS.find(d=>d>dayIdx)??POINT_DAYS[0]]}</div>}
-                {todayGivesPoints && <div className="pbar" style={{marginTop:8,height:5}}><div className="pfill" style={{width:`${(totalPtsToday/maxPtsPerPointDay)*100}%`}}/></div>}
+                <div style={{fontSize:32,fontWeight:700,color:todayGivesPoints?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif"}}>{todayGivesPoints?fmt(totalPtsToday):"—"}</div>
+                {todayGivesPoints&&<><div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>von max. {fmt(maxPtsPerPointDay)}</div><div className="pbar" style={{marginTop:8,height:5}}><div className="pfill" style={{width:`${(totalPtsToday/maxPtsPerPointDay)*100}%`}}/></div></>}
+                {!todayGivesPoints&&<div style={{fontSize:12,color:"var(--text3)",marginTop:4}}>Nächster Punkte-Tag: {WAR_DAYS[POINT_DAYS.find(d=>d>dayIdx)??POINT_DAYS[0]]}</div>}
               </div>
-
-              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>Verbl. Punkte-Tage</span>
-                <span style={{color:"var(--text2)",fontWeight:600}}>{remainingPointDays} (Mi⭐ + Sa⭐)</span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>Hochrechnung War</span>
-                <span style={{color:"#3b82f6",fontWeight:600}}>{fmt(projectedTotal)}</span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>Theoretisches Max</span>
-                <span style={{color:"var(--text3)"}}>{fmt(maxPtsWar)}</span>
-              </div>
-              {myLastWarPts>0 && (
-                <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}>
-                  <span style={{color:"var(--text3)"}}>Letzter War (gesamt)</span>
-                  <span style={{color:"#22c55e",fontWeight:600}}>{fmt(myLastWarPts)}</span>
-                </div>
-              )}
-              {todayGivesPoints && totalKeys < DUNGEONS.length*KEYS_PER_DAY && (
-                <div style={{padding:"10px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>
-                  ⚠️ {DUNGEONS.length*KEYS_PER_DAY-totalKeys} Schlüssel verfallen → {fmt((DUNGEONS.length*KEYS_PER_DAY-totalKeys)*PTS_PER_KEY)} Pkt verloren!
-                </div>
-              )}
-              {todayGivesPoints && totalKeys===DUNGEONS.length*KEYS_PER_DAY && (
-                <div style={{padding:"10px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>
-                  ✅ Alle Schlüssel werden heute genutzt — perfekt!
-                </div>
-              )}
+              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Verbl. Punkte-Tage</span><span style={{color:"var(--text2)",fontWeight:600}}>{remainingPointDays} (Mi⭐ + Sa⭐)</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Hochrechnung War</span><span style={{color:"#3b82f6",fontWeight:600}}>{fmt(projectedTotal)}</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Theoretisches Max</span><span style={{color:"var(--text3)"}}>{fmt(maxPtsWar)}</span></div>
+              {myLastWarPts>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Letzter War (gesamt)</span><span style={{color:"#22c55e",fontWeight:600}}>{fmt(myLastWarPts)}</span></div>}
+              {todayGivesPoints&&totalKeys<DUNGEONS.length*KEYS_PER_DAY&&<div style={{padding:"10px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>⚠️ {DUNGEONS.length*KEYS_PER_DAY-totalKeys} Schlüssel verfallen → {fmt((DUNGEONS.length*KEYS_PER_DAY-totalKeys)*PTS_PER_KEY)} Pkt verloren!</div>}
+              {todayGivesPoints&&totalKeys===DUNGEONS.length*KEYS_PER_DAY&&<div style={{padding:"10px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>✅ Alle Schlüssel werden heute genutzt!</div>}
             </div>
           </div>
-
-          {/* War-Kalender */}
           <div className="card">
             <div className="card-title">📅 War-Tage Übersicht</div>
-            <div style={{display:"grid",gap:4}}>
-              {WAR_DAYS.map((day,i)=>{
-                const isToday = i===dayIdx;
-                const isPointDay = POINT_DAYS.includes(i);
-                const isPast = i<dayIdx;
-                return (
-                  <div key={day} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderRadius:6,fontSize:12,background:isToday?"#c8850a20":isPast?"transparent":"transparent",border:isToday?"1px solid #c8850a40":"1px solid transparent"}}>
-                    <span style={{color:isToday?"var(--gold2)":isPast?"var(--text3)":"var(--text2)",fontWeight:isToday?700:400}}>
-                      {isToday?"▶ ":""}{day}{isPointDay?" ⭐":""}
-                    </span>
-                    <span style={{color:isPointDay&&!isPast?"#22c55e":isPast?"var(--text3)":"var(--text3)",fontWeight:isToday?600:400}}>
-                      {isPointDay ? (isToday?fmt(totalPtsToday):isPast?"—":fmt(totalPtsToday)+" erw.") : "—"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            {WAR_DAYS.map((day,i)=>{
+              const isToday=i===dayIdx, isPoint=POINT_DAYS.includes(i), isPast=i<dayIdx;
+              return <div key={day} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderRadius:6,fontSize:12,background:isToday?"#c8850a20":"transparent",border:isToday?"1px solid #c8850a40":"1px solid transparent",marginBottom:2}}>
+                <span style={{color:isToday?"var(--gold2)":isPast?"var(--text3)":"var(--text2)",fontWeight:isToday?700:400}}>{isToday?"▶ ":""}{day}{isPoint?" ⭐":""}</span>
+                <span style={{color:isPoint&&!isPast?"#22c55e":"var(--text3)",fontWeight:isToday?600:400}}>{isPoint?(isToday?fmt(totalPtsToday):isPast?"—":fmt(totalPtsToday)+" erw."):"—"}</span>
+              </div>;
+            })}
           </div>
         </div>
       </div>
@@ -1935,61 +1888,79 @@ function DungeonCalc({ warList, user }) {
 }
 
 // ── TAGESPLAN OPTIMIERER ─────────────────────────────────────
-function TagesplanOptimizer({ user, warList }) {
-  const warStatus = getWarStatus();
-  const dayIdx = warStatus.isActive ? [2,3,4,5,6,0].indexOf(new Date().getUTCDay()) : 0;
-  const WAR_DAYS = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-  const DUNGEON_POINT_DAYS = [1,4]; // Mi, Sa
+function TagesplanOptimizer({ user, warList, forgeLevel, effectiveFreeForge, hammers, setHammers, summonLevels }) {
+  // War-Tag Logik — was gibt Punkte an welchem Tag
+  // Di=0, Mi=1, Do=2, Fr=3, Sa=4, So=5
+  const WAR_DAY_NAMES = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+  const DAY_ACTIONS = {
+    0: ["schmieden","skill_beschworen","skill_upgraden"],
+    1: ["schmiede_muenzen","dungeon","eier","haustier_mergen"],
+    2: ["schmieden","skill_beschworen","skill_upgraden","reittier"],
+    3: ["schmiede_muenzen","eier","haustier_mergen"],
+    4: ["schmieden","dungeon","reittier"],
+    5: ["pvp"],
+  };
 
-  // Ressourcen-Eingabe
-  const [hammers, setHammers] = useState(100);
-  const [forgeLevel, setForgeLevel] = useState(10);
-  const [freeForge, setFreeForge] = useState(0);
+  const warStatus = getWarStatus();
+  const autoDay = warStatus.isActive ? [2,3,4,5,6,0].indexOf(new Date().getUTCDay()) : 0;
+  const [warDay, setWarDay] = useState(Math.max(0, autoDay));
+
+  // Ressourcen — Schmiede-Werte aus MyPage übernommen
+  const [localHammers, setLocalHammers] = useState(hammers);
   const [dungeonKeys, setDungeonKeys] = useState({hammer:2,ghost:2,invasion:2,zombie:2});
   const [haustierTickets, setHaustierTickets] = useState(0);
   const [reittierTickets, setReittierTickets] = useState(0);
   const [skillTickets, setSkillTickets] = useState(0);
-  const [warDay, setWarDay] = useState(Math.max(1, dayIdx+1));
+  const [eierAnzahl, setEierAnzahl] = useState({gewoeh:0,selten:0,episch:0,legend:0,ultimate:0,mythisch:0});
 
-  const currentDayIdx = warDay - 1;
-  const isDungeonDay = DUNGEON_POINT_DAYS.includes(currentDayIdx);
+  const todayActions = DAY_ACTIONS[warDay] || [];
+  const hasDungeon = todayActions.includes("dungeon");
+  const hasSchmieden = todayActions.includes("schmieden") || todayActions.includes("schmiede_muenzen");
+  const hasEier = todayActions.includes("eier");
+  const hasSkill = todayActions.includes("skill_beschworen") || todayActions.includes("skill_upgraden");
+  const hasReittier = todayActions.includes("reittier");
+  const hasPvP = todayActions.includes("pvp");
 
-  // Punkte-Berechnungen
+  // Schmiede-Punkte
   const FORGE_DATA_MINI = [
-    [1,100,0,0,0,0,0,0,0,0,0],[2,99,1,0,0,0,0,0,0,0,0],[5,91.5,8,0.5,0,0,0,0,0,0,0],
-    [10,6,60,32,2,0,0,0,0,0,0],[15,0,0,31.7,64,4,0.25,0,0,0,0],[20,0,0,0,0,91,8,1,0.05,0,0],
-    [25,0,0,0,0,0,64,32,4,0.05,0],[30,0,0,0,0,0,0,60,36,4,0.05],[35,0,0,0,0,0,0,0,60,36,4],
+    [1,100],[2,99],[5,91.5],[10,6],[15,0],[17,0],[20,0],[23,0],[25,0],[30,0],[35,0]
   ];
   const WAR_PTS_ARR = [1,1,1,2,2,2,3,3,3,3];
-
-  // Finde nächste vorhandene Forge-Zeile
-  const forgeRow = FORGE_DATA_MINI.reduce((best,row) => row[0]<=forgeLevel?row:best, FORGE_DATA_MINI[0]);
-  const avgPts = forgeRow.slice(1).reduce((s,p,i)=>s+(p/100)*WAR_PTS_ARR[i],0);
-  const effHammers = hammers*(1+freeForge/100);
-  const forgePts = Math.round(effHammers*avgPts);
-
-  const dungeonPts = isDungeonDay
-    ? Object.values(dungeonKeys).reduce((s,k)=>s+k*3000,0)
-    : 0;
-
-  // Beschwörungs-Punkte (Durchschnitt Gewöhnlich bis Mythisch)
-  const SUMMON_PTS = {haustier:[200,400,800,1600,3200,6400], reittier:[200,400,800,1600,3200,6400], skill:[125,150,175,200,225,250]};
-  const avgHaustierPts = SUMMON_PTS.haustier.reduce((s,v)=>s+v,0)/SUMMON_PTS.haustier.length;
-  const avgReittierPts = SUMMON_PTS.reittier.reduce((s,v)=>s+v,0)/SUMMON_PTS.reittier.length;
-  const avgSkillPts = SUMMON_PTS.skill.reduce((s,v)=>s+v,0)/SUMMON_PTS.skill.length;
-  const summonPts = Math.round(haustierTickets*avgHaustierPts + reittierTickets*avgReittierPts + skillTickets*avgSkillPts);
-
-  const totalPts = forgePts + dungeonPts + summonPts;
-
-  // Ressourcen-Einträge für Anzeige
-  const resources = [
-    {label:"⚒️ Schmieden",pts:forgePts,color:"#c8850a",
-     detail:`${fmt(Math.round(effHammers))} eff. Hämmer × ∅${avgPts.toFixed(2)} Pkt`},
-    {label:"🗝️ Dungeon-Schlüssel",pts:dungeonPts,color:"#3b82f6",
-     detail:isDungeonDay?`${Object.values(dungeonKeys).reduce((s,v)=>s+v,0)} Schlüssel × 3.000`:"Heute kein Punkte-Tag"},
-    {label:"🎟️ Beschwörungen",pts:summonPts,color:"#a855f7",
-     detail:`${haustierTickets+reittierTickets+skillTickets} Tickets gesamt`},
+  const FORGE_FULL = [
+    [1,[100,0,0,0,0,0,0,0,0,0]],[5,[91.5,8,0.5,0,0,0,0,0,0,0]],[10,[6,60,32,2,0,0,0,0,0,0]],
+    [15,[0,0,31.7,64,4,0.25,0,0,0,0]],[20,[0,0,0,0,91,8,1,0.05,0,0]],[25,[0,0,0,0,0,64,32,4,0.05,0]],
+    [30,[0,0,0,0,0,0,60,36,4,0.05]],[35,[0,0,0,0,0,0,0,60,36,4]],
   ];
+  const forgeRowFull = FORGE_FULL.reduce((b,r)=>r[0]<=forgeLevel?r:b,FORGE_FULL[0]);
+  const avgPts = forgeRowFull[1].reduce((s,p,i)=>s+(p/100)*WAR_PTS_ARR[i],0);
+  const effHammers = localHammers*(1+effectiveFreeForge/100);
+  const forgePts = hasSchmieden ? Math.round(effHammers*avgPts) : 0;
+
+  // Dungeon-Punkte
+  const dungeonPts = hasDungeon ? Object.values(dungeonKeys).reduce((s,k)=>s+k*3000,0) : 0;
+
+  // Eier-Punkte
+  const EI_PTS = {gewoeh:200,selten:800,episch:1600,legend:3200,ultimate:6400,mythisch:12800};
+  const eierPts = hasEier ? Object.entries(eierAnzahl).reduce((s,[k,v])=>s+v*(EI_PTS[k]||0),0) : 0;
+
+  // Beschwörungs-Punkte
+  const SKILL_PTS_ARR = [125,150,175,200,225,250];
+  const MOUNT_PTS_ARR = [50,100,250,500,1500,2500];
+  const avgSkillPts = SKILL_PTS_ARR.reduce((s,v)=>s+v,0)/SKILL_PTS_ARR.length;
+  const avgMountPts = MOUNT_PTS_ARR.reduce((s,v)=>s+v,0)/MOUNT_PTS_ARR.length;
+  const skillPts = hasSkill ? Math.round(skillTickets*avgSkillPts) : 0;
+  const reittierPts = hasReittier ? Math.round(reittierTickets*avgMountPts) : 0;
+
+  const totalPts = forgePts + dungeonPts + eierPts + skillPts + reittierPts;
+
+  const sources = [
+    hasSchmieden && {label:"⚒️ Schmieden",pts:forgePts,color:"#c8850a",detail:`${fmt(Math.round(effHammers))} eff. Hämmer (Level ${forgeLevel}, ${effectiveFreeForge}% gratis)`},
+    hasDungeon && {label:"🗝️ Dungeon-Schlüssel",pts:dungeonPts,color:"#3b82f6",detail:`${Object.values(dungeonKeys).reduce((s,v)=>s+v,0)} Schlüssel × 3.000 Pkt`},
+    hasEier && {label:"🥚 Eier ausbrüten",pts:eierPts,color:"#22c55e",detail:`${Object.values(eierAnzahl).reduce((s,v)=>s+v,0)} Eier gesamt`},
+    hasSkill && {label:"✨ Skill-Beschwörungen",pts:skillPts,color:"#a855f7",detail:`${skillTickets} Tickets × ∅${Math.round(avgSkillPts)} Pkt`},
+    hasReittier && {label:"🐴 Reittier-Beschwörungen",pts:reittierPts,color:"#f59e0b",detail:`${reittierTickets} Tickets × ∅${Math.round(avgMountPts)} Pkt`},
+    hasPvP && {label:"⚔️ PvP (All-Out Brawl)",pts:5000,color:"#ec4899",detail:"5 Tickets × 1.000 Pkt bei Sieg"},
+  ].filter(Boolean);
 
   return (
     <div>
@@ -1999,38 +1970,41 @@ function TagesplanOptimizer({ user, warList }) {
 
           {/* War-Tag */}
           <div className="card">
-            <div className="card-title">📅 War-Tag & Ressourcen</div>
-            <div style={{marginBottom:14}}>
-              <label className="lbl">War-Tag: {warDay}/6 — {WAR_DAYS[currentDayIdx]}</label>
-              <input type="range" min={1} max={6} value={warDay} onChange={e=>setWarDay(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:2}}>
-                {WAR_DAYS.map((d,i)=><span key={d} style={{color:DUNGEON_POINT_DAYS.includes(i)?"#22c55e":i===currentDayIdx?"var(--gold2)":"var(--text3)",fontWeight:i===currentDayIdx?700:400}}>{d.slice(0,2)}{DUNGEON_POINT_DAYS.includes(i)?"⭐":""}</span>)}
+            <div className="card-title">📅 War-Tag wählen</div>
+            <input type="range" min={0} max={5} value={warDay} onChange={e=>setWarDay(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)",marginBottom:6}}/>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
+              {WAR_DAY_NAMES.map((d,i)=>(
+                <span key={d} style={{color:i===warDay?"var(--gold2)":"var(--text3)",fontWeight:i===warDay?700:400,textAlign:"center"}}>{d.slice(0,2)}</span>
+              ))}
+            </div>
+            <div style={{marginTop:8,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text2)"}}>
+              <strong style={{color:"var(--gold2)"}}>{WAR_DAY_NAMES[warDay]}</strong> — aktive Quellen:&nbsp;
+              {[hasSchmieden&&"Schmieden",hasDungeon&&"Dungeon ⭐",hasEier&&"Eier",hasSkill&&"Skill",hasReittier&&"Reittier",hasPvP&&"PvP"].filter(Boolean).join(" · ")}
+            </div>
+          </div>
+
+          {/* Schmiede */}
+          {hasSchmieden && (
+            <div className="card" style={{borderColor:"#c8850a30"}}>
+              <div style={{fontSize:12,color:"#c8850a",fontWeight:600,marginBottom:10}}>⚒️ Schmiede</div>
+              <div style={{padding:"8px 12px",background:"#c8850a10",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:10}}>
+                Level <strong style={{color:"var(--gold2)"}}>{forgeLevel}</strong> · Gratis-Forge: <strong style={{color:"#22c55e"}}>{effectiveFreeForge}%</strong> (aus Tech Tree)
+              </div>
+              <div><label className="lbl">Hämmer: {localHammers}</label>
+                <input type="range" min={0} max={500} step={5} value={localHammers} onChange={e=>setLocalHammers(Number(e.target.value))} style={{width:"100%",accentColor:"#c8850a"}}/>
               </div>
             </div>
+          )}
 
-            {/* Schmieden */}
-            <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:4}}>
-              <div style={{fontSize:12,color:"#c8850a",fontWeight:600,marginBottom:8}}>⚒️ Schmiede</div>
-              <div style={{display:"grid",gap:8}}>
-                <div><label className="lbl">Schmied-Level: {forgeLevel}</label>
-                  <input type="range" min={1} max={35} value={forgeLevel} onChange={e=>setForgeLevel(Number(e.target.value))} style={{width:"100%",accentColor:"#c8850a"}}/></div>
-                <div><label className="lbl">Gratis-Schmiede: {freeForge}%</label>
-                  <input type="range" min={0} max={50} value={freeForge} onChange={e=>setFreeForge(Number(e.target.value))} style={{width:"100%",accentColor:"#c8850a"}}/></div>
-                <div><label className="lbl">Hämmer</label>
-                  <input className="inp" type="number" value={hammers} min={0} onChange={e=>setHammers(Number(e.target.value))}/></div>
-              </div>
-            </div>
-
-            {/* Dungeon */}
-            <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:12}}>
-              <div style={{fontSize:12,color:"#3b82f6",fontWeight:600,marginBottom:8}}>
-                🗝️ Dungeon-Schlüssel {!isDungeonDay&&<span style={{color:"var(--text3)",fontWeight:400,fontSize:11}}>(kein Punkte-Tag heute)</span>}
-              </div>
+          {/* Dungeon */}
+          {hasDungeon && (
+            <div className="card" style={{borderColor:"#3b82f630"}}>
+              <div style={{fontSize:12,color:"#3b82f6",fontWeight:600,marginBottom:10}}>🗝️ Dungeon-Schlüssel (heute: ⭐ Punkte-Tag)</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {[{id:"hammer",name:"Hammer Thief",icon:"🔨"},{id:"ghost",name:"Ghost Town",icon:"👻"},{id:"invasion",name:"Invasion",icon:"⚔️"},{id:"zombie",name:"Zombie Rush",icon:"🧟"}].map(d=>(
+                {[{id:"hammer",icon:"🔨",name:"Hammer Thief"},{id:"ghost",icon:"👻",name:"Ghost Town"},{id:"invasion",icon:"⚔️",name:"Invasion"},{id:"zombie",icon:"🧟",name:"Zombie Rush"}].map(d=>(
                   <div key={d.id} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:"var(--bg2)",borderRadius:8}}>
                     <span>{d.icon}</span>
-                    <span style={{flex:1,fontSize:12,color:isDungeonDay?"var(--text2)":"var(--text3)"}}>{d.name}</span>
+                    <span style={{flex:1,fontSize:12}}>{d.name}</span>
                     <select style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:4,color:"var(--gold2)",fontSize:12,padding:"2px 4px"}}
                       value={dungeonKeys[d.id]} onChange={e=>setDungeonKeys(p=>({...p,[d.id]:Number(e.target.value)}))}>
                       {[0,1,2].map(v=><option key={v} value={v}>{v}</option>)}
@@ -2039,70 +2013,88 @@ function TagesplanOptimizer({ user, warList }) {
                 ))}
               </div>
             </div>
+          )}
 
-            {/* Beschwörungen */}
-            <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:12}}>
-              <div style={{fontSize:12,color:"#a855f7",fontWeight:600,marginBottom:8}}>🎟️ Beschwörungs-Tickets</div>
-              <div style={{display:"grid",gap:8}}>
-                {[["haustierTickets","🐾 Haustier",haustierTickets,setHaustierTickets],
-                  ["reittierTickets","🐴 Reittier",reittierTickets,setReittierTickets],
-                  ["skillTickets","✨ Skill",skillTickets,setSkillTickets]].map(([id,label,val,setter])=>(
-                  <div key={id} style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:12,color:"var(--text2)",flex:1}}>{label}</span>
-                    <input className="inp" type="number" value={val} min={0} onChange={e=>setter(Number(e.target.value))} style={{width:70,textAlign:"center"}}/>
+          {/* Eier */}
+          {hasEier && (
+            <div className="card" style={{borderColor:"#22c55e30"}}>
+              <div style={{fontSize:12,color:"#22c55e",fontWeight:600,marginBottom:10}}>🥚 Eier ausbrüten</div>
+              <div style={{display:"grid",gap:6}}>
+                {[["gewoeh","Gewöhnlich","#9ca3af",200],["selten","Selten","#22c55e",800],["episch","Episch","#a855f7",1600],["legend","Legendär","#f59e0b",3200],["ultimate","Ultimate","#ef4444",6400],["mythisch","Mythisch","#ec4899",12800]].map(([k,name,col,pts])=>(
+                  <div key={k} style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:11,color:col,width:70,flexShrink:0}}>{name}</span>
+                    <input type="range" min={0} max={20} value={eierAnzahl[k]} onChange={e=>setEierAnzahl(p=>({...p,[k]:Number(e.target.value)}))} style={{flex:1,accentColor:col}}/>
+                    <span style={{width:16,textAlign:"center",fontSize:12,color:"var(--text2)"}}>{eierAnzahl[k]}</span>
+                    <span style={{fontSize:11,color:col,width:55,textAlign:"right",flexShrink:0}}>{fmt(eierAnzahl[k]*pts)}</span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Skill */}
+          {hasSkill && (
+            <div className="card" style={{borderColor:"#a855f730"}}>
+              <div style={{fontSize:12,color:"#a855f7",fontWeight:600,marginBottom:10}}>✨ Skill-Beschwörungen & Upgrades</div>
+              <div><label className="lbl">Tickets: {skillTickets}</label>
+                <input type="range" min={0} max={50} value={skillTickets} onChange={e=>setSkillTickets(Number(e.target.value))} style={{width:"100%",accentColor:"#a855f7"}}/>
+              </div>
+              <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>∅ {Math.round(avgSkillPts)} Pkt/Ticket (Gew.=125 bis Myth.=250)</div>
+            </div>
+          )}
+
+          {/* Reittier */}
+          {hasReittier && (
+            <div className="card" style={{borderColor:"#f59e0b30"}}>
+              <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginBottom:10}}>🐴 Reittier-Beschwörungen & Mergen</div>
+              <div><label className="lbl">Tickets/Merges: {reittierTickets}</label>
+                <input type="range" min={0} max={50} value={reittierTickets} onChange={e=>setReittierTickets(Number(e.target.value))} style={{width:"100%",accentColor:"#f59e0b"}}/>
+              </div>
+              <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>∅ {Math.round(avgMountPts)} Pkt/Ticket (Gew.=50 bis Myth.=2.500)</div>
+            </div>
+          )}
+
+          {/* PvP */}
+          {hasPvP && (
+            <div className="card" style={{borderColor:"#ec489930"}}>
+              <div style={{fontSize:12,color:"#ec4899",fontWeight:600,marginBottom:6}}>⚔️ All-Out Brawl (Sonntag)</div>
+              <div style={{fontSize:12,color:"var(--text3)"}}>5 Tickets zu Beginn · 1.000 Pkt pro Sieg · Reset nach allen Niederlagen</div>
+            </div>
+          )}
         </div>
 
         {/* Ergebnis */}
         <div style={{display:"grid",gap:14,alignContent:"start"}}>
           <div className="card">
-            <div className="card-title">📊 Tagesplan Ergebnis</div>
-
-            {/* Gesamt */}
+            <div className="card-title">📊 Erwartete Punkte — {WAR_DAY_NAMES[warDay]}</div>
             <div style={{padding:"16px",background:"linear-gradient(135deg,#c8850a25,var(--bg2))",borderRadius:12,textAlign:"center",border:"1px solid #c8850a40",marginBottom:14}}>
-              <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>ERWARTETE PUNKTE HEUTE</div>
+              <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>GESAMT HEUTE</div>
               <div style={{fontSize:38,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{fmt(totalPts)}</div>
             </div>
-
-            {/* Aufschlüsselung */}
-            {resources.map(r=>(
+            {sources.map(r=>(
               <div key={r.label} style={{marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                   <span style={{fontSize:13,color:"var(--text2)"}}>{r.label}</span>
                   <span style={{fontSize:13,color:r.color,fontWeight:600}}>{fmt(r.pts)}</span>
                 </div>
-                <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>{r.detail}</div>
-                <div className="pbar" style={{height:4}}>
-                  <div className="pfill" style={{width:`${totalPts>0?(r.pts/totalPts)*100:0}%`,background:r.color}}/>
-                </div>
+                <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>{r.detail}</div>
+                <div className="pbar" style={{height:4}}><div className="pfill" style={{width:`${totalPts>0?(r.pts/totalPts)*100:0}%`,background:r.color}}/></div>
               </div>
             ))}
+            {totalPts===0&&<div style={{textAlign:"center",color:"var(--text3)",fontSize:13,padding:20}}>Ressourcen eintragen um Punkte zu berechnen</div>}
           </div>
 
-          {/* Tipps */}
+          {/* Empfehlungen */}
           <div className="card">
             <div className="card-title">💡 Empfehlungen</div>
-            <div style={{display:"grid",gap:8}}>
-              {forgePts===0 && <div style={{padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>⚠️ Keine Hämmer eingetragen — Schmiede-Punkte = 0</div>}
-              {isDungeonDay && Object.values(dungeonKeys).some(k=>k<2) && (
-                <div style={{padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>
-                  ⚠️ Heute ist Punkte-Tag! Nicht genutzte Schlüssel verfallen — {fmt((8-Object.values(dungeonKeys).reduce((s,v)=>s+v,0))*3000)} Pkt möglich
-                </div>
-              )}
-              {isDungeonDay && Object.values(dungeonKeys).every(k=>k===2) && (
-                <div style={{padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>✅ Alle Dungeon-Schlüssel werden heute genutzt</div>
-              )}
-              {!isDungeonDay && (
-                <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6"}}>
-                  ℹ️ Heute gibt es keine Punkte für Dungeon-Schlüssel. Nächster Punkte-Tag: {WAR_DAYS[DUNGEON_POINT_DAYS.find(d=>d>currentDayIdx)??DUNGEON_POINT_DAYS[0]]}
-                </div>
-              )}
-              {summonPts > forgePts && <div style={{padding:"8px 12px",background:"#a855f715",border:"1px solid #a855f730",borderRadius:8,fontSize:12,color:"#a855f7"}}>✨ Beschwörungen sind heute deine stärkste Punkt-Quelle!</div>}
-              {forgePts > 0 && forgePts > summonPts && forgePts > dungeonPts && <div style={{padding:"8px 12px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a"}}>⚒️ Schmiede ist heute deine stärkste Punkt-Quelle!</div>}
+            <div style={{display:"grid",gap:6}}>
+              {hasDungeon&&Object.values(dungeonKeys).some(k=>k<2)&&<div style={{padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>⚠️ Heute ist Punkte-Tag! Nicht genutzte Schlüssel verfallen — {fmt((8-Object.values(dungeonKeys).reduce((s,v)=>s+v,0))*3000)} Pkt möglich</div>}
+              {hasDungeon&&Object.values(dungeonKeys).every(k=>k===2)&&<div style={{padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>✅ Alle Dungeon-Schlüssel werden heute genutzt</div>}
+              {warDay===0&&<div style={{padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>💡 Dienstag: Skill-Tickets für maximale Punkte einplanen</div>}
+              {warDay===1&&<div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6"}}>💡 Mittwoch: Eier ausbrüten + Dungeon-Schlüssel nutzen!</div>}
+              {warDay===4&&<div style={{padding:"8px 12px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:8,fontSize:12,color:"#ef4444"}}>💡 Samstag: Dungeon-Schlüssel + Reittiere — stärkster Punkte-Tag!</div>}
+              {warDay===5&&<div style={{padding:"8px 12px",background:"#ec489915",border:"1px solid #ec489930",borderRadius:8,fontSize:12,color:"#ec4899"}}>💡 Sonntag: Alle 5 Brawl-Tickets nutzen — 1.000 Pkt pro Sieg</div>}
+              {hasSchmieden&&localHammers===0&&<div style={{padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>⚠️ Keine Hämmer eingetragen</div>}
             </div>
           </div>
         </div>
