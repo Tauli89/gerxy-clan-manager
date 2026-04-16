@@ -1360,7 +1360,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const [profileSaved, setProfileSaved] = useState(false);
   const [eggRarity, setEggRarity] = useState("Gewoehnlich");
   const [summonType, setSummonType] = useState("Haustier");
-  const [summonLevel, setSummonLevel] = useState(1);
+  const [summonLevels, setSummonLevels] = useState({Haustier:1, Reittier:1, Skill:1});
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [techTree, setTechTree] = useState({});
 
@@ -1414,7 +1414,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         if (p.forgeLevel) setForgeLevel(p.forgeLevel);
         if (p.freeForge !== undefined) setFreeForge(p.freeForge);
         if (p.summonType) setSummonType(p.summonType);
-        if (p.summonLevel) setSummonLevel(p.summonLevel);
+        if (p.summonLevels) setSummonLevels(p.summonLevels);
+        else if (p.summonLevel) setSummonLevels(l => ({...l, [p.summonType||"Haustier"]: p.summonLevel}));
         if (p.myNote !== undefined) setMyNote(p.myNote);
         if (p.techTree) setTechTree(p.techTree);
         setProfileLoaded(true);
@@ -1428,7 +1429,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   // Profil in Firebase speichern
   async function saveProfile() {
     await update(ref(db, `profiles/${user.username}`), {
-      forgeLevel, freeForge, summonType, summonLevel, myNote, techTree,
+      forgeLevel, freeForge, summonType, summonLevels, myNote, techTree,
       lastUpdated: Date.now(),
     });
     setProfileSaved(true);
@@ -1528,6 +1529,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const forgeRow = FORGE_DATA[forgeLevel-1]||FORGE_DATA[0];
   const eggTime = EGG_TIMES[eggRarity]?.[eggTimerLevel]||"?";
   const probData = summonType==="Haustier"?PET_PROBS:summonType==="Reittier"?MOUNT_PROBS:SKILL_PROBS;
+  const summonLevel = summonLevels?.[summonType] ?? 1;
   const nearestLvl = Object.keys(probData).map(Number).reduce((a,b)=>Math.abs(b-summonLevel)<Math.abs(a-summonLevel)?b:a);
   const curProbs = probData[nearestLvl];
 
@@ -1547,7 +1549,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["dungeon","🗝️ Dungeon"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
+        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["dungeon","🗝️ Dungeon"],["tagesplan","📋 Tagesplan"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
           <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
@@ -1702,8 +1704,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
                   <button key={t} className={`btn ${summonType===t?"btn-gold":"btn-ghost"}`} style={{flex:1,fontSize:12,justifyContent:"center"}} onClick={()=>{setSummonType(t);update(ref(db,`profiles/${user.username}`),{summonType:t});}}>{t}</button>
                 ))}
               </div>
-              <div><label className="lbl">Level: {summonLevel}</label>
-                <input type="range" min={1} max={100} value={summonLevel} onChange={e=>{const v=Number(e.target.value);setSummonLevel(v);update(ref(db,`profiles/${user.username}`),{summonLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              <div><label className="lbl">Level ({summonType}): {summonLevels[summonType]}</label>
+                <input type="range" min={1} max={100} value={summonLevels[summonType]} onChange={e=>{const v=Number(e.target.value);const nl={...summonLevels,[summonType]:v};setSummonLevels(nl);update(ref(db,`profiles/${user.username}`),{summonLevels:nl});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div style={{fontSize:11,color:"var(--text3)"}}>Naechste Auswertung bei Level {nearestLvl}</div>
             </div>
@@ -1740,6 +1742,10 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         <DungeonCalc warList={warList} user={user} db={db}/>
       )}
 
+      {activeCalc==="tagesplan" && (
+        <TagesplanOptimizer user={user} warList={warList}/>
+      )}
+
       {activeCalc==="techtree" && (
         <TechTreePanel
           techTree={techTree}
@@ -1766,104 +1772,88 @@ function MyPage({ user, memberList, warList, accountList, db }) {
 }
 
 // ── DUNGEON KALKULATOR ───────────────────────────────────────
-function DungeonCalc({ warList, user, db }) {
+function DungeonCalc({ warList, user }) {
   const DUNGEONS = [
-    { id:"hammer",  name:"Hammer Thief",  icon:"🔨", ptsPerKey:3000, color:"#f59e0b" },
-    { id:"ghost",   name:"Ghost Town",    icon:"👻", ptsPerKey:3000, color:"#a855f7" },
-    { id:"invasion",name:"Invasion",      icon:"⚔️", ptsPerKey:3000, color:"#ef4444" },
-    { id:"zombie",  name:"Zombie Rush",   icon:"🧟", ptsPerKey:3000, color:"#22c55e" },
+    {id:"hammer",  name:"Hammer Thief", icon:"🔨", color:"#f59e0b"},
+    {id:"ghost",   name:"Ghost Town",   icon:"👻", color:"#a855f7"},
+    {id:"invasion",name:"Invasion",     icon:"⚔️", color:"#ef4444"},
+    {id:"zombie",  name:"Zombie Rush",  icon:"🧟", color:"#22c55e"},
   ];
+  const PTS_PER_KEY = 3000;
+  const KEYS_PER_DAY = 2;
+  const WAR_DAYS = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+  // Nur Mittwoch (Index 1) und Samstag (Index 4) geben Punkte
+  const POINT_DAYS = [1, 4];
 
-  const KEYS_PER_DAY = 2;   // Max Schlüssel pro Dungeon pro Tag
-  const WAR_DAYS_COUNT = 6; // Dienstag bis Sonntag
+  const [keys, setKeys] = useState({hammer:2,ghost:2,invasion:2,zombie:2});
+  const [warDay, setWarDay] = useState(1);
 
-  // State: wie viele Schlüssel hat der User pro Dungeon heute verfügbar
-  const [keys, setKeys] = useState({hammer:2, ghost:2, invasion:2, zombie:2});
-  const [warDay, setWarDay] = useState(1); // War-Tag 1-6
+  const dayIdx = warDay - 1; // 0-basiert
+  const todayGivesPoints = POINT_DAYS.includes(dayIdx);
+  const totalKeys = Object.values(keys).reduce((s,v)=>s+v,0);
+  const totalPtsToday = todayGivesPoints ? DUNGEONS.reduce((s,d)=>(keys[d.id]||0)*PTS_PER_KEY+s,0) : 0;
+  const maxPtsPerPointDay = DUNGEONS.length * KEYS_PER_DAY * PTS_PER_KEY; // 24.000
+  const maxPtsWar = maxPtsPerPointDay * POINT_DAYS.length; // 48.000
 
-  // Gesamtberechnung
-  const totalKeys = Object.values(keys).reduce((s,v)=>s+v, 0);
-  const totalPts = DUNGEONS.reduce((s,d) => s + (keys[d.id]||0) * d.ptsPerKey, 0);
+  // Hochrechnung: verbleibende Punkt-Tage ab heute
+  const remainingPointDays = POINT_DAYS.filter(d => d >= dayIdx).length;
+  const projectedTotal = totalPtsToday * remainingPointDays;
 
-  // Max mögliche Punkte wenn alle Schlüssel genutzt werden
-  const maxPtsPerDay = DUNGEONS.length * KEYS_PER_DAY * 3000; // 4 × 2 × 3000 = 24.000
-  const maxPtsWar = maxPtsPerDay * WAR_DAYS_COUNT; // 144.000
-
-  // Hochrechnung auf den Rest des Wars
-  const remainingDays = WAR_DAYS_COUNT - warDay + 1;
-  const projectedTotal = totalPts * remainingDays;
-
-  // Vergleich mit letztem War (eigene Punkte aus War-Tab)
   const lastWar = warList?.[0];
   const myLastWarPts = lastWar?.memberPoints
-    ? Number(Object.entries(lastWar.memberPoints).find(([n]) =>
-        n.toLowerCase()===user?.username?.toLowerCase())?.[1]||0)
+    ? Number(Object.entries(lastWar.memberPoints).find(([n])=>n.toLowerCase()===user?.username?.toLowerCase())?.[1]||0)
     : 0;
 
   return (
     <div>
       <div className="grid-2">
-        {/* Linke Seite: Eingabe */}
+        {/* Eingabe */}
         <div className="card">
           <div className="card-title">🗝️ Dungeon-Schlüssel Kalkulator</div>
 
-          {/* War-Tag Auswahl */}
+          {/* War-Tag */}
           <div style={{marginBottom:16}}>
-            <label className="lbl">Aktueller War-Tag: {warDay} / {WAR_DAYS_COUNT}</label>
-            <input type="range" min={1} max={WAR_DAYS_COUNT} value={warDay}
-              onChange={e=>setWarDay(Number(e.target.value))}
-              style={{width:"100%",accentColor:"var(--gold2)"}}/>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"var(--text3)",marginTop:2}}>
-              <span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+            <label className="lbl">War-Tag: {warDay}/6 — {WAR_DAYS[dayIdx]}
+              {todayGivesPoints
+                ? <span style={{color:"#22c55e",marginLeft:8,fontSize:11}}>✅ Punkte-Tag</span>
+                : <span style={{color:"var(--text3)",marginLeft:8,fontSize:11}}>⏸ Kein Punkte-Tag</span>}
+            </label>
+            <input type="range" min={1} max={6} value={warDay} onChange={e=>setWarDay(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:2}}>
+              {WAR_DAYS.map((d,i)=>(
+                <span key={d} style={{color:POINT_DAYS.includes(i)?"#22c55e":i===dayIdx?"var(--gold2)":"var(--text3)",fontWeight:i===dayIdx?700:400}}>
+                  {d.slice(0,2)}{POINT_DAYS.includes(i)?"⭐":""}
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* Hinweis */}
           <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:16}}>
-            💡 Max. <strong style={{color:"var(--gold2)"}}>2 Schlüssel</strong> pro Dungeon pro Tag — nicht sammelbar!
+            💡 Punkte nur an <strong style={{color:"#22c55e"}}>Mittwoch ⭐</strong> und <strong style={{color:"#22c55e"}}>Samstag ⭐</strong> — max. 2 Schlüssel/Dungeon/Tag, nicht sammelbar!
           </div>
 
-          {/* Dungeon Schlüssel Eingabe */}
-          <div style={{display:"grid",gap:10}}>
-            {DUNGEONS.map(d => {
-              const k = keys[d.id] || 0;
-              const pts = k * d.ptsPerKey;
+          {/* Dungeon Eingabe */}
+          <div style={{display:"grid",gap:8}}>
+            {DUNGEONS.map(d=>{
+              const k = keys[d.id]||0;
+              const pts = todayGivesPoints ? k*PTS_PER_KEY : 0;
               return (
-                <div key={d.id} style={{
-                  padding:"12px 14px",
-                  background:`${d.color}10`,
-                  border:`1px solid ${d.color}30`,
-                  borderRadius:10,
-                  display:"flex",alignItems:"center",gap:12,
-                }}>
+                <div key={d.id} style={{padding:"10px 14px",background:`${d.color}10`,border:`1px solid ${d.color}30`,borderRadius:10,display:"flex",alignItems:"center",gap:10}}>
                   <span style={{fontSize:20,flexShrink:0}}>{d.icon}</span>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:600,fontSize:13,marginBottom:2}}>{d.name}</div>
-                    <div style={{fontSize:11,color:"var(--text3)"}}>{fmt(d.ptsPerKey)} Pkt / Schlüssel</div>
+                    <div style={{fontWeight:600,fontSize:13}}>{d.name}</div>
+                    <div style={{fontSize:11,color:"var(--text3)"}}>{todayGivesPoints?`${fmt(PTS_PER_KEY)} Pkt/Schlüssel`:"Heute kein Punkte-Tag"}</div>
                   </div>
-                  {/* Schlüssel Counter */}
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <button
-                      onClick={()=>setKeys(p=>({...p,[d.id]:Math.max(0,p[d.id]-1)}))}
-                      disabled={k===0}
-                      style={{width:28,height:28,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k>0?d.color:"var(--text3)",cursor:k>0?"pointer":"default",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                    <div style={{
-                      width:36,height:36,borderRadius:8,
-                      background:k>0?`${d.color}25`:"var(--bg2)",
-                      border:`2px solid ${k>0?d.color:`${d.color}30`}`,
-                      display:"flex",alignItems:"center",justifyContent:"center",
-                      fontFamily:"'Cinzel',serif",fontSize:16,fontWeight:700,
-                      color:k>0?d.color:"var(--text3)",
-                    }}>{k}</div>
-                    <button
-                      onClick={()=>setKeys(p=>({...p,[d.id]:Math.min(KEYS_PER_DAY,p[d.id]+1)}))}
-                      disabled={k===KEYS_PER_DAY}
-                      style={{width:28,height:28,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k<KEYS_PER_DAY?d.color:"var(--text3)",cursor:k<KEYS_PER_DAY?"pointer":"default",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <button onClick={()=>setKeys(p=>({...p,[d.id]:Math.max(0,p[d.id]-1)}))} disabled={k===0}
+                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k>0?d.color:"var(--text3)",cursor:k>0?"pointer":"default",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                    <div style={{width:34,height:34,borderRadius:8,background:k>0?`${d.color}25`:"var(--bg2)",border:`2px solid ${k>0?d.color:`${d.color}20`}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cinzel',serif",fontSize:15,fontWeight:700,color:k>0?d.color:"var(--text3)"}}>{k}</div>
+                    <button onClick={()=>setKeys(p=>({...p,[d.id]:Math.min(KEYS_PER_DAY,p[d.id]+1)}))} disabled={k>=KEYS_PER_DAY}
+                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k<KEYS_PER_DAY?d.color:"var(--text3)",cursor:k<KEYS_PER_DAY?"pointer":"default",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
                   </div>
-                  {/* Punkte */}
-                  <div style={{textAlign:"right",minWidth:70,flexShrink:0}}>
-                    <div style={{color:pts>0?d.color:"var(--text3)",fontWeight:pts>0?700:400,fontSize:14}}>{fmt(pts)}</div>
-                    <div style={{fontSize:10,color:"var(--text3)"}}>Pkt heute</div>
+                  <div style={{textAlign:"right",minWidth:65,flexShrink:0}}>
+                    <div style={{color:pts>0?d.color:"var(--text3)",fontWeight:pts>0?700:400,fontSize:13}}>{fmt(pts)}</div>
+                    <div style={{fontSize:10,color:"var(--text3)"}}>heute</div>
                   </div>
                 </div>
               );
@@ -1871,58 +1861,45 @@ function DungeonCalc({ warList, user, db }) {
           </div>
         </div>
 
-        {/* Rechte Seite: Auswertung */}
-        <div style={{display:"grid",gap:16,alignContent:"start"}}>
-
-          {/* Heute */}
+        {/* Auswertung */}
+        <div style={{display:"grid",gap:14,alignContent:"start"}}>
           <div className="card">
-            <div className="card-title">📊 Heutige Auswertung</div>
+            <div className="card-title">📊 Auswertung</div>
             <div style={{display:"grid",gap:8}}>
-              <div style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",background:"var(--bg2)",borderRadius:8}}>
-                <span style={{color:"var(--text3)"}}>Schlüssel heute</span>
-                <span style={{color:"var(--gold2)",fontWeight:600}}>{totalKeys} / {DUNGEONS.length * KEYS_PER_DAY}</span>
-              </div>
               <div style={{padding:"14px",background:"linear-gradient(135deg,#c8850a20,var(--bg2))",borderRadius:10,textAlign:"center",border:"1px solid #c8850a30"}}>
                 <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>PUNKTE HEUTE</div>
-                <div style={{fontSize:32,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{fmt(totalPts)}</div>
-                <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>von max. {fmt(maxPtsPerDay)}</div>
-                {/* Fortschrittsbalken */}
-                <div className="pbar" style={{marginTop:8,height:6}}>
-                  <div className="pfill" style={{width:`${maxPtsPerDay>0?(totalPts/maxPtsPerDay)*100:0}%`}}/>
+                <div style={{fontSize:32,fontWeight:700,color:todayGivesPoints?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif"}}>
+                  {todayGivesPoints ? fmt(totalPtsToday) : "—"}
                 </div>
+                {todayGivesPoints && <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>von max. {fmt(maxPtsPerPointDay)}</div>}
+                {!todayGivesPoints && <div style={{fontSize:12,color:"var(--text3)",marginTop:4}}>Nächster Punkte-Tag: {WAR_DAYS[POINT_DAYS.find(d=>d>dayIdx)??POINT_DAYS[0]]}</div>}
+                {todayGivesPoints && <div className="pbar" style={{marginTop:8,height:5}}><div className="pfill" style={{width:`${(totalPtsToday/maxPtsPerPointDay)*100}%`}}/></div>}
               </div>
-            </div>
-          </div>
 
-          {/* Hochrechnung */}
-          <div className="card">
-            <div className="card-title">📈 War-Hochrechnung</div>
-            <div style={{display:"grid",gap:8}}>
               <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>Verbleibende Tage</span>
-                <span style={{color:"var(--text2)",fontWeight:600}}>{remainingDays}</span>
+                <span style={{color:"var(--text3)"}}>Verbl. Punkte-Tage</span>
+                <span style={{color:"var(--text2)",fontWeight:600}}>{remainingPointDays} (Mi⭐ + Sa⭐)</span>
               </div>
               <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>Hochrechnung (heute × Resttage)</span>
+                <span style={{color:"var(--text3)"}}>Hochrechnung War</span>
                 <span style={{color:"#3b82f6",fontWeight:600}}>{fmt(projectedTotal)}</span>
               </div>
               <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>Theoretisches Maximum</span>
+                <span style={{color:"var(--text3)"}}>Theoretisches Max</span>
                 <span style={{color:"var(--text3)"}}>{fmt(maxPtsWar)}</span>
               </div>
-              {myLastWarPts > 0 && (
+              {myLastWarPts>0 && (
                 <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}>
                   <span style={{color:"var(--text3)"}}>Letzter War (gesamt)</span>
                   <span style={{color:"#22c55e",fontWeight:600}}>{fmt(myLastWarPts)}</span>
                 </div>
               )}
-              {/* Empfehlung */}
-              {totalKeys < DUNGEONS.length * KEYS_PER_DAY && (
+              {todayGivesPoints && totalKeys < DUNGEONS.length*KEYS_PER_DAY && (
                 <div style={{padding:"10px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>
-                  ⚠️ Du lässt {DUNGEONS.length * KEYS_PER_DAY - totalKeys} Schlüssel verfallen → {fmt((DUNGEONS.length * KEYS_PER_DAY - totalKeys) * 3000)} Pkt verloren!
+                  ⚠️ {DUNGEONS.length*KEYS_PER_DAY-totalKeys} Schlüssel verfallen → {fmt((DUNGEONS.length*KEYS_PER_DAY-totalKeys)*PTS_PER_KEY)} Pkt verloren!
                 </div>
               )}
-              {totalKeys === DUNGEONS.length * KEYS_PER_DAY && (
+              {todayGivesPoints && totalKeys===DUNGEONS.length*KEYS_PER_DAY && (
                 <div style={{padding:"10px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>
                   ✅ Alle Schlüssel werden heute genutzt — perfekt!
                 </div>
@@ -1930,30 +1907,202 @@ function DungeonCalc({ warList, user, db }) {
             </div>
           </div>
 
-          {/* Tages-Übersicht */}
+          {/* War-Kalender */}
           <div className="card">
-            <div className="card-title">📅 Punkte über den War</div>
+            <div className="card-title">📅 War-Tage Übersicht</div>
             <div style={{display:"grid",gap:4}}>
-              {Array.from({length:WAR_DAYS_COUNT},(_,i)=>{
-                const day = i+1;
-                const days = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-                const isToday = day === warDay;
-                const isPast = day < warDay;
+              {WAR_DAYS.map((day,i)=>{
+                const isToday = i===dayIdx;
+                const isPointDay = POINT_DAYS.includes(i);
+                const isPast = i<dayIdx;
                 return (
-                  <div key={day} style={{
-                    display:"flex",justifyContent:"space-between",alignItems:"center",
-                    padding:"6px 10px",borderRadius:6,fontSize:12,
-                    background:isToday?"#c8850a20":isPast?"var(--bg2)":"transparent",
-                    border:isToday?"1px solid #c8850a40":"1px solid transparent",
-                    color:isPast?"var(--text3)":"var(--text2)",
-                  }}>
-                    <span>{isToday?"▶ ":""}{days[i]}</span>
-                    <span style={{color:isToday?"var(--gold2)":isPast?"var(--text3)":"var(--text3)",fontWeight:isToday?700:400}}>
-                      {isToday ? fmt(totalPts) : isPast ? "—" : fmt(totalPts) + " (erwartet)"}
+                  <div key={day} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderRadius:6,fontSize:12,background:isToday?"#c8850a20":isPast?"transparent":"transparent",border:isToday?"1px solid #c8850a40":"1px solid transparent"}}>
+                    <span style={{color:isToday?"var(--gold2)":isPast?"var(--text3)":"var(--text2)",fontWeight:isToday?700:400}}>
+                      {isToday?"▶ ":""}{day}{isPointDay?" ⭐":""}
+                    </span>
+                    <span style={{color:isPointDay&&!isPast?"#22c55e":isPast?"var(--text3)":"var(--text3)",fontWeight:isToday?600:400}}>
+                      {isPointDay ? (isToday?fmt(totalPtsToday):isPast?"—":fmt(totalPtsToday)+" erw.") : "—"}
                     </span>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TAGESPLAN OPTIMIERER ─────────────────────────────────────
+function TagesplanOptimizer({ user, warList }) {
+  const warStatus = getWarStatus();
+  const dayIdx = warStatus.isActive ? [2,3,4,5,6,0].indexOf(new Date().getUTCDay()) : 0;
+  const WAR_DAYS = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+  const DUNGEON_POINT_DAYS = [1,4]; // Mi, Sa
+
+  // Ressourcen-Eingabe
+  const [hammers, setHammers] = useState(100);
+  const [forgeLevel, setForgeLevel] = useState(10);
+  const [freeForge, setFreeForge] = useState(0);
+  const [dungeonKeys, setDungeonKeys] = useState({hammer:2,ghost:2,invasion:2,zombie:2});
+  const [haustierTickets, setHaustierTickets] = useState(0);
+  const [reittierTickets, setReittierTickets] = useState(0);
+  const [skillTickets, setSkillTickets] = useState(0);
+  const [warDay, setWarDay] = useState(Math.max(1, dayIdx+1));
+
+  const currentDayIdx = warDay - 1;
+  const isDungeonDay = DUNGEON_POINT_DAYS.includes(currentDayIdx);
+
+  // Punkte-Berechnungen
+  const FORGE_DATA_MINI = [
+    [1,100,0,0,0,0,0,0,0,0,0],[2,99,1,0,0,0,0,0,0,0,0],[5,91.5,8,0.5,0,0,0,0,0,0,0],
+    [10,6,60,32,2,0,0,0,0,0,0],[15,0,0,31.7,64,4,0.25,0,0,0,0],[20,0,0,0,0,91,8,1,0.05,0,0],
+    [25,0,0,0,0,0,64,32,4,0.05,0],[30,0,0,0,0,0,0,60,36,4,0.05],[35,0,0,0,0,0,0,0,60,36,4],
+  ];
+  const WAR_PTS_ARR = [1,1,1,2,2,2,3,3,3,3];
+
+  // Finde nächste vorhandene Forge-Zeile
+  const forgeRow = FORGE_DATA_MINI.reduce((best,row) => row[0]<=forgeLevel?row:best, FORGE_DATA_MINI[0]);
+  const avgPts = forgeRow.slice(1).reduce((s,p,i)=>s+(p/100)*WAR_PTS_ARR[i],0);
+  const effHammers = hammers*(1+freeForge/100);
+  const forgePts = Math.round(effHammers*avgPts);
+
+  const dungeonPts = isDungeonDay
+    ? Object.values(dungeonKeys).reduce((s,k)=>s+k*3000,0)
+    : 0;
+
+  // Beschwörungs-Punkte (Durchschnitt Gewöhnlich bis Mythisch)
+  const SUMMON_PTS = {haustier:[200,400,800,1600,3200,6400], reittier:[200,400,800,1600,3200,6400], skill:[125,150,175,200,225,250]};
+  const avgHaustierPts = SUMMON_PTS.haustier.reduce((s,v)=>s+v,0)/SUMMON_PTS.haustier.length;
+  const avgReittierPts = SUMMON_PTS.reittier.reduce((s,v)=>s+v,0)/SUMMON_PTS.reittier.length;
+  const avgSkillPts = SUMMON_PTS.skill.reduce((s,v)=>s+v,0)/SUMMON_PTS.skill.length;
+  const summonPts = Math.round(haustierTickets*avgHaustierPts + reittierTickets*avgReittierPts + skillTickets*avgSkillPts);
+
+  const totalPts = forgePts + dungeonPts + summonPts;
+
+  // Ressourcen-Einträge für Anzeige
+  const resources = [
+    {label:"⚒️ Schmieden",pts:forgePts,color:"#c8850a",
+     detail:`${fmt(Math.round(effHammers))} eff. Hämmer × ∅${avgPts.toFixed(2)} Pkt`},
+    {label:"🗝️ Dungeon-Schlüssel",pts:dungeonPts,color:"#3b82f6",
+     detail:isDungeonDay?`${Object.values(dungeonKeys).reduce((s,v)=>s+v,0)} Schlüssel × 3.000`:"Heute kein Punkte-Tag"},
+    {label:"🎟️ Beschwörungen",pts:summonPts,color:"#a855f7",
+     detail:`${haustierTickets+reittierTickets+skillTickets} Tickets gesamt`},
+  ];
+
+  return (
+    <div>
+      <div className="grid-2">
+        {/* Eingabe */}
+        <div style={{display:"grid",gap:14,alignContent:"start"}}>
+
+          {/* War-Tag */}
+          <div className="card">
+            <div className="card-title">📅 War-Tag & Ressourcen</div>
+            <div style={{marginBottom:14}}>
+              <label className="lbl">War-Tag: {warDay}/6 — {WAR_DAYS[currentDayIdx]}</label>
+              <input type="range" min={1} max={6} value={warDay} onChange={e=>setWarDay(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:2}}>
+                {WAR_DAYS.map((d,i)=><span key={d} style={{color:DUNGEON_POINT_DAYS.includes(i)?"#22c55e":i===currentDayIdx?"var(--gold2)":"var(--text3)",fontWeight:i===currentDayIdx?700:400}}>{d.slice(0,2)}{DUNGEON_POINT_DAYS.includes(i)?"⭐":""}</span>)}
+              </div>
+            </div>
+
+            {/* Schmieden */}
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:4}}>
+              <div style={{fontSize:12,color:"#c8850a",fontWeight:600,marginBottom:8}}>⚒️ Schmiede</div>
+              <div style={{display:"grid",gap:8}}>
+                <div><label className="lbl">Schmied-Level: {forgeLevel}</label>
+                  <input type="range" min={1} max={35} value={forgeLevel} onChange={e=>setForgeLevel(Number(e.target.value))} style={{width:"100%",accentColor:"#c8850a"}}/></div>
+                <div><label className="lbl">Gratis-Schmiede: {freeForge}%</label>
+                  <input type="range" min={0} max={50} value={freeForge} onChange={e=>setFreeForge(Number(e.target.value))} style={{width:"100%",accentColor:"#c8850a"}}/></div>
+                <div><label className="lbl">Hämmer</label>
+                  <input className="inp" type="number" value={hammers} min={0} onChange={e=>setHammers(Number(e.target.value))}/></div>
+              </div>
+            </div>
+
+            {/* Dungeon */}
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:12}}>
+              <div style={{fontSize:12,color:"#3b82f6",fontWeight:600,marginBottom:8}}>
+                🗝️ Dungeon-Schlüssel {!isDungeonDay&&<span style={{color:"var(--text3)",fontWeight:400,fontSize:11}}>(kein Punkte-Tag heute)</span>}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[{id:"hammer",name:"Hammer Thief",icon:"🔨"},{id:"ghost",name:"Ghost Town",icon:"👻"},{id:"invasion",name:"Invasion",icon:"⚔️"},{id:"zombie",name:"Zombie Rush",icon:"🧟"}].map(d=>(
+                  <div key={d.id} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:"var(--bg2)",borderRadius:8}}>
+                    <span>{d.icon}</span>
+                    <span style={{flex:1,fontSize:12,color:isDungeonDay?"var(--text2)":"var(--text3)"}}>{d.name}</span>
+                    <select style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:4,color:"var(--gold2)",fontSize:12,padding:"2px 4px"}}
+                      value={dungeonKeys[d.id]} onChange={e=>setDungeonKeys(p=>({...p,[d.id]:Number(e.target.value)}))}>
+                      {[0,1,2].map(v=><option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Beschwörungen */}
+            <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginTop:12}}>
+              <div style={{fontSize:12,color:"#a855f7",fontWeight:600,marginBottom:8}}>🎟️ Beschwörungs-Tickets</div>
+              <div style={{display:"grid",gap:8}}>
+                {[["haustierTickets","🐾 Haustier",haustierTickets,setHaustierTickets],
+                  ["reittierTickets","🐴 Reittier",reittierTickets,setReittierTickets],
+                  ["skillTickets","✨ Skill",skillTickets,setSkillTickets]].map(([id,label,val,setter])=>(
+                  <div key={id} style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:12,color:"var(--text2)",flex:1}}>{label}</span>
+                    <input className="inp" type="number" value={val} min={0} onChange={e=>setter(Number(e.target.value))} style={{width:70,textAlign:"center"}}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Ergebnis */}
+        <div style={{display:"grid",gap:14,alignContent:"start"}}>
+          <div className="card">
+            <div className="card-title">📊 Tagesplan Ergebnis</div>
+
+            {/* Gesamt */}
+            <div style={{padding:"16px",background:"linear-gradient(135deg,#c8850a25,var(--bg2))",borderRadius:12,textAlign:"center",border:"1px solid #c8850a40",marginBottom:14}}>
+              <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>ERWARTETE PUNKTE HEUTE</div>
+              <div style={{fontSize:38,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{fmt(totalPts)}</div>
+            </div>
+
+            {/* Aufschlüsselung */}
+            {resources.map(r=>(
+              <div key={r.label} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <span style={{fontSize:13,color:"var(--text2)"}}>{r.label}</span>
+                  <span style={{fontSize:13,color:r.color,fontWeight:600}}>{fmt(r.pts)}</span>
+                </div>
+                <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>{r.detail}</div>
+                <div className="pbar" style={{height:4}}>
+                  <div className="pfill" style={{width:`${totalPts>0?(r.pts/totalPts)*100:0}%`,background:r.color}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tipps */}
+          <div className="card">
+            <div className="card-title">💡 Empfehlungen</div>
+            <div style={{display:"grid",gap:8}}>
+              {forgePts===0 && <div style={{padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>⚠️ Keine Hämmer eingetragen — Schmiede-Punkte = 0</div>}
+              {isDungeonDay && Object.values(dungeonKeys).some(k=>k<2) && (
+                <div style={{padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>
+                  ⚠️ Heute ist Punkte-Tag! Nicht genutzte Schlüssel verfallen — {fmt((8-Object.values(dungeonKeys).reduce((s,v)=>s+v,0))*3000)} Pkt möglich
+                </div>
+              )}
+              {isDungeonDay && Object.values(dungeonKeys).every(k=>k===2) && (
+                <div style={{padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>✅ Alle Dungeon-Schlüssel werden heute genutzt</div>
+              )}
+              {!isDungeonDay && (
+                <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6"}}>
+                  ℹ️ Heute gibt es keine Punkte für Dungeon-Schlüssel. Nächster Punkte-Tag: {WAR_DAYS[DUNGEON_POINT_DAYS.find(d=>d>currentDayIdx)??DUNGEON_POINT_DAYS[0]]}
+                </div>
+              )}
+              {summonPts > forgePts && <div style={{padding:"8px 12px",background:"#a855f715",border:"1px solid #a855f730",borderRadius:8,fontSize:12,color:"#a855f7"}}>✨ Beschwörungen sind heute deine stärkste Punkt-Quelle!</div>}
+              {forgePts > 0 && forgePts > summonPts && forgePts > dungeonPts && <div style={{padding:"8px 12px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a"}}>⚒️ Schmiede ist heute deine stärkste Punkt-Quelle!</div>}
             </div>
           </div>
         </div>
