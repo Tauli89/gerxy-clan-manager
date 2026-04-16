@@ -51,7 +51,7 @@ const WAR_DAYS = [
   { day:"Mittwoch", color:"#3b82f6", actions:[
     "1.000 Münzen für Schmiede: 27 Pkt",
     "1 Edelstein für Schmiede: 50 Pkt",
-    "Dungeon-Schlüssel nutzen: 3.000 Pkt",
+    "Dungeon-Schlüssel nutzen: 3.000 Pkt (Hammerdieb, Geisterstadt, Invasion, Zombiesturm)",
     "Gewöhnliches Ei: 200 | Selten: 800 | Episch: 1.600 Pkt",
     "Legendär Ei: 3.200 | Ultimate: 6.400 | Mythisch: 12.800 Pkt",
     "Haustiere zusammenführen: 50–3.200 Pkt",
@@ -77,7 +77,7 @@ const WAR_DAYS = [
     "Primitiv/Mittelalter/Fruehmodern: 1 Pkt",
     "Modern/Weltraum/Interstellar: 2 Pkt",
     "Multiversum/Quanten/Unterwelt/Goettlich: 3 Pkt",
-    "Dungeon-Schlüssel nutzen: 3.000 Pkt",
+    "Dungeon-Schlüssel nutzen: 3.000 Pkt (Hammerdieb, Geisterstadt, Invasion, Zombiesturm)",
     "Reittier beschwören: 50–2.500 Pkt",
     "Reittier zusammenführen: 50–2.500 Pkt",
   ]},
@@ -1907,240 +1907,465 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
 
 // ── SPIELINFO ────────────────────────────────────────────────
 function Spielinfo() {
-  const [section, setSection] = useState("war");
+  const [section, setSection] = useState("fortschritt");
 
-  const WAR_ACTIONS = [
-    {day:"Tag 1 (Dienstag)",pts:"1 Pkt",color:"#22c55e",actions:[
-      ["Primitiv/Mittelalter/Fruehmodern schmieden","1"],["Modern/Weltraum/Interstellar schmieden","2"],
-      ["Multiversum/Quanten/Unterwelt/Goettlich schmieden","3"],
-      ["Gewoehnliche Skill beschworen","125"],["Seltene Skill beschworen","150"],["Epische Skill beschworen","175"],
-      ["Legendaere Skill beschworen","200"],["Ultimate Skill beschworen","225"],["Mythische Skill beschworen","250"],
-      ["Gewoehnliche Skill upgraden","125"],["Seltene Skill upgraden","150"],["Epische Skill upgraden","175"],
-      ["Legendaere Skill upgraden","200"],["Ultimate Skill upgraden","225"],["Mythische Skill upgraden","250"],
-      ["Tech Tree I abschliessen","1.000"],["Tech Tree II abschliessen","10.000"],
-      ["Tech Tree III abschliessen","30.000"],["Tech Tree IV abschliessen","50.000"],["Tech Tree V abschliessen","100.000"],
-    ]},
-    {day:"Tag 2 (Mittwoch)",pts:"2 Pkt",color:"#3b82f6",actions:[
-      ["1.000 Muenzen fuer Schmiede ausgeben","27"],["1 Edelstein fuer Schmiede ausgeben","50"],
-      ["Hammer Thief Dungeon Schluessel nutzen","3.000"],["Ghost Town Dungeon Schluessel nutzen","3.000"],
-      ["Invasion Dungeon Schluessel nutzen","3.000"],["Zombie Rush Dungeon Schluessel nutzen","3.000"],
-      ["Gewoehnliches Ei ausbrueten","200"],["Seltenes Ei ausbrueten","800"],["Episches Ei ausbrueten","1.600"],
-      ["Legendaeres Ei ausbrueten","3.200"],["Ultimate Ei ausbrueten","6.400"],["Mythisches Ei ausbrueten","12.800"],
-      ["Gewoehnliches Haustier zusammenfuehren","50"],["Seltenes Haustier zusammenfuehren","200"],
-      ["Episches Haustier zusammenfuehren","400"],["Legendaeres Haustier zusammenfuehren","800"],
-      ["Ultimate Haustier zusammenfuehren","1.600"],["Mythisches Haustier zusammenfuehren","3.200"],
-    ]},
-    {day:"Tag 3 (Donnerstag)",pts:"2 Pkt",color:"#a855f7",actions:[
-      ["Primitiv/Mittelalter/Fruehmodern schmieden","1"],["Modern/Weltraum/Interstellar schmieden","2"],
-      ["Multiversum/Quanten/Unterwelt/Goettlich schmieden","3"],
-      ["Gewoehnliche Skill beschworen","125"],["Seltene Skill beschworen","150"],["Epische Skill beschworen","175"],
-      ["Legendaere Skill beschworen","200"],["Ultimate Skill beschworen","225"],["Mythische Skill beschworen","250"],
-      ["Gewoehnliche Skill upgraden","125"],["Seltene Skill upgraden","150"],["Epische Skill upgraden","175"],
-      ["Legendaere Skill upgraden","200"],["Ultimate Skill upgraden","225"],["Mythische Skill upgraden","250"],
-      ["Gewoehnlichen Reittier beschworen","50"],["Seltenen Reittier beschworen","100"],
-      ["Epischen Reittier beschworen","250"],["Legendaeren Reittier beschworen","500"],
-      ["Ultimate Reittier beschworen","1.500"],["Mythischen Reittier beschworen","2.500"],
-      ["Gewoehnlichen Reittier zusammenfuehren","50"],["Seltenen Reittier zusammenfuehren","100"],
-      ["Epischen Reittier zusammenfuehren","250"],["Legendaeren Reittier zusammenfuehren","500"],
-      ["Ultimate Reittier zusammenfuehren","1.500"],["Mythischen Reittier zusammenfuehren","2.500"],
-    ]},
-    {day:"Tag 4 (Freitag)",pts:"2 Pkt",color:"#f59e0b",actions:[
-      ["1.000 Muenzen fuer Schmiede ausgeben","27"],["1 Edelstein fuer Schmiede ausgeben","50"],
-      ["Tech Tree I abschliessen","1.000"],["Tech Tree II abschliessen","10.000"],
-      ["Tech Tree III abschliessen","30.000"],["Tech Tree IV abschliessen","50.000"],["Tech Tree V abschliessen","100.000"],
-      ["Gewoehnliches Ei ausbrueten","200"],["Seltenes Ei ausbrueten","800"],["Episches Ei ausbrueten","1.600"],
-      ["Legendaeres Ei ausbrueten","3.200"],["Ultimate Ei ausbrueten","6.400"],["Mythisches Ei ausbrueten","12.800"],
-      ["Gewoehnliches Haustier zusammenfuehren","50"],["Seltenes Haustier zusammenfuehren","200"],
-      ["Episches Haustier zusammenfuehren","400"],["Legendaeres Haustier zusammenfuehren","800"],
-      ["Ultimate Haustier zusammenfuehren","1.600"],["Mythisches Haustier zusammenfuehren","3.200"],
-    ]},
-    {day:"Tag 5 (Samstag)",pts:"2 Pkt",color:"#ef4444",actions:[
-      ["Primitiv/Mittelalter/Fruehmodern schmieden","1"],["Modern/Weltraum/Interstellar schmieden","2"],
-      ["Multiversum/Quanten/Unterwelt/Goettlich schmieden","3"],
-      ["Hammer Thief Dungeon Schluessel nutzen","3.000"],["Ghost Town Dungeon Schluessel nutzen","3.000"],
-      ["Invasion Dungeon Schluessel nutzen","3.000"],["Zombie Rush Dungeon Schluessel nutzen","3.000"],
-      ["Gewoehnlichen Reittier beschworen","50"],["Seltenen Reittier beschworen","100"],
-      ["Epischen Reittier beschworen","250"],["Legendaeren Reittier beschworen","500"],
-      ["Ultimate Reittier beschworen","1.500"],["Mythischen Reittier beschworen","2.500"],
-      ["Gewoehnlichen Reittier zusammenfuehren","50"],["Seltenen Reittier zusammenfuehren","100"],
-      ["Epischen Reittier zusammenfuehren","250"],["Legendaeren Reittier zusammenfuehren","500"],
-      ["Ultimate Reittier zusammenfuehren","1.500"],["Mythischen Reittier zusammenfuehren","2.500"],
-    ]},
-    {day:"Tag 6 (Sonntag)",pts:"4 Pkt",color:"#ec4899",actions:[
-      ["Rivalen-Clan-Mitglied besiegen","1-50"],["All-Out Brawl gewinnen","1.000"],
-    ]},
-  ];
-
-  const INDIVIDUAL_REWARDS = [
-    ["10k","70","250","100","-","-","-"],["20k","-","-","-","15k","220","115"],
-    ["50k","70","250","100","-","-","-"],["75k","-","-","-","15k","220","115"],
-    ["100k","70","250","100","-","-","-"],["150k","-","-","-","15k","220","115"],
-    ["200k","70","250","100","-","-","-"],["250k","-","-","-","15k","220","115"],
-    ["300k","70","250","100","-","-","-"],["350k","-","-","-","15k","220","115"],
-    ["400k","70","250","100","-","-","-"],["450k","-","-","-","15k","220","115"],
-    ["500k","70","250","100","-","-","-"],
-  ];
-
-  const WAR_REWARDS = [
-    {tier:"S",pts:"25+",wH:"5.7k",wC:"150k",wT:"7.8k",wE:"3.15k",wP:"5.9k",wW:"3.15k",lH:"2.85k",lC:"75k",lT:"3.9k",lE:"1.5k",lP:"2.9k",lW:"1.5k"},
-    {tier:"A",pts:"20+",wH:"2.5k",wC:"80k",wT:"3.6k",wE:"1.5k",wP:"2.8k",wW:"1.5k",lH:"1.25k",lC:"40k",lT:"1.8k",lE:"750",lP:"1.4k",lW:"750"},
-    {tier:"B",pts:"15+",wH:"1.4k",wC:"55k",wT:"2.1k",wE:"840",wP:"1.58k",wW:"840",lH:"700",lC:"27.5k",lT:"1.05k",lE:"420",lP:"790",lW:"420"},
-    {tier:"C",pts:"10+",wH:"750",wC:"20k",wT:"1.05k",wE:"420",wP:"800",wW:"420",lH:"375",lC:"10k",lT:"525",lE:"210",lP:"400",lW:"210"},
-    {tier:"D",pts:"5+",wH:"380",wC:"10k",wT:"520",wE:"210",wP:"400",wW:"200",lH:"190",lC:"5k",lT:"260",lE:"105",lP:"200",lW:"100"},
-    {tier:"E",pts:"0+",wH:"190",wC:"5k",wT:"260",wE:"100",wP:"200",wW:"100",lH:"100",lC:"2.5k",lT:"130",lE:"50",lP:"100",lW:"50"},
-  ];
-
-  const TECH_DATA = [
-    ["I","1/5",40,"5m",1],["I","2/5",56,"10m",1],["I","3/5",78,"20m",3],["I","4/5",110,"40m",6],["I","5/5",154,"1h 20m",11],
-    ["II","1/5",214,"2h 40m",22],["II","2/5",301,"5h 20m",44],["II","3/5",422,"10h 40m",88],["II","4/5",590,"21h 20m",177],["II","5/5",826,"23h 28m",194],
-    ["III","1/5",1157,"1d 1h 48m",215],["III","2/5",1318,"1d 4h 23m",235],["III","3/5",1503,"1d 7h 14m",259],["III","4/5",1714,"1d 10h 21m",284],["III","5/5",1954,"1d 13h 47m",313],
-    ["IV","1/5",2227,"1d 17h 34m",344],["IV","2/5",2540,"1d 21h 43m",379],["IV","3/5",2895,"2d 2h 18m",417],["IV","4/5",3300,"2d 7h 19m",458],["IV","5/5",3762,"2d 12h 51m",504],
-    ["V","1/5",4289,"2d 18h 57m",554],["V","2/5",4889,"3d 1h 38m",610],["V","3/5",5574,"3d 9h 0m",671],["V","4/5",6354,"3d 17h 6m",738],["V","5/5",7244,"4d 2h 1m",812],
+  const SECTIONS = [
+    ["fortschritt","📈 Fortschritt"],
+    ["grundlagen","📋 Grundlagen"],
+    ["pvp","⚔️ PvP Liga"],
+    ["dungeons","🏰 Dungeons"],
+    ["substats","🧬 Substats & Builds"],
+    ["clankieg","🏆 Clan War"],
+    ["reittiere","🐎 Reittiere"],
+    ["tipps","💡 Tipps"],
   ];
 
   return (
     <div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:20}}>
-        {[["war","War-Aktionen"],["rewards","Belohnungen"],["tech","Tech-Kosten"],["tips","Tipps"]].map(([id,label])=>(
+        {SECTIONS.map(([id,label])=>(
           <button key={id} className={`btn ${section===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setSection(id)}>{label}</button>
         ))}
       </div>
 
-      {section==="war" && (
+      {section==="fortschritt" && (
         <div>
-          <div style={{padding:"10px 16px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,marginBottom:16,fontSize:13,color:"var(--text3)"}}>
-            Strategie: Eier und Reittiere fuer Tag 5 (Samstag) aufsparen - beste Punkteausbeute! Tech Tree Upgrades an Tag 1/4 starten und an Tag 4 abschliessen.
+          <div className="card mb-16" style={{borderColor:"#c8850a30"}}>
+            <div className="card-title">📈 Spielfortschritt & Freischaltungen</div>
+            <div style={{padding:"10px 14px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,marginBottom:14,fontSize:13,color:"#22c55e"}}>
+              💡 Mit einem guten Setup kannst du 4-15 an einem einzigen Tag erreichen. Falls du noch kein seltenes Haustier oder Skill hast, nutze ein <strong>Regenerations-Haustier (5–6%)</strong> — es hält dich lang genug am Leben.
+            </div>
+            <div style={{display:"grid",gap:6}}>
+              {[
+                ["🛒","Shop","2-1"],
+                ["🎫","Battle Pass","2-5"],
+                ["⚒️","Auto-Schmiede","2-10"],
+                ["🏰","Dungeon: Hammerdieb","2-10"],
+                ["🏰","Dungeon: Geisterstadt","2-15"],
+                ["🧠","Skills, Haustiere & Tech-Baum","2-15, 3-1, 4-1"],
+                ["🧩","Skill-Slots","2-15, 4-1, 5-1"],
+                ["🏰","Dungeon: Invasion","3-1"],
+                ["🐾","Haustier-Slots","3-1, 4-10, 6-1"],
+                ["💬","Chat","3-10"],
+                ["⚔️","PvP Liga","3-10"],
+                ["🏕️","Clan","4-15"],
+                ["🏰","Dungeon: Zombiesturm","4-1"],
+                ["🔨","Extra Hammer-Slot","5-15, 7-15"],
+                ["🏃","Stepping Stones Event","6-15"],
+              ].map(([icon,name,stage])=>(
+                <div key={name} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
+                  <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
+                  <span style={{flex:1,color:"var(--text2)"}}>{name}</span>
+                  <span style={{color:"var(--gold2)",fontWeight:600,fontFamily:"'Cinzel',serif",fontSize:12}}>Stage {stage}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          {WAR_ACTIONS.map((day,di)=>(
-            <div key={di} className="card mb-16" style={{borderColor:`${day.color}30`}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:14,color:day.color}}>{day.day}</div>
-                <span style={{padding:"2px 8px",borderRadius:12,fontSize:11,background:`${day.color}20`,color:day.color}}>{day.pts}</span>
+        </div>
+      )}
+
+      {section==="grundlagen" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">📋 Grundlegende Spielmechaniken</div>
+            <div style={{display:"grid",gap:8}}>
+              {[
+                ["🕛","Täglicher Reset","Täglich um Mitternacht UTC — Dungeons, Challenge-Tickets und War-Tage werden zurückgesetzt"],
+                ["💤","Offline-Timer","Basis: 4 Stunden. Verlängerbar durch den Tech-Baum"],
+                ["✏️","Namensänderung","Einmal kostenlos — jede weitere Änderung kostet 200 Edelsteine"],
+                ["🏕️","Clan erstellen","Kostet 150 Edelsteine"],
+                ["🌐","Server","Du wirst einem Server mit Spielern zugeteilt die gleichzeitig gestartet haben. Server-Wechsel nur vor Stage 2-1 möglich"],
+                ["📍","Server prüfen","Klicke auf dein Profil (oben links) — der Server wird über der Macht- und Clan-Rangliste angezeigt"],
+                ["⚙️","Tech-Baum","Verbessert Upgrade-Zeiten, Kosten und Statuswerte"],
+                ["💰","Münzen","Jeder Kill gibt 1 Münze"],
+                ["🐾","Haustier-Max","Level 100"],
+                ["✨","Skill-Max","Level 300"],
+                ["🕐","Alle Zeiten","Nach UTC (Koordinierte Weltzeit)"],
+              ].map(([icon,title,desc])=>(
+                <div key={title} style={{padding:"10px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:"3px solid var(--gold)40"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                    <span>{icon}</span>
+                    <span style={{fontWeight:600,fontSize:13,color:"var(--gold2)"}}>{title}</span>
+                  </div>
+                  <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5}}>{desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">💡 Nützliche Hinweise</div>
+            {[
+              ["🔧","Ausrüstung testen","Du kannst neue Gegenstände anlegen und deinen Fortschritt im Hintergrund beobachten bevor du sie verkaufst — ideal zum sicheren Testen von Upgrades"],
+              ["🏰","Dungeons täglich","Immer alle 4 Dungeons täglich abschließen — sie sind essenziell für Materialien und Fortschritt"],
+              ["🎯","Schlüssel verfallen","Dungeon-Schlüssel werden täglich um Mitternacht UTC zurückgesetzt und übertragen sich nicht auf den nächsten Tag"],
+              ["⚔️","Schlüssel-Mechanik","Schlüssel werden nur verbraucht wenn du eine Stufe gewinnst — nicht bei Niederlagen"],
+            ].map(([icon,title,desc])=>(
+              <div key={title} style={{padding:"12px 14px",background:"var(--bg2)",borderRadius:8,borderLeft:"3px solid var(--gold2)",marginBottom:8}}>
+                <div style={{fontWeight:600,color:"var(--gold2)",marginBottom:4,fontSize:13}}>{icon} {title}</div>
+                <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5}}>{desc}</div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:4}}>
-                {day.actions.map(([action,pts],i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 10px",background:"var(--bg2)",borderRadius:6,fontSize:12}}>
-                    <span style={{color:"var(--text2)"}}>{action}</span>
-                    <span style={{color:"var(--gold2)",fontWeight:600,marginLeft:8,flexShrink:0}}>{pts} Pkt</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {section==="pvp" && (
+        <div>
+          <div className="grid-2">
+            <div className="card">
+              <div className="card-title">⚔️ PvP Liga</div>
+              <div style={{display:"grid",gap:8,marginBottom:16}}>
+                {[
+                  ["Freischaltung","Stage 3-10 (zusammen mit globalem Chat)"],
+                  ["Saisondauer","6 Tage, Start: Dienstag"],
+                  ["Abkühlzeit","24 Stunden nach Saisonende"],
+                  ["Challenge-Tickets","Reset täglich um Mitternacht — keine Übertragung"],
+                  ["Ticket-Verbrauch","Tickets werden verbraucht egal ob Sieg oder Niederlage"],
+                ].map(([k,v])=>(
+                  <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13,gap:8}}>
+                    <span style={{color:"var(--text3)"}}>{k}</span>
+                    <span style={{color:"var(--text2)",textAlign:"right"}}>{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{padding:"10px 14px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>
+                🏅 Alle Spieler erhalten Belohnungen — höhere Ränge bekommen bessere Beute!
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-title">🏅 Liga-Ränge & Auf-/Abstieg</div>
+              <div style={{display:"grid",gap:6}}>
+                {[
+                  ["Unbewertet","#9ca3af","Top 90 aufgestiegen","-"],
+                  ["Bronze","#cd7f32","Top 80 aufgestiegen","-"],
+                  ["Silber","#c0c0c0","Top 50 aufgestiegen","Unter 90: Abstieg"],
+                  ["Gold","#f59e0b","Top 20 aufgestiegen","Unter 80: Abstieg"],
+                  ["Platin","#22c55e","Top 10 aufgestiegen","Unter 70: Abstieg"],
+                  ["Diamant","#3b82f6","Top 60 verbleiben","Rest: Abstieg"],
+                ].map(([rang,col,auf,ab])=>(
+                  <div key={rang} style={{padding:"8px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:`3px solid ${col}`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                      <span style={{fontWeight:600,color:col,fontSize:13}}>{rang}</span>
+                      <span style={{fontSize:11,color:"#22c55e"}}>{auf}</span>
+                    </div>
+                    {ab!=="-"&&<div style={{fontSize:11,color:"#ef4444"}}>{ab}</div>}
                   </div>
                 ))}
               </div>
             </div>
-          ))}
+          </div>
         </div>
       )}
 
-      {section==="rewards" && (
+      {section==="dungeons" && (
         <div>
-          <div className="card mb-16">
-            <div className="card-title">Individuelle War-Belohnungen (Meilensteine)</div>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <thead><tr>{["Meilenstein","Haemmer","Tickets","Eier","Muenzen","Traenke","Winder"].map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>{h}</th>)}</tr></thead>
-                <tbody>{INDIVIDUAL_REWARDS.map((row,i)=>(
-                  <tr key={i} style={{borderBottom:"1px solid #2a180040"}}>
-                    {row.map((cell,j)=><td key={j} style={{padding:"6px 10px",color:j===0?"var(--gold2)":cell==="-"?"var(--text3)":"var(--text2)"}}>{cell}</td>)}
-                  </tr>
-                ))}</tbody>
-              </table>
+          <div className="grid-2">
+            <div className="card">
+              <div className="card-title">🏰 Dungeon-Übersicht</div>
+              <div style={{display:"grid",gap:8,marginBottom:16}}>
+                {[
+                  ["🔨","Hammerdieb","2-10","#f59e0b"],
+                  ["👻","Geisterstadt","2-15","#a855f7"],
+                  ["⚔️","Invasion","3-1","#ef4444"],
+                  ["🧟","Zombiesturm","4-1","#22c55e"],
+                ].map(([icon,name,stage,col])=>(
+                  <div key={name} style={{padding:"12px 14px",background:`${col}10`,border:`1px solid ${col}30`,borderRadius:10,display:"flex",alignItems:"center",gap:12}}>
+                    <span style={{fontSize:24}}>{icon}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:600,fontSize:14,color:col}}>{name}</div>
+                      <div style={{fontSize:12,color:"var(--text3)"}}>Freischaltung: Stage {stage}</div>
+                    </div>
+                    <div style={{fontSize:12,color:"var(--gold2)",fontWeight:600}}>3.000 Pkt/Schlüssel</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{padding:"10px 14px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>
+                💡 Immer alle 4 Dungeons täglich abschließen — sie sind essenziell für Materialien und Fortschritt!
+              </div>
             </div>
-          </div>
-          <div className="card">
-            <div className="card-title">Clan War Belohnungen (nach Tier)</div>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-                <thead>
-                  <tr style={{borderBottom:"1px solid var(--border)"}}>
-                    {["Tier","Pkt","","Haemmer","Muenzen","Tickets","Eier","Traenke","Winder"].map(h=><th key={h} style={{padding:"5px 8px",textAlign:"left",color:"var(--text3)"}}>{h}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {WAR_REWARDS.map(w=>[
-                    <tr key={w.tier+"w"} style={{background:"#22c55e08"}}>
-                      <td rowSpan={2} style={{padding:"5px 8px",color:"var(--gold2)",fontWeight:600}}>{w.tier}</td>
-                      <td rowSpan={2} style={{padding:"5px 8px",color:"var(--text3)",fontSize:10}}>{w.pts}</td>
-                      <td style={{padding:"5px 8px",color:"#22c55e",fontSize:11}}>Sieg</td>
-                      {[w.wH,w.wC,w.wT,w.wE,w.wP,w.wW].map((v,i)=><td key={i} style={{padding:"5px 8px",color:"var(--text2)"}}>{v}</td>)}
-                    </tr>,
-                    <tr key={w.tier+"l"} style={{borderBottom:"1px solid var(--border)"}}>
-                      <td style={{padding:"5px 8px",color:"#ef4444",fontSize:11}}>Niederlage</td>
-                      {[w.lH,w.lC,w.lT,w.lE,w.lP,w.lW].map((v,i)=><td key={i} style={{padding:"5px 8px",color:"var(--text3)"}}>{v}</td>)}
-                    </tr>
-                  ])}
-                </tbody>
-              </table>
+            <div className="card">
+              <div className="card-title">📋 Dungeon-Regeln</div>
+              <div style={{display:"grid",gap:8}}>
+                {[
+                  ["🕛","Schlüssel-Reset","Täglich um Mitternacht UTC — Schlüssel übertragen sich nicht auf den nächsten Tag"],
+                  ["✅","Schlüssel-Verbrauch","Schlüssel werden nur bei einem Sieg verbraucht — Niederlagen kosten keine Schlüssel"],
+                  ["🔄","Sweep Last","Falls du nicht weiterkommst: 'Letzten Sweep' nutzen um die letzte abgeschlossene Stufe automatisch zu wiederholen"],
+                  ["🎯","Manuelle Skills","Bei schwierigen Stufen helfen manuell eingesetzte Skills oft entscheidend"],
+                  ["⚔️","War-Punkte","Schlüssel geben nur an Mittwoch und Samstag War-Punkte (3.000 pro Schlüssel)"],
+                  ["🗝️","Max Schlüssel","2 Schlüssel pro Dungeon pro Tag — nicht sammelbar!"],
+                ].map(([icon,title,desc])=>(
+                  <div key={title} style={{padding:"10px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:"3px solid var(--gold)40"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                      <span>{icon}</span>
+                      <span style={{fontWeight:600,fontSize:13,color:"var(--gold2)"}}>{title}</span>
+                    </div>
+                    <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5}}>{desc}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {section==="tech" && (
-        <div className="card">
-          <div className="card-title">Tech Tree Kosten und Zeiten</div>
-          <div style={{fontSize:13,color:"var(--text3)",marginBottom:12}}>Gilt pro Node. Jeder Node hat 5 Level pro Tier (I-V) = 25 Upgrades gesamt.</div>
-          <div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-              <thead><tr>{["Tier","Level","Rote Traenke","Zeit","Edelsteine"].map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>{h}</th>)}</tr></thead>
-              <tbody>{TECH_DATA.map((row,i)=>(
-                <tr key={i} style={{borderBottom:"1px solid #2a180040",background:row[1]==="1/5"?"var(--bg4)":"transparent"}}>
-                  {[`Tier ${row[0]}`,row[1],row[2],row[3],row[4]].map((cell,j)=><td key={j} style={{padding:"6px 10px",color:j===0?"var(--gold2)":"var(--text2)"}}>{cell}</td>)}
-                </tr>
-              ))}</tbody>
-            </table>
+      {section==="substats" && (
+        <div>
+          <div className="grid-2">
+            <div className="card">
+              <div className="card-title">🧬 Maximale Substat-Werte</div>
+              <div style={{display:"grid",gap:4}}>
+                {[
+                  ["Krit-Chance","12","#f59e0b"],
+                  ["Krit-Schaden","100","#f59e0b"],
+                  ["Angriffsgeschwindigkeit","40","#22c55e"],
+                  ["Doppelchance","40","#22c55e"],
+                  ["Schaden","15","#ef4444"],
+                  ["Skill-Schaden","30","#a855f7"],
+                  ["Fernkampf-Schaden","15","#3b82f6"],
+                  ["Nahkampf-Schaden","50","#3b82f6"],
+                  ["Block","5","#9ca3af"],
+                  ["Lebensraub","20","#ec4899"],
+                  ["Regeneration","6","#22c55e"],
+                  ["Abklingzeit","7","#06b6d4"],
+                  ["Gesundheit","15","#ef4444"],
+                ].map(([name,max,col])=>(
+                  <div key={name} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"var(--bg2)",borderRadius:6,fontSize:12}}>
+                    <span style={{color:"var(--text2)"}}>{name}</span>
+                    <span style={{color:col,fontWeight:700,fontFamily:"'Cinzel',serif"}}>Max {max}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"grid",gap:14,alignContent:"start"}}>
+              <div className="card">
+                <div className="card-title">📖 Substat-Erklärungen</div>
+                <div style={{display:"grid",gap:6}}>
+                  {[
+                    ["Schaden","Erhöht gesamten Waffen- und Skill-Schaden"],
+                    ["Gesundheit","Erhöht deine Basis-HP um x%"],
+                    ["Fernkampf-Schaden","Wirkt nur auf Fernkampfwaffen"],
+                    ["Nahkampf-Schaden","Wirkt nur auf Nahkampfwaffen — nutzlos ohne Nahkampfwaffe"],
+                    ["Skill-Schaden","Verstärkt Skill-Kraft und Buff-Skills (HP & Schaden)"],
+                    ["Abklingzeit","Reduziert die Aktivierungszeit von Skills"],
+                    ["Regeneration","Stellt HP jede Sekunde wieder her — stark in der Früh-Phase"],
+                    ["Lebensraub","Wandelt einen % des Waffenschadens in HP um (gut mit Angriffsgeschwindigkeit)"],
+                    ["Angriffsgeschwindigkeit","Schnellere Angriffe = mehr Treffer = mehr Lebensraub"],
+                    ["Doppelchance","Chance dass die Hauptwaffe zweimal trifft"],
+                    ["Krit-Chance","Chance auf einen kritischen Treffer (Basis 120% Schaden)"],
+                    ["Krit-Schaden","Erhöht den Krit-Multiplikator — kombiniere mit Krit-Chance"],
+                    ["Block","Chance eingehende Treffer zu blocken"],
+                  ].map(([name,desc])=>(
+                    <div key={name} style={{fontSize:12,padding:"5px 0",borderBottom:"1px solid var(--border)"}}>
+                      <span style={{color:"var(--gold2)",fontWeight:600}}>{name}: </span>
+                      <span style={{color:"var(--text2)"}}>{desc}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:10,padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6"}}>
+                  💡 Fernkampfwaffen sind für die meisten Spieler besser als Nahkampf — außer du hast spezifische Nahkampf-Boni.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid-2 section-gap">
+            {[
+              {title:"🌱 Einsteiger-Build (Früh- bis Mittelspiel)",color:"#22c55e",stats:[
+                ["Regeneration","20%+","Sehr stark in der Früh-Phase, besonders für Stages und Dungeons"],
+                ["Doppelchance","80%+","Verdoppelt effektiv deinen Schaden"],
+                ["Angriffsgeschwindigkeit","100%+","Mehr Treffer = mehr Lebensraub"],
+                ["Lebensraub","30%+","Selbstheilung durch Angriffe"],
+              ],note:"Vollständige Regen-Builds (40%+) können funktionieren, aber behalte deine PvP-Performance im Auge. Ab Quanten-Ausrüstung (2 Substats pro Gegenstand) verliert Regen stark an Wirkung — wechsle dann zu Lebensraub+Krit."},
+              {title:"⚖️ Balanced Build (Allrounder)",color:"#3b82f6",stats:[
+                ["Angriffsgeschwindigkeit","100%+","Kernstat für alle weiteren Synergien"],
+                ["Lebensraub","40%+","Starke Selbstheilung"],
+                ["Doppelchance","80%+","Verdoppelt Treffer und Lebensraub"],
+                ["Schaden","So viel wie möglich","Skaliert mit allem anderen"],
+              ],note:"Sehr solides Setup für die meisten Inhalte. Skaliert gut in spätere Phasen."},
+              {title:"💎 Endgame Krit-Build",color:"#f59e0b",stats:[
+                ["Krit-Chance","40+","Basis für den Build"],
+                ["Krit-Schaden","350+","Multipliziert Krit-Treffer massiv"],
+                ["Lebensraub","30+","Ein Krit heilt oft die halbe HP"],
+                ["Doppelchance","100","Maximale Treffer"],
+                ["Angriffsgeschwindigkeit","100+","Mehr Krits pro Sekunde"],
+              ],note:"Bestes Setup sobald Dual-Substat-Ausrüstung und starke Haustiere verfügbar sind."},
+            ].map(build=>(
+              <div key={build.title} className="card" style={{borderColor:`${build.color}30`}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:build.color,marginBottom:12}}>{build.title}</div>
+                <div style={{display:"grid",gap:6,marginBottom:10}}>
+                  {build.stats.map(([stat,val,desc])=>(
+                    <div key={stat} style={{padding:"6px 10px",background:"var(--bg2)",borderRadius:6}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                        <span style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{stat}</span>
+                        <span style={{fontSize:12,color:build.color,fontWeight:700}}>{val}</span>
+                      </div>
+                      <div style={{fontSize:11,color:"var(--text3)"}}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{padding:"8px 10px",background:`${build.color}10`,border:`1px solid ${build.color}20`,borderRadius:6,fontSize:11,color:"var(--text2)",lineHeight:1.5}}>{build.note}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {section==="tips" && (
-        <div className="grid-2">
-          {[
-            {title:"Clan War Strategie",tips:[
-              "Samstag = beste Punkteausbeute (alle Aktionen verfuegbar)",
-              "Tech Tree Upgrades an Tag 1/4 starten - an Tag 4 abschliessen (100k Pkt)",
-              "Eier an Tag 2 und 4 ausbrueten (bis 12.800 Pkt fuer Mythisch)",
-              "Reittiere an Tag 3 und 5 beschworen/zusammenfuehren",
-              "Sonntag: Alle 5 Tickets fuer Brawl nutzen - 1.000 Pkt beim Sieg",
-            ]},
-            {title:"Schmied-Tipps",tips:[
-              "Schmied-Upgrade vor Schlaf/Arbeit starten",
-              "Gratis-Forge % aus Tech Tree erhoeht effektive Hammeranzahl",
-              "Ab Schmied Level 17+ lohnt Weltraum-Ausruestung stark",
-              "Ab Level 23+ Interstellar, Level 26+ Multiversum",
-              "Schmied-Ast im Tech Tree als erstes ausbauen",
-              "Offline alle 3-4h sammeln (Base: 4h Maximum)",
-            ]},
-            {title:"Haustier/Reittier Tipps",tips:[
-              "Haustiere: Ab Level 25 lohnt Legendaer-Chance (0.02%)",
-              "Warte bis 5%+ Chance fuer gewuenschte Seltenheit",
-              "Fruehs: Regen-Pet nutzen fuer besseres Ueberleben",
-              "Reittiere sind langfristig eine der besten Investitionen",
-              "Reittiere aus Clan War, PvP Liga und Shop",
-              "Schwaechere Haustiere zum Upgraden/Mergen nutzen",
-            ]},
-            {title:"Allgemeine Tipps",tips:[
-              "Premium Pass = bestes Preis-Leistungs-Verhaeltnis",
-              "Fernkampf-Waffen > Nahkampf fuer die meisten Spieler",
-              "Build: Angriffsspeed + Lifesteal + Double Chance",
-              "Endgame: Crit Chance + Crit Damage Kombination",
-              "PvP-Tickets taeglich nutzen (Reset Mitternacht UTC)",
-              "Aufstieg: Schmiede-Ast zuerst maxen fuer guenstigere Kosten",
-            ]},
-          ].map(({title,tips})=>(
-            <div key={title} className="card">
-              <div className="card-title">{title}</div>
-              {tips.map((tip,i)=>(
-                <div key={i} style={{display:"flex",gap:8,padding:"5px 0",borderBottom:"1px solid var(--border)",fontSize:13}}>
-                  <span style={{color:"var(--gold)",flexShrink:0}}>-</span>
-                  <span style={{color:"var(--text2)",lineHeight:1.5}}>{tip}</span>
+      {section==="clankieg" && (
+        <div>
+          <div className="grid-2">
+            <div className="card">
+              <div className="card-title">🏆 Clan War — Tages-Übersicht</div>
+              <div style={{padding:"8px 12px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a",marginBottom:14}}>
+                💡 Ressourcen für den passenden Tag aufsparen — maximale Punkte durch Planung!
+              </div>
+              {[
+                ["Tag 1 (Dienstag)","Hammer, Skills, Tech-Baum","#22c55e"],
+                ["Tag 2 (Mittwoch)","Schmiede (Münzen/Edelsteine), Dungeon-Schlüssel ⭐, Eier, Haustiere mergen","#3b82f6"],
+                ["Tag 3 (Donnerstag)","Hammer, Skills, Reittiere beschwören/mergen","#a855f7"],
+                ["Tag 4 (Freitag)","Schmiede (Münzen/Edelsteine), Tech-Baum, Eier, Haustiere mergen","#f59e0b"],
+                ["Tag 5 (Samstag)","Hammer, Dungeon-Schlüssel ⭐, Reittiere beschwören/mergen, Skills","#ef4444"],
+                ["Tag 6 (Sonntag)","Kampftag — All-Out Brawl (5 Tickets, 1.000 Pkt/Sieg)","#ec4899"],
+                ["Tag 7 (Montag)","Belohnungen abholen 🎁","#9ca3af"],
+              ].map(([day,actions,col])=>(
+                <div key={day} style={{display:"flex",gap:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,marginBottom:6,alignItems:"flex-start"}}>
+                  <div style={{width:140,flexShrink:0,fontWeight:600,fontSize:12,color:col}}>{day}</div>
+                  <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5}}>{actions}</div>
                 </div>
               ))}
             </div>
-          ))}
+            <div style={{display:"grid",gap:14,alignContent:"start"}}>
+              <div className="card">
+                <div className="card-title">🎯 Matchmaking</div>
+                <div style={{display:"grid",gap:8}}>
+                  <div style={{padding:"10px 12px",background:"var(--bg2)",borderRadius:8}}>
+                    <div style={{fontWeight:600,fontSize:13,color:"var(--gold2)",marginBottom:4}}>Woche 1</div>
+                    <div style={{fontSize:12,color:"var(--text2)"}}>Zufälliger Clan auf gleichem Tier</div>
+                  </div>
+                  <div style={{padding:"10px 12px",background:"var(--bg2)",borderRadius:8}}>
+                    <div style={{fontWeight:600,fontSize:13,color:"var(--gold2)",marginBottom:4}}>Woche 2</div>
+                    <div style={{fontSize:12,color:"var(--text2)"}}>Clan mit ähnlichem Durchschnittsbeitrag der letzten Wars</div>
+                  </div>
+                </div>
+              </div>
+              <div className="card">
+                <div className="card-title">📊 Punkte & Strafen</div>
+                <div style={{display:"grid",gap:6}}>
+                  <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}>
+                    <span style={{color:"var(--text2)"}}>Sieg</span>
+                    <span style={{color:"#22c55e",fontWeight:600}}>+5 Punkte</span>
+                  </div>
+                  {[["Niederlage auf Tier S","-5 Punkte","#ef4444"],["Niederlage auf Tier A","-3 Punkte","#f59e0b"],["Niederlage auf Tier B","-1 Punkt","#9ca3af"]].map(([k,v,col])=>(
+                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
+                      <span style={{color:"var(--text2)"}}>{k}</span>
+                      <span style={{color:col,fontWeight:600}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {section==="reittiere" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">🐎 Reittiere</div>
+            <div style={{padding:"8px 12px",background:"#f59e0b15",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b",marginBottom:14}}>
+              🏆 Reittiere gehören zu den <strong>besten Langzeit-Investitionen</strong> — früh und konsequent investieren!
+            </div>
+            <div style={{display:"grid",gap:6,marginBottom:14}}>
+              {[
+                ["Gewöhnlich","#9ca3af","+10% Schaden & Gesundheit"],
+                ["Selten","#22c55e","+40% Schaden & Gesundheit"],
+                ["Episch","#a855f7","+80% Schaden & Gesundheit"],
+                ["Legendär","#f59e0b","+150% Schaden & Gesundheit"],
+                ["Ultimate","#ef4444","+250% Schaden & Gesundheit"],
+                ["Mythisch","#ec4899","+400% Schaden & Gesundheit"],
+              ].map(([name,col,bonus])=>(
+                <div key={name} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:`3px solid ${col}`}}>
+                  <span style={{flex:1,fontSize:13,color:col,fontWeight:600}}>{name}</span>
+                  <span style={{fontSize:13,color:"var(--text2)"}}>{bonus}</span>
+                </div>
+              ))}
+            </div>
+            <div className="card-title" style={{marginTop:8}}>📦 Quellen</div>
+            <div style={{display:"grid",gap:4}}>
+              {["Clan War Belohnungen","Wöchentliche Liga-Belohnungen","Shop-Angebote","Premium Pass"].map(q=>(
+                <div key={q} style={{padding:"6px 12px",background:"var(--bg2)",borderRadius:6,fontSize:12,color:"var(--text2)"}}>✓ {q}</div>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">💰 Kluge Ausgaben-Tipps</div>
+            <div style={{display:"grid",gap:8}}>
+              {[
+                ["💎","Bonus-Schlüpf-Slots","Bestes Preis-Leistungs-Verhältnis insgesamt","#f59e0b"],
+                ["🗝️","Dungeon-Schlüssel Angebote","Gut für stetigen Fortschritt","#3b82f6"],
+                ["⏰","Clockwinder Angebote","Gut für stetigen Fortschritt","#3b82f6"],
+                ["🎟️","Skill-Tickets","Immer zuerst die Wahrscheinlichkeiten prüfen — warten bis die gewünschte Seltenheit steigt!","#a855f7"],
+              ].map(([icon,title,desc,col])=>(
+                <div key={title} style={{padding:"10px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:`3px solid ${col}`}}>
+                  <div style={{fontWeight:600,color:col,marginBottom:3,fontSize:13}}>{icon} {title}</div>
+                  <div style={{fontSize:12,color:"var(--text2)"}}>{desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {section==="tipps" && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">✅ Schnell-Tipps Zusammenfassung</div>
+            <div style={{display:"grid",gap:6}}>
+              {[
+                ["✅","Ressourcen für den passenden Clan War Tag aufsparen","#22c55e"],
+                ["✅","Angriffsgeschwindigkeit, Lebensraub und Doppelchance stapeln","#22c55e"],
+                ["✅","Fernkampf ist für die meisten Spieler besser als Nahkampf","#22c55e"],
+                ["✅","Skill-Tickets aufsparen bis die Wahrscheinlichkeit steigt","#22c55e"],
+                ["✅","Regen-Haustiere sind in der Früh-Phase extrem stark","#22c55e"],
+                ["✅","Immer täglich alle Dungeons abschließen","#22c55e"],
+                ["✅","Premium Pass = bestes Preis-Leistungs-Verhältnis","#22c55e"],
+                ["✅","Reittiere früh und konsequent investieren","#22c55e"],
+                ["✅","Schlüssel verfallen täglich — immer nutzen!","#22c55e"],
+                ["✅","Tech-Baum: Schmiede-Ast zuerst ausbauen","#22c55e"],
+              ].map(([icon,tip,col])=>(
+                <div key={tip} style={{display:"flex",gap:8,padding:"8px 10px",background:"var(--bg2)",borderRadius:6,fontSize:13,alignItems:"flex-start"}}>
+                  <span style={{color:col,flexShrink:0}}>{icon}</span>
+                  <span style={{color:"var(--text2)",lineHeight:1.4}}>{tip}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">🚀 Fortschritts-Meilensteine</div>
+            <div style={{display:"grid",gap:6}}>
+              {[
+                ["2-1","Shop freischalten","#9ca3af"],
+                ["2-10","Auto-Schmiede + Hammerdieb-Dungeon","#22c55e"],
+                ["2-15","Skills + Haustiere + Geisterstadt-Dungeon","#22c55e"],
+                ["3-1","Invasion-Dungeon + mehr Haustier-Slots","#3b82f6"],
+                ["3-10","PvP Liga + globaler Chat","#3b82f6"],
+                ["4-1","Zombiesturm-Dungeon + Tech-Baum","#a855f7"],
+                ["4-15","Clan beitreten/gründen","#f59e0b"],
+                ["5-15","Extra Hammer-Slot","#ef4444"],
+              ].map(([stage,unlock,col])=>(
+                <div key={stage} style={{display:"flex",gap:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,alignItems:"center"}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:col,fontWeight:700,width:40,flexShrink:0}}>{stage}</div>
+                  <div style={{fontSize:12,color:"var(--text2)"}}>{unlock}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+
 
 // ── NOTES ────────────────────────────────────────────────────
 function Notes({ noteList, isAdmin, db, user }) {
