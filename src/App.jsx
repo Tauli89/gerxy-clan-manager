@@ -1950,19 +1950,19 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
 function BuildAnalyse({ user, db }) {
 
   const SUBSTATS = [
-    { id:"kritChance",    name:"Krit-Chance",             max:12,  unit:"",  icon:"🎯", farbe:"#f59e0b" },
-    { id:"kritSchaden",   name:"Krit-Schaden",            max:100, unit:"",  icon:"💥", farbe:"#ef4444" },
-    { id:"angriffsSpeed", name:"Angriffsgeschwindigkeit", max:40,  unit:"%", icon:"⚡", farbe:"#06b6d4" },
-    { id:"doppelChance",  name:"Doppelchance",            max:40,  unit:"%", icon:"⚔️", farbe:"#a855f7" },
-    { id:"schaden",       name:"Schaden",                 max:15,  unit:"%", icon:"🗡️", farbe:"#ef4444" },
-    { id:"skillSchaden",  name:"Skill-Schaden",           max:30,  unit:"%", icon:"✨", farbe:"#8b5cf6" },
-    { id:"fernSchaden",   name:"Fernkampf-Schaden",       max:15,  unit:"%", icon:"🏹", farbe:"#22c55e" },
-    { id:"nahSchaden",    name:"Nahkampf-Schaden",        max:50,  unit:"%", icon:"🥊", farbe:"#f97316" },
-    { id:"block",         name:"Block",                   max:5,   unit:"%", icon:"🛡️", farbe:"#9ca3af" },
-    { id:"lebensraub",    name:"Lebensraub",              max:20,  unit:"%", icon:"🩸", farbe:"#ec4899" },
-    { id:"regeneration",  name:"Regeneration",            max:6,   unit:"%", icon:"💚", farbe:"#22c55e" },
-    { id:"abklingzeit",   name:"Abklingzeit",             max:7,   unit:"%", icon:"⏱️", farbe:"#06b6d4" },
-    { id:"gesundheit",    name:"Gesundheit",              max:15,  unit:"%", icon:"❤️", farbe:"#ef4444" },
+    { id:"kritChance",    name:"Krit-Chance",             icon:"🎯", farbe:"#f59e0b", maxProTeil:12  },
+    { id:"kritSchaden",   name:"Krit-Schaden",            icon:"💥", farbe:"#ef4444", maxProTeil:100 },
+    { id:"angriffsSpeed", name:"Angriffsgeschwindigkeit", icon:"⚡", farbe:"#06b6d4", maxProTeil:40  },
+    { id:"doppelChance",  name:"Doppelchance",            icon:"⚔️", farbe:"#a855f7", maxProTeil:40  },
+    { id:"schaden",       name:"Schaden",                 icon:"🗡️", farbe:"#ef4444", maxProTeil:15  },
+    { id:"skillSchaden",  name:"Skill-Schaden",           icon:"✨", farbe:"#8b5cf6", maxProTeil:30  },
+    { id:"fernSchaden",   name:"Fernkampf-Schaden",       icon:"🏹", farbe:"#22c55e", maxProTeil:15  },
+    { id:"nahSchaden",    name:"Nahkampf-Schaden",        icon:"🥊", farbe:"#f97316", maxProTeil:50  },
+    { id:"block",         name:"Block",                   icon:"🛡️", farbe:"#9ca3af", maxProTeil:5   },
+    { id:"lebensraub",    name:"Lebensraub",              icon:"🩸", farbe:"#ec4899", maxProTeil:20  },
+    { id:"regeneration",  name:"Regeneration",            icon:"💚", farbe:"#22c55e", maxProTeil:6   },
+    { id:"abklingzeit",   name:"Abklingzeit",             icon:"⏱️", farbe:"#06b6d4", maxProTeil:7   },
+    { id:"gesundheit",    name:"Gesundheit",              icon:"❤️", farbe:"#ef4444", maxProTeil:15  },
   ];
 
   const BUILDS = [
@@ -1970,23 +1970,23 @@ function BuildAnalyse({ user, db }) {
       id:"einsteiger", name:"🌱 Einsteiger-Build", untertitel:"Früh- bis Mittelspiel", farbe:"#22c55e",
       beschreibung:"Stark in frühen Stages und Dungeons. Hohe Überlebensfähigkeit durch Regen + Lebensraub. Ab Quanten-Ausrüstung (2 Substats/Item) zu Krit-Build wechseln.",
       ziele:{
-        regeneration: {ziel:20,prio:1,wichtig:true},
-        doppelChance: {ziel:32,prio:2,wichtig:true},
-        angriffsSpeed:{ziel:40,prio:3,wichtig:true},
-        lebensraub:   {ziel:12,prio:4,wichtig:true},
-        gesundheit:   {ziel:8, prio:5,wichtig:false},
+        regeneration: {ziel:20, prio:1, wichtig:true,  einheit:"%"},
+        doppelChance: {ziel:80, prio:2, wichtig:true,  einheit:"%"},
+        angriffsSpeed:{ziel:100,prio:3, wichtig:true,  einheit:"%"},
+        lebensraub:   {ziel:30, prio:4, wichtig:true,  einheit:"%"},
+        gesundheit:   {ziel:20, prio:5, wichtig:false, einheit:"%"},
       },
-      tipp:"Vollständige Regen-Builds (Regen 6%) können funktionieren, aber achte auf deine PvP-Performance.",
+      tipp:"Vollständige Regen-Builds (Regen 6% pro Teil) können funktionieren, aber achte auf deine PvP-Performance.",
     },
     {
       id:"balanced", name:"⚖️ Balanced Build", untertitel:"Allrounder für alle Inhalte", farbe:"#3b82f6",
       beschreibung:"Sehr solides Setup für die meisten Inhalte. Skaliert gut in spätere Phasen hinein.",
       ziele:{
-        angriffsSpeed:{ziel:40,prio:1,wichtig:true},
-        lebensraub:   {ziel:16,prio:2,wichtig:true},
-        doppelChance: {ziel:32,prio:3,wichtig:true},
-        schaden:      {ziel:10,prio:4,wichtig:true},
-        gesundheit:   {ziel:8, prio:5,wichtig:false},
+        angriffsSpeed:{ziel:100,prio:1, wichtig:true,  einheit:"%"},
+        lebensraub:   {ziel:40, prio:2, wichtig:true,  einheit:"%"},
+        doppelChance: {ziel:80, prio:3, wichtig:true,  einheit:"%"},
+        schaden:      {ziel:30, prio:4, wichtig:true,  einheit:"%"},
+        gesundheit:   {ziel:20, prio:5, wichtig:false, einheit:"%"},
       },
       tipp:"Angriffsgeschwindigkeit ist dein Kernstat — priorisiere sie über alles andere.",
     },
@@ -1994,23 +1994,25 @@ function BuildAnalyse({ user, db }) {
       id:"endgame", name:"💎 Endgame Krit-Build", untertitel:"Sobald Dual-Substat-Ausrüstung verfügbar", farbe:"#f59e0b",
       beschreibung:"Bestes Setup für Endgame. Ein einziger Krit-Treffer kann oft die halbe HP heilen. Benötigt starke Haustiere und gute Ausrüstung.",
       ziele:{
-        kritChance:   {ziel:8, prio:1,wichtig:true},
-        kritSchaden:  {ziel:70,prio:2,wichtig:true},
-        lebensraub:   {ziel:12,prio:3,wichtig:true},
-        doppelChance: {ziel:40,prio:4,wichtig:true},
-        angriffsSpeed:{ziel:40,prio:5,wichtig:true},
+        kritChance:   {ziel:40, prio:1, wichtig:true,  einheit:""},
+        kritSchaden:  {ziel:350,prio:2, wichtig:true,  einheit:""},
+        lebensraub:   {ziel:30, prio:3, wichtig:true,  einheit:"%"},
+        doppelChance: {ziel:100,prio:4, wichtig:true,  einheit:"%"},
+        angriffsSpeed:{ziel:100,prio:5, wichtig:true,  einheit:"%"},
       },
       tipp:"Krit-Schaden skaliert exponentiell — erst Krit-Chance sichern, dann Krit-Schaden maxen.",
     },
   ];
 
   const RUESTUNG_TIPPS = [
-    {teil:"⚔️ Waffe",   farbe:"#ef4444", stats:["Angriffsgeschwindigkeit","Lebensraub","Doppelchance"],     grund:"Waffen-Substats profitieren am stärksten von Offensiv-Stats. Angriffsgeschwindigkeit + Lebensraub ist die stärkste Kombination."},
-    {teil:"🪖 Helm",    farbe:"#3b82f6", stats:["Gesundheit","Regeneration","Krit-Chance"],                  grund:"Helm bietet gute Basis-Überlebensfähigkeit. Früh: Regeneration. Spät: Krit-Chance für den Endgame-Build."},
-    {teil:"🧥 Rüstung", farbe:"#a855f7", stats:["Gesundheit","Block","Lebensraub"],                          grund:"Rüstungs-Slots sind ideal für defensive Stats. Block + Gesundheit geben hohe Überlebensfähigkeit."},
-    {teil:"🧤 Handschuhe",farbe:"#f59e0b",stats:["Krit-Schaden","Doppelchance","Schaden"],                  grund:"Handschuhe sind prädestiniert für Schaden-Multiplikatoren. Im Endgame der beste Slot für Krit-Schaden."},
-    {teil:"📿 Halskette",farbe:"#06b6d4", stats:["Krit-Schaden","Skill-Schaden","Schaden"],                  grund:"Halskette hat hohen Schaden-Multiplikator-Einfluss. Ideal für Krit-Schaden oder Skill-Damage-Builds."},
-    {teil:"👟 Schuhe",  farbe:"#22c55e", stats:["Angriffsgeschwindigkeit","Abklingzeit","Regeneration"],     grund:"Schuhe eignen sich gut für Utility-Stats. Abklingzeit ist hier besonders effektiv für Skill-lastigen Spielstil."},
+    {teil:"⚔️ Waffe",     farbe:"#ef4444", stats:["Angriffsgeschwindigkeit","Lebensraub","Doppelchance"],    grund:"Offensiv-Stats hier maximieren. Angriffsgeschwindigkeit + Lebensraub ist die stärkste Synergie im Spiel."},
+    {teil:"🪖 Helm",      farbe:"#3b82f6", stats:["Gesundheit","Regeneration","Krit-Chance"],                grund:"Basis-Überlebensfähigkeit. Früh: Regeneration. Spät (Endgame): Krit-Chance für den Krit-Build."},
+    {teil:"🧥 Rüstung",   farbe:"#a855f7", stats:["Gesundheit","Block","Lebensraub"],                        grund:"Defensive Stats. Block + Gesundheit geben hohe Überlebensfähigkeit besonders in Dungeons."},
+    {teil:"🧤 Handschuhe",farbe:"#f59e0b", stats:["Krit-Schaden","Doppelchance","Schaden"],                  grund:"Schaden-Multiplikatoren. Im Endgame der beste Slot für Krit-Schaden."},
+    {teil:"📿 Halskette", farbe:"#06b6d4", stats:["Krit-Schaden","Skill-Schaden","Schaden"],                  grund:"Hoher Schaden-Multiplikator-Einfluss. Ideal für Krit-Schaden oder Skill-Damage-Builds."},
+    {teil:"👟 Schuhe",    farbe:"#22c55e", stats:["Angriffsgeschwindigkeit","Abklingzeit","Regeneration"],    grund:"Utility-Stats. Abklingzeit ist hier besonders effektiv für Skill-lastigen Spielstil."},
+    {teil:"💍 Ring",      farbe:"#ec4899", stats:["Krit-Chance","Schaden","Doppelchance"],                    grund:"Rings bieten gute Offensiv-Slots. Krit-Chance hier ist sehr wertvoll für den Endgame-Build."},
+    {teil:"🧣 Gürtel",    farbe:"#f97316", stats:["Gesundheit","Lebensraub","Angriffsgeschwindigkeit"],       grund:"Gürtel ist ein solider Hybrid-Slot. Gesundheit + Lebensraub gibt eine starke defensive Kombination."},
   ];
 
   const defaultStats = {};
@@ -2067,7 +2069,7 @@ function BuildAnalyse({ user, db }) {
       <div className="card" style={{borderColor:"#c8850a30"}}>
         <div className="card-title">🔍 Build-Analyse — Deine passiven Stats</div>
         <div style={{fontSize:13,color:"var(--text2)",marginBottom:16,lineHeight:1.6}}>
-          Trage deine aktuellen Substat-Werte ein. Die Analyse zeigt dir welcher Build am besten zu dir passt, was noch fehlt und welche Stats auf welches Rüstungsteil gehören.
+          Trage deine <strong>Gesamtwerte</strong> über alle Rüstungsteile ein — die Werte summieren sich über alle Teile. Der Maxwert pro Rüstungsteil ist als Orientierung angegeben.
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
           <button className={`btn btn-sm ${!aktiverBuild?"btn-gold":"btn-ghost"}`} onClick={()=>setAktiverBuild(null)}>Alle Builds</button>
@@ -2085,26 +2087,25 @@ function BuildAnalyse({ user, db }) {
 
       {/* Stat-Eingabe */}
       <div className="card">
-        <div className="card-title">📊 Deine aktuellen Stats</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
+        <div className="card-title">📊 Deine aktuellen Stats (Gesamtwerte)</div>
+        <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6",marginBottom:14}}>
+          💡 Trage den <strong>Gesamtwert</strong> über alle Rüstungsteile ein. Der Maxwert pro Teil dient nur als Orientierung — über alle 8 Teile kann jeder Stat viel höher sein.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:12}}>
           {SUBSTATS.map(stat => {
             const wert = stats[stat.id] || 0;
-            const prozent = Math.min((wert / stat.max) * 100, 100);
             return (
               <div key={stat.id} style={{background:"var(--bg2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${stat.farbe}20`}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                   <span style={{fontSize:12,color:"var(--text)",fontWeight:600}}>{stat.icon} {stat.name}</span>
-                  <span style={{fontSize:11,color:"var(--text3)"}}>Max: {stat.max}{stat.unit}</span>
+                  <span style={{fontSize:10,color:"var(--text3)"}}>Max/Teil: {stat.maxProTeil}</span>
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <input type="number" min={0} max={stat.max*10} value={wert||""} placeholder="0"
+                  <input type="number" min={0} value={wert||""} placeholder="0"
                     onChange={e=>setStats(prev=>({...prev,[stat.id]:Math.max(0,Number(e.target.value))}))}
-                    style={{width:64,padding:"4px 8px",background:"var(--bg3,#0d0700)",border:`1px solid ${stat.farbe}40`,borderRadius:6,color:stat.farbe,fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,textAlign:"center"}}/>
-                  <div style={{flex:1}}>
-                    <div style={{height:6,background:"var(--bg3,#0d0700)",borderRadius:3,overflow:"hidden"}}>
-                      <div style={{width:`${prozent}%`,height:"100%",background:prozent>=100?"#22c55e":stat.farbe,borderRadius:3,transition:"width 0.3s"}}/>
-                    </div>
-                    <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{prozent>=100?"✅ Maximum":`${Math.round(prozent)}% vom Max`}</div>
+                    style={{width:72,padding:"4px 8px",background:"var(--bg3,#0d0700)",border:`1px solid ${stat.farbe}40`,borderRadius:6,color:stat.farbe,fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,textAlign:"center"}}/>
+                  <div style={{fontSize:12,color:wert>0?stat.farbe:"var(--text3)",fontWeight:wert>0?600:400}}>
+                    {wert>0 ? `${wert} gesamt` : "Noch nicht eingetragen"}
                   </div>
                 </div>
               </div>
@@ -2160,8 +2161,8 @@ function BuildAnalyse({ user, db }) {
                           <div style={{width:`${fp}%`,height:"100%",background:ampel.farbe,borderRadius:3,transition:"width 0.3s"}}/>
                         </div>
                         <span style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>
-                          {ist}{statInfo.unit} / {ziel.ziel}{statInfo.unit}
-                          {ist<ziel.ziel&&<span style={{color:ampel.farbe,marginLeft:4}}>(noch {ziel.ziel-ist}{statInfo.unit})</span>}
+                          {ist}{ziel.einheit} / {ziel.ziel}{ziel.einheit}
+                          {ist<ziel.ziel&&<span style={{color:ampel.farbe,marginLeft:4}}>(noch {ziel.ziel-ist}{ziel.einheit})</span>}
                         </span>
                       </div>
                     </div>
@@ -2180,22 +2181,29 @@ function BuildAnalyse({ user, db }) {
       {/* Rüstungsteil-Empfehlungen */}
       <div className="card">
         <div className="card-title">🛡️ Welcher Stat gehört auf welches Rüstungsteil?</div>
-        <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>Empfehlungen basierend auf dem Guide — optimale Substat-Verteilung pro Ausrüstungsslot.</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>
+          Empfehlung pro Ausrüstungsslot — die Zahl in Klammern zeigt den maximalen Wert den ein einzelnes Teil haben kann.
+        </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
           {RUESTUNG_TIPPS.map(teil=>(
             <div key={teil.teil} style={{background:"var(--bg2)",borderRadius:8,padding:"12px 14px",border:`1px solid ${teil.farbe}30`}}>
               <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:teil.farbe,marginBottom:8,fontWeight:700}}>{teil.teil}</div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-                {teil.stats.map(s=>(
-                  <span key={s} style={{padding:"3px 8px",background:teil.farbe+"20",border:`1px solid ${teil.farbe}40`,borderRadius:4,fontSize:11,color:teil.farbe,fontWeight:600}}>{s}</span>
-                ))}
+                {teil.stats.map(s=>{
+                  const statInfo = SUBSTATS.find(si=>si.name===s);
+                  return (
+                    <span key={s} style={{padding:"3px 8px",background:teil.farbe+"20",border:`1px solid ${teil.farbe}40`,borderRadius:4,fontSize:11,color:teil.farbe,fontWeight:600}}>
+                      {s}{statInfo?` (max ${statInfo.maxProTeil})`:""}
+                    </span>
+                  );
+                })}
               </div>
               <div style={{fontSize:11,color:"var(--text3)",lineHeight:1.5}}>{teil.grund}</div>
             </div>
           ))}
         </div>
         <div style={{marginTop:14,padding:"10px 14px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6",lineHeight:1.6}}>
-          💡 <strong>Fernkampf vs. Nahkampf:</strong> Fernkampfwaffen sind für die meisten Spieler stärker. Nahkampf-Schaden nur sinnvoll wenn du aktiv eine Nahkampfwaffe verwendest — sonst vergeudet.
+          💡 <strong>Fernkampf vs. Nahkampf:</strong> Fernkampfwaffen sind für die meisten Spieler stärker. Nahkampf-Schaden nur sinnvoll wenn du aktiv eine Nahkampfwaffe verwendest — sonst verschwendet.
         </div>
       </div>
 
