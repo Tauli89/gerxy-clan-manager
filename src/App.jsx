@@ -1559,7 +1559,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
+        {[["forge","⚒️ Schmiede"],["egg","🥚 Eier"],["offline","💤 Offline"],["summon","🎯 Beschwörung"],["techtree","🔬 Tech Tree"],["analyse","🔍 Build-Analyse"]].map(([id,label])=>(
           <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
@@ -1788,6 +1788,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         />
       )}
 
+      {activeCalc==="analyse" && <BuildAnalyse user={user} db={db}/>}
+
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
@@ -1940,6 +1942,263 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── BUILD-ANALYSE ────────────────────────────────────────────
+function BuildAnalyse({ user, db }) {
+
+  const SUBSTATS = [
+    { id:"kritChance",    name:"Krit-Chance",             max:12,  unit:"",  icon:"🎯", farbe:"#f59e0b" },
+    { id:"kritSchaden",   name:"Krit-Schaden",            max:100, unit:"",  icon:"💥", farbe:"#ef4444" },
+    { id:"angriffsSpeed", name:"Angriffsgeschwindigkeit", max:40,  unit:"%", icon:"⚡", farbe:"#06b6d4" },
+    { id:"doppelChance",  name:"Doppelchance",            max:40,  unit:"%", icon:"⚔️", farbe:"#a855f7" },
+    { id:"schaden",       name:"Schaden",                 max:15,  unit:"%", icon:"🗡️", farbe:"#ef4444" },
+    { id:"skillSchaden",  name:"Skill-Schaden",           max:30,  unit:"%", icon:"✨", farbe:"#8b5cf6" },
+    { id:"fernSchaden",   name:"Fernkampf-Schaden",       max:15,  unit:"%", icon:"🏹", farbe:"#22c55e" },
+    { id:"nahSchaden",    name:"Nahkampf-Schaden",        max:50,  unit:"%", icon:"🥊", farbe:"#f97316" },
+    { id:"block",         name:"Block",                   max:5,   unit:"%", icon:"🛡️", farbe:"#9ca3af" },
+    { id:"lebensraub",    name:"Lebensraub",              max:20,  unit:"%", icon:"🩸", farbe:"#ec4899" },
+    { id:"regeneration",  name:"Regeneration",            max:6,   unit:"%", icon:"💚", farbe:"#22c55e" },
+    { id:"abklingzeit",   name:"Abklingzeit",             max:7,   unit:"%", icon:"⏱️", farbe:"#06b6d4" },
+    { id:"gesundheit",    name:"Gesundheit",              max:15,  unit:"%", icon:"❤️", farbe:"#ef4444" },
+  ];
+
+  const BUILDS = [
+    {
+      id:"einsteiger", name:"🌱 Einsteiger-Build", untertitel:"Früh- bis Mittelspiel", farbe:"#22c55e",
+      beschreibung:"Stark in frühen Stages und Dungeons. Hohe Überlebensfähigkeit durch Regen + Lebensraub. Ab Quanten-Ausrüstung (2 Substats/Item) zu Krit-Build wechseln.",
+      ziele:{
+        regeneration: {ziel:20,prio:1,wichtig:true},
+        doppelChance: {ziel:32,prio:2,wichtig:true},
+        angriffsSpeed:{ziel:40,prio:3,wichtig:true},
+        lebensraub:   {ziel:12,prio:4,wichtig:true},
+        gesundheit:   {ziel:8, prio:5,wichtig:false},
+      },
+      tipp:"Vollständige Regen-Builds (Regen 6%) können funktionieren, aber achte auf deine PvP-Performance.",
+    },
+    {
+      id:"balanced", name:"⚖️ Balanced Build", untertitel:"Allrounder für alle Inhalte", farbe:"#3b82f6",
+      beschreibung:"Sehr solides Setup für die meisten Inhalte. Skaliert gut in spätere Phasen hinein.",
+      ziele:{
+        angriffsSpeed:{ziel:40,prio:1,wichtig:true},
+        lebensraub:   {ziel:16,prio:2,wichtig:true},
+        doppelChance: {ziel:32,prio:3,wichtig:true},
+        schaden:      {ziel:10,prio:4,wichtig:true},
+        gesundheit:   {ziel:8, prio:5,wichtig:false},
+      },
+      tipp:"Angriffsgeschwindigkeit ist dein Kernstat — priorisiere sie über alles andere.",
+    },
+    {
+      id:"endgame", name:"💎 Endgame Krit-Build", untertitel:"Sobald Dual-Substat-Ausrüstung verfügbar", farbe:"#f59e0b",
+      beschreibung:"Bestes Setup für Endgame. Ein einziger Krit-Treffer kann oft die halbe HP heilen. Benötigt starke Haustiere und gute Ausrüstung.",
+      ziele:{
+        kritChance:   {ziel:8, prio:1,wichtig:true},
+        kritSchaden:  {ziel:70,prio:2,wichtig:true},
+        lebensraub:   {ziel:12,prio:3,wichtig:true},
+        doppelChance: {ziel:40,prio:4,wichtig:true},
+        angriffsSpeed:{ziel:40,prio:5,wichtig:true},
+      },
+      tipp:"Krit-Schaden skaliert exponentiell — erst Krit-Chance sichern, dann Krit-Schaden maxen.",
+    },
+  ];
+
+  const RUESTUNG_TIPPS = [
+    {teil:"⚔️ Waffe",   farbe:"#ef4444", stats:["Angriffsgeschwindigkeit","Lebensraub","Doppelchance"],     grund:"Waffen-Substats profitieren am stärksten von Offensiv-Stats. Angriffsgeschwindigkeit + Lebensraub ist die stärkste Kombination."},
+    {teil:"🪖 Helm",    farbe:"#3b82f6", stats:["Gesundheit","Regeneration","Krit-Chance"],                  grund:"Helm bietet gute Basis-Überlebensfähigkeit. Früh: Regeneration. Spät: Krit-Chance für den Endgame-Build."},
+    {teil:"🧥 Rüstung", farbe:"#a855f7", stats:["Gesundheit","Block","Lebensraub"],                          grund:"Rüstungs-Slots sind ideal für defensive Stats. Block + Gesundheit geben hohe Überlebensfähigkeit."},
+    {teil:"🧤 Handschuhe",farbe:"#f59e0b",stats:["Krit-Schaden","Doppelchance","Schaden"],                  grund:"Handschuhe sind prädestiniert für Schaden-Multiplikatoren. Im Endgame der beste Slot für Krit-Schaden."},
+    {teil:"📿 Halskette",farbe:"#06b6d4", stats:["Krit-Schaden","Skill-Schaden","Schaden"],                  grund:"Halskette hat hohen Schaden-Multiplikator-Einfluss. Ideal für Krit-Schaden oder Skill-Damage-Builds."},
+    {teil:"👟 Schuhe",  farbe:"#22c55e", stats:["Angriffsgeschwindigkeit","Abklingzeit","Regeneration"],     grund:"Schuhe eignen sich gut für Utility-Stats. Abklingzeit ist hier besonders effektiv für Skill-lastigen Spielstil."},
+  ];
+
+  const defaultStats = {};
+  SUBSTATS.forEach(s => { defaultStats[s.id] = 0; });
+
+  const [stats, setStats] = useState(defaultStats);
+  const [gespeichert, setGespeichert] = useState(false);
+  const [geladen, setGeladen] = useState(false);
+  const [aktiverBuild, setAktiverBuild] = useState(null);
+
+  useEffect(() => {
+    const profileRef = ref(db, `profiles/${user.username}/buildStats`);
+    const unsub = onValue(profileRef, snap => {
+      if (snap.val()) setStats({...defaultStats,...snap.val()});
+      setGeladen(true);
+    });
+    return () => unsub();
+  }, [user.username]);
+
+  async function speichern() {
+    await update(ref(db, `profiles/${user.username}`), { buildStats: stats, lastUpdated: Date.now() });
+    setGespeichert(true);
+    setTimeout(() => setGespeichert(false), 2000);
+  }
+
+  function berechneBuildMatch(build) {
+    const wichtige = Object.entries(build.ziele).filter(([,z]) => z.wichtig);
+    let erfuellt = 0, gesamtP = 0;
+    wichtige.forEach(([id, z]) => {
+      const fp = Math.min((stats[id]||0) / z.ziel, 1);
+      gesamtP += fp;
+      if (fp >= 1) erfuellt++;
+    });
+    return { prozent: Math.round((gesamtP / wichtige.length) * 100), erfuellt, gesamt: wichtige.length };
+  }
+
+  function statAmpel(ist, ziel) {
+    const p = ist / ziel;
+    if (p >= 1)   return { farbe:"#22c55e", label:"✅ Erfüllt" };
+    if (p >= 0.6) return { farbe:"#f59e0b", label:"⚠️ Fast" };
+    return { farbe:"#ef4444", label:"❌ Fehlt" };
+  }
+
+  const buildMatches = BUILDS.map(b => ({...b, match: berechneBuildMatch(b)}));
+  const besterBuild  = [...buildMatches].sort((a,b) => b.match.prozent - a.match.prozent)[0];
+  const angezeigt    = aktiverBuild ? buildMatches.filter(b => b.id === aktiverBuild) : buildMatches;
+
+  if (!geladen) return <div className="text-muted text-sm text-center" style={{padding:40}}>Lade Build-Daten…</div>;
+
+  return (
+    <div style={{display:"grid",gap:20}}>
+
+      {/* Header */}
+      <div className="card" style={{borderColor:"#c8850a30"}}>
+        <div className="card-title">🔍 Build-Analyse — Deine passiven Stats</div>
+        <div style={{fontSize:13,color:"var(--text2)",marginBottom:16,lineHeight:1.6}}>
+          Trage deine aktuellen Substat-Werte ein. Die Analyse zeigt dir welcher Build am besten zu dir passt, was noch fehlt und welche Stats auf welches Rüstungsteil gehören.
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+          <button className={`btn btn-sm ${!aktiverBuild?"btn-gold":"btn-ghost"}`} onClick={()=>setAktiverBuild(null)}>Alle Builds</button>
+          {BUILDS.map(b=>(
+            <button key={b.id}
+              className={`btn btn-sm ${aktiverBuild===b.id?"btn-gold":"btn-ghost"}`}
+              style={{borderColor:b.farbe+"60",color:aktiverBuild===b.id?undefined:b.farbe}}
+              onClick={()=>setAktiverBuild(aktiverBuild===b.id?null:b.id)}>{b.name}</button>
+          ))}
+        </div>
+        <div style={{padding:"10px 14px",background:besterBuild.farbe+"15",border:`1px solid ${besterBuild.farbe}40`,borderRadius:8,fontSize:13,color:besterBuild.farbe}}>
+          🏆 Dein aktuell passendster Build: <strong>{besterBuild.name}</strong> — {besterBuild.match.prozent}% erfüllt ({besterBuild.match.erfuellt}/{besterBuild.match.gesamt} Kernstats)
+        </div>
+      </div>
+
+      {/* Stat-Eingabe */}
+      <div className="card">
+        <div className="card-title">📊 Deine aktuellen Stats</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
+          {SUBSTATS.map(stat => {
+            const wert = stats[stat.id] || 0;
+            const prozent = Math.min((wert / stat.max) * 100, 100);
+            return (
+              <div key={stat.id} style={{background:"var(--bg2)",borderRadius:8,padding:"10px 12px",border:`1px solid ${stat.farbe}20`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <span style={{fontSize:12,color:"var(--text)",fontWeight:600}}>{stat.icon} {stat.name}</span>
+                  <span style={{fontSize:11,color:"var(--text3)"}}>Max: {stat.max}{stat.unit}</span>
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <input type="number" min={0} max={stat.max*10} value={wert||""} placeholder="0"
+                    onChange={e=>setStats(prev=>({...prev,[stat.id]:Math.max(0,Number(e.target.value))}))}
+                    style={{width:64,padding:"4px 8px",background:"var(--bg3,#0d0700)",border:`1px solid ${stat.farbe}40`,borderRadius:6,color:stat.farbe,fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,textAlign:"center"}}/>
+                  <div style={{flex:1}}>
+                    <div style={{height:6,background:"var(--bg3,#0d0700)",borderRadius:3,overflow:"hidden"}}>
+                      <div style={{width:`${prozent}%`,height:"100%",background:prozent>=100?"#22c55e":stat.farbe,borderRadius:3,transition:"width 0.3s"}}/>
+                    </div>
+                    <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{prozent>=100?"✅ Maximum":`${Math.round(prozent)}% vom Max`}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:16}}>
+          <button className="btn btn-gold" onClick={speichern} style={{minWidth:140}}>
+            {gespeichert?"✅ Gespeichert!":"💾 Stats speichern"}
+          </button>
+        </div>
+      </div>
+
+      {/* Build-Analyse Cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:16}}>
+        {angezeigt.map(build => {
+          const {prozent,erfuellt,gesamt} = build.match;
+          return (
+            <div key={build.id} className="card" style={{borderColor:build.farbe+"40"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                <div>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:14,color:build.farbe,fontWeight:700}}>{build.name}</div>
+                  <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{build.untertitel}</div>
+                </div>
+                <div style={{background:build.farbe+"20",border:`1px solid ${build.farbe}50`,borderRadius:8,padding:"4px 10px",fontFamily:"'Cinzel',serif",fontSize:14,color:build.farbe,fontWeight:700,minWidth:52,textAlign:"center"}}>
+                  {prozent}%
+                </div>
+              </div>
+              <div style={{marginBottom:12}}>
+                <div style={{height:8,background:"var(--bg2)",borderRadius:4,overflow:"hidden"}}>
+                  <div style={{width:`${prozent}%`,height:"100%",background:`linear-gradient(90deg,${build.farbe}80,${build.farbe})`,borderRadius:4,transition:"width 0.4s"}}/>
+                </div>
+                <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{erfuellt} von {gesamt} Kernstats erfüllt</div>
+              </div>
+              <div style={{display:"grid",gap:6,marginBottom:12}}>
+                {Object.entries(build.ziele).sort((a,b)=>a[1].prio-b[1].prio).map(([statId,ziel])=>{
+                  const statInfo = SUBSTATS.find(s=>s.id===statId);
+                  if (!statInfo) return null;
+                  const ist = stats[statId]||0;
+                  const ampel = statAmpel(ist,ziel.ziel);
+                  const fp = Math.min((ist/ziel.ziel)*100,100);
+                  return (
+                    <div key={statId} style={{padding:"7px 10px",background:"var(--bg2)",borderRadius:6,border:`1px solid ${ampel.farbe}20`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <span style={{fontSize:12,color:"var(--text)",fontWeight:600}}>
+                          {statInfo.icon} {statInfo.name}
+                          {ziel.wichtig&&<span style={{color:build.farbe,marginLeft:4,fontSize:10}}>★</span>}
+                        </span>
+                        <span style={{fontSize:11,color:ampel.farbe,fontWeight:600}}>{ampel.label}</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                        <div style={{flex:1,height:5,background:"var(--bg3,#0d0700)",borderRadius:3,overflow:"hidden"}}>
+                          <div style={{width:`${fp}%`,height:"100%",background:ampel.farbe,borderRadius:3,transition:"width 0.3s"}}/>
+                        </div>
+                        <span style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>
+                          {ist}{statInfo.unit} / {ziel.ziel}{statInfo.unit}
+                          {ist<ziel.ziel&&<span style={{color:ampel.farbe,marginLeft:4}}>(noch {ziel.ziel-ist}{statInfo.unit})</span>}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{padding:"8px 10px",background:build.farbe+"10",border:`1px solid ${build.farbe}20`,borderRadius:6,fontSize:11,color:"var(--text2)",lineHeight:1.5,marginBottom:8}}>
+                💡 {build.tipp}
+              </div>
+              <div style={{fontSize:11,color:"var(--text3)",lineHeight:1.5}}>{build.beschreibung}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Rüstungsteil-Empfehlungen */}
+      <div className="card">
+        <div className="card-title">🛡️ Welcher Stat gehört auf welches Rüstungsteil?</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>Empfehlungen basierend auf dem Guide — optimale Substat-Verteilung pro Ausrüstungsslot.</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+          {RUESTUNG_TIPPS.map(teil=>(
+            <div key={teil.teil} style={{background:"var(--bg2)",borderRadius:8,padding:"12px 14px",border:`1px solid ${teil.farbe}30`}}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:teil.farbe,marginBottom:8,fontWeight:700}}>{teil.teil}</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                {teil.stats.map(s=>(
+                  <span key={s} style={{padding:"3px 8px",background:teil.farbe+"20",border:`1px solid ${teil.farbe}40`,borderRadius:4,fontSize:11,color:teil.farbe,fontWeight:600}}>{s}</span>
+                ))}
+              </div>
+              <div style={{fontSize:11,color:"var(--text3)",lineHeight:1.5}}>{teil.grund}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:14,padding:"10px 14px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6",lineHeight:1.6}}>
+          💡 <strong>Fernkampf vs. Nahkampf:</strong> Fernkampfwaffen sind für die meisten Spieler stärker. Nahkampf-Schaden nur sinnvoll wenn du aktiv eine Nahkampfwaffe verwendest — sonst vergeudet.
+        </div>
+      </div>
+
     </div>
   );
 }
