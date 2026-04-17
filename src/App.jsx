@@ -93,63 +93,63 @@ const TECH_TREE_DATA = {
   schmiede: {
     label:"⚒️ Schmiede", color:"#c8850a",
     nodes:[
-      {id:"schmiede_timer",  name:"Schmiede-Timer",            icon:"⏰",  effekt:0.02, maxLevel:5, calc:null},
-      {id:"aufruest_kosten", name:"Schmiede-Aufrüstungskosten",icon:"🏷️", effekt:0.01, maxLevel:5, calc:null},
-      {id:"verkaufspreis",   name:"Ausrüstungs-Verkaufspreis", icon:"💰",  effekt:0.01, maxLevel:5, calc:null},
-      {id:"hd_hammer",       name:"Hammerdieb-Hammer-Bonus",   icon:"🔑",  effekt:0.01, maxLevel:5, calc:null},
-      {id:"hd_muenzen",      name:"Hammerdieb-Münzen-Bonus",   icon:"🗝️",  effekt:0.01, maxLevel:5, calc:null},
-      {id:"auto_schmiede",   name:"Auto-Schmiede",             icon:"🔨",  effekt:1,    maxLevel:1, calc:null},
-      {id:"gratis_forge",    name:"Kostenlose Schmiede-Chance",icon:"🍀",  effekt:0.01, maxLevel:5, calc:"freeForge"},
-      {id:"offline_zeit",    name:"Maximale Offline-Zeit",     icon:"💤",  effekt:1,    maxLevel:5, calc:"offlineTime"},
-      {id:"offline_muenzen", name:"Münzen-Offline-Belohnung",  icon:"💰",  effekt:0.01, maxLevel:5, calc:null},
-      {id:"offline_hammer",  name:"Hammer-Offline-Belohnung",  icon:"🔨",  effekt:0.01, maxLevel:5, calc:null},
+      {id:"schmiede_timer",  name:"Schmiede-Timer",            icon:"⏰",  effekt:0.04, maxLevel:5, calc:"schmiedeTimer",   desc:"−4% Upgrade-Zeit pro Level"},
+      {id:"aufruest_kosten", name:"Schmiede-Aufrüstungskosten",icon:"🏷️", effekt:0.02, maxLevel:5, calc:"schmiedeKosten",  desc:"−2% Upgrade-Kosten pro Level"},
+      {id:"verkaufspreis",   name:"Ausrüstungs-Verkaufspreis", icon:"💰",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Verkaufspreis pro Level"},
+      {id:"hd_hammer",       name:"Hammerdieb-Hammer-Bonus",   icon:"🔑",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Hammerdieb-Hammer-Belohnung pro Level"},
+      {id:"hd_muenzen",      name:"Hammerdieb-Münzen-Bonus",   icon:"🗝️",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Hammerdieb-Münzen-Belohnung pro Level"},
+      {id:"auto_schmiede",   name:"Auto-Schmiede",             icon:"🔨",  effekt:1,    maxLevel:1, calc:null,              desc:"+1 extra Hammer beim Schmieden"},
+      {id:"gratis_forge",    name:"Kostenlose Schmiede-Chance",icon:"🍀",  effekt:0.01, maxLevel:5, calc:"freeForge",       desc:"+1% Gratis-Schmiede-Chance pro Level"},
+      {id:"offline_zeit",    name:"Maximale Offline-Zeit",     icon:"💤",  effekt:0.16, maxLevel:5, calc:"offlineTime",     desc:"+16% maximale Offline-Zeit pro Level"},
+      {id:"offline_muenzen", name:"Münzen-Offline-Belohnung",  icon:"💰",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Offline-Münzen-Belohnung pro Level"},
+      {id:"offline_hammer",  name:"Hammer-Offline-Belohnung",  icon:"🔨",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Offline-Hammer-Belohnung pro Level"},
     ]
   },
   macht: {
     label:"⚔️ Macht", color:"#ef4444",
     nodes:[
-      {id:"waffe_meis",     name:"Waffen-Meisterschaft",              icon:"⚔️",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"helm_meis",      name:"Helm-Meisterschaft",                icon:"🪖",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"hand_meis",      name:"Handschuh-Meisterschaft",           icon:"🧤",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"ruestung_meis",  name:"Rüstungs-Meisterschaft",            icon:"🧥",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"kette_meis",     name:"Halsketten-Meisterschaft",          icon:"📿",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"schuhe_meis",    name:"Schuh-Meisterschaft",               icon:"👟",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"ring_meis",      name:"Ring-Meisterschaft",                icon:"💍",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"guertel_meis",   name:"Gürtel-Meisterschaft",              icon:"🧣",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"reittier_schad", name:"Reittier-Schaden-Meisterschaft",    icon:"🐴",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"reittier_hp",    name:"Reittier-Gesundheit-Meisterschaft", icon:"🐴",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"waffe_auf",      name:"Waffen-Aufstieg",                   icon:"⚔️⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"helm_auf",       name:"Helm-Aufstieg",                     icon:"🪖⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"hand_auf",       name:"Handschuh-Aufstieg",                icon:"🧤⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"ruestung_auf",   name:"Rüstungs-Aufstieg",                 icon:"🧥⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"kette_auf",      name:"Halsketten-Aufstieg",               icon:"📿⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"schuhe_auf",     name:"Schuh-Aufstieg",                    icon:"👟⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"ring_auf",       name:"Ring-Aufstieg",                     icon:"💍⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"guertel_auf",    name:"Gürtel-Aufstieg",                   icon:"🧣⭐", effekt:2,    maxLevel:5, calc:null},
-      {id:"reittier_kost",  name:"Reittier-Beschwörungskosten",       icon:"🐴⭐", effekt:0.01, maxLevel:5, calc:null},
-      {id:"reittier_chan",  name:"Zusätzliche Reittier-Chance",        icon:"🍀🐴", effekt:0.02, maxLevel:5, calc:null},
+      {id:"waffe_meis",     name:"Waffen-Meisterschaft",              icon:"⚔️",   effekt:0.02, maxLevel:5, calc:"waffenSchaden",   desc:"+2% Waffen-Schaden pro Level"},
+      {id:"helm_meis",      name:"Helm-Meisterschaft",                icon:"🪖",   effekt:0.02, maxLevel:5, calc:"helmHP",           desc:"+2% Helm-Gesundheit pro Level"},
+      {id:"hand_meis",      name:"Handschuh-Meisterschaft",           icon:"🧤",   effekt:0.02, maxLevel:5, calc:"handschuhSchaden", desc:"+2% Handschuh-Schaden pro Level"},
+      {id:"ruestung_meis",  name:"Rüstungs-Meisterschaft",            icon:"🧥",   effekt:0.02, maxLevel:5, calc:"ruestungHP",       desc:"+2% Rüstungs-Gesundheit pro Level"},
+      {id:"kette_meis",     name:"Halsketten-Meisterschaft",          icon:"📿",   effekt:0.02, maxLevel:5, calc:"ketteSchaden",     desc:"+2% Ketten-Schaden pro Level"},
+      {id:"schuhe_meis",    name:"Schuh-Meisterschaft",               icon:"👟",   effekt:0.02, maxLevel:5, calc:"schuheHP",         desc:"+2% Schuh-Gesundheit pro Level"},
+      {id:"ring_meis",      name:"Ring-Meisterschaft",                icon:"💍",   effekt:0.02, maxLevel:5, calc:"ringSchaden",      desc:"+2% Ring-Schaden pro Level"},
+      {id:"guertel_meis",   name:"Gürtel-Meisterschaft",              icon:"🧣",   effekt:0.02, maxLevel:5, calc:"guertelHP",        desc:"+2% Gürtel-Gesundheit pro Level"},
+      {id:"reittier_schad", name:"Reittier-Schaden-Meisterschaft",    icon:"🐴",   effekt:0.02, maxLevel:5, calc:"reittierSchaden",  desc:"+2% Reittier-Schaden pro Level"},
+      {id:"reittier_hp",    name:"Reittier-Gesundheit-Meisterschaft", icon:"🐴",   effekt:0.02, maxLevel:5, calc:"reittierHP",       desc:"+2% Reittier-Gesundheit pro Level"},
+      {id:"waffe_auf",      name:"Waffen-Aufstieg",                   icon:"⚔️⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Waffen-Max-Level pro Level"},
+      {id:"helm_auf",       name:"Helm-Aufstieg",                     icon:"🪖⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Helm-Max-Level pro Level"},
+      {id:"hand_auf",       name:"Handschuh-Aufstieg",                icon:"🧤⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Handschuh-Max-Level pro Level"},
+      {id:"ruestung_auf",   name:"Rüstungs-Aufstieg",                 icon:"🧥⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Rüstungs-Max-Level pro Level"},
+      {id:"kette_auf",      name:"Halsketten-Aufstieg",               icon:"📿⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Ketten-Max-Level pro Level"},
+      {id:"schuhe_auf",     name:"Schuh-Aufstieg",                    icon:"👟⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Schuh-Max-Level pro Level"},
+      {id:"ring_auf",       name:"Ring-Aufstieg",                     icon:"💍⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Ring-Max-Level pro Level"},
+      {id:"guertel_auf",    name:"Gürtel-Aufstieg",                   icon:"🧣⭐", effekt:2,    maxLevel:5, calc:null,               desc:"+2 Gürtel-Max-Level pro Level"},
+      {id:"reittier_kost",  name:"Reittier-Beschwörungskosten",       icon:"🐴⭐", effekt:0.01, maxLevel:5, calc:"reittierKosten",   desc:"−1% Reittier-Beschwörungskosten pro Level"},
+      {id:"reittier_chan",  name:"Zusätzliche Reittier-Chance",        icon:"🍀🐴", effekt:0.02, maxLevel:5, calc:"reittierChance",   desc:"+2% extra Reittier-Beschwörungschance pro Level"},
     ]
   },
   faehigkeiten: {
     label:"🐾 Fähigkeiten", color:"#a855f7",
     nodes:[
-      {id:"tech_timer",     name:"Technik-Forschungs-Timer",             icon:"⏰",   effekt:0.04, maxLevel:5, calc:null},
-      {id:"faehig_schad",   name:"Fähigkeits-Schaden-Meisterschaft",     icon:"🟢⚔️", effekt:0.02, maxLevel:5, calc:null},
-      {id:"faehig_passiv",  name:"Fähigkeits-Passivschaden",             icon:"🔄⚔️", effekt:0.02, maxLevel:5, calc:null},
-      {id:"faehig_hp",      name:"Fähigkeits-Passivgesundheit",          icon:"❤️🔄", effekt:0.02, maxLevel:5, calc:null},
-      {id:"tech_kosten",    name:"Technik-Knoten-Aufrüstungskosten",     icon:"🏷️",   effekt:0.02, maxLevel:5, calc:null},
-      {id:"begl_schad",     name:"Begleiter-Schaden-Meisterschaft",      icon:"🐾⚔️", effekt:0.02, maxLevel:5, calc:null},
-      {id:"begl_hp",        name:"Begleiter-Gesundheit-Meisterschaft",   icon:"🐾❤️", effekt:0.02, maxLevel:5, calc:null},
-      {id:"faehig_beschwk", name:"Fähigkeits-Beschwörungskosten",        icon:"🟢⭐", effekt:0.01, maxLevel:5, calc:null},
-      {id:"ei_gewoeh",      name:"Gewöhnlicher Ei-Timer",                icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer"},
-      {id:"ei_selten",      name:"Seltenes Ei-Timer",                    icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer"},
-      {id:"ei_episch",      name:"Episches Ei-Timer",                    icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer"},
-      {id:"ei_legend",      name:"Legendäres Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer"},
-      {id:"ei_ultimate",    name:"Ultimatives Ei-Timer",                 icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer"},
-      {id:"ei_mythisch",    name:"Mythisches Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer"},
-      {id:"ei_chance",      name:"Zusätzliche Ei-Chance",                icon:"🐾🍀", effekt:0.02, maxLevel:5, calc:null},
-      {id:"ghost_ticket",   name:"Geisterstadt-Fähigkeits-Ticket-Bonus", icon:"🔑🟢", effekt:0.01, maxLevel:5, calc:null},
-      {id:"zombie_trank",   name:"Zombieansturm-Techniktrank-Bonus",     icon:"🔑❤️", effekt:0.02, maxLevel:5, calc:null},
+      {id:"tech_timer",     name:"Technik-Forschungs-Timer",             icon:"⏰",   effekt:0.04, maxLevel:5, calc:"techTimer",       desc:"−4% Tech-Forschungszeit pro Level"},
+      {id:"faehig_schad",   name:"Fähigkeits-Schaden-Meisterschaft",     icon:"🟢⚔️", effekt:0.02, maxLevel:5, calc:"skillSchaden",    desc:"+2% Skill-Schaden pro Level"},
+      {id:"faehig_passiv",  name:"Fähigkeits-Passivschaden",             icon:"🔄⚔️", effekt:0.02, maxLevel:5, calc:"skillPassivSchad", desc:"+2% Skill-Passivschaden pro Level"},
+      {id:"faehig_hp",      name:"Fähigkeits-Passivgesundheit",          icon:"❤️🔄", effekt:0.02, maxLevel:5, calc:"skillPassivHP",    desc:"+2% Skill-Passivgesundheit pro Level"},
+      {id:"tech_kosten",    name:"Technik-Knoten-Aufrüstungskosten",     icon:"🏷️",   effekt:0.02, maxLevel:5, calc:"techKosten",       desc:"−2% Tech-Knoten-Kosten pro Level"},
+      {id:"begl_schad",     name:"Begleiter-Schaden-Meisterschaft",      icon:"🐾⚔️", effekt:0.02, maxLevel:5, calc:"begleiterSchaden", desc:"+2% Begleiter-Schaden pro Level"},
+      {id:"begl_hp",        name:"Begleiter-Gesundheit-Meisterschaft",   icon:"🐾❤️", effekt:0.02, maxLevel:5, calc:"begleiterHP",      desc:"+2% Begleiter-Gesundheit pro Level"},
+      {id:"faehig_beschwk", name:"Fähigkeits-Beschwörungskosten",        icon:"🟢⭐", effekt:0.01, maxLevel:5, calc:"skillKosten",      desc:"−1% Skill-Beschwörungskosten pro Level"},
+      {id:"ei_gewoeh",      name:"Gewöhnlicher Ei-Timer",                icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
+      {id:"ei_selten",      name:"Seltenes Ei-Timer",                    icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
+      {id:"ei_episch",      name:"Episches Ei-Timer",                    icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
+      {id:"ei_legend",      name:"Legendäres Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
+      {id:"ei_ultimate",    name:"Ultimatives Ei-Timer",                 icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
+      {id:"ei_mythisch",    name:"Mythisches Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
+      {id:"ei_chance",      name:"Zusätzliche Ei-Chance",                icon:"🐾🍀", effekt:0.04, maxLevel:5, calc:"eiChance",         desc:"+4% Extra-Ei-Chance pro Level"},
+      {id:"ghost_ticket",   name:"Geisterstadt-Fähigkeits-Ticket-Bonus", icon:"🔑🟢", effekt:0.01, maxLevel:5, calc:null,               desc:"+1% Geisterstadt-Skill-Ticket-Belohnung pro Level"},
+      {id:"zombie_trank",   name:"Zombiesturm-Techniktrank-Bonus",       icon:"🔑❤️", effekt:0.02, maxLevel:5, calc:null,               desc:"+2% Zombiesturm-Tech-Trank-Belohnung pro Level"},
     ]
   }
 };
@@ -464,7 +464,7 @@ export default function GerxyApp() {
             {tab==="notes" && <Notes noteList={noteList} isAdmin={isAdmin} db={db} user={user}/>}
             {tab==="messages" && !user.isGuest && <Messages messages={messages} currentUser={user} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
             {tab==="spielinfo" && <Spielinfo/>}
-            {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members} wars={wars} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))}/>}
+            {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members} wars={wars}/>}
           </div>
         )}
       </div>
@@ -1360,9 +1360,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const [profileSaved, setProfileSaved] = useState(false);
   const [eggRarity, setEggRarity] = useState("Gewoehnlich");
   const [summonType, setSummonType] = useState("Haustier");
-  const [summonLevels, setSummonLevels] = useState({Haustier:1,Reittier:1,Skill:1});
-  const [currentStage, setCurrentStage] = useState("");
-  const [substats, setSubstats] = useState({kritChance:0,kritSchaden:0,angriffsGeschw:0,doppelChance:0,schaden:0,skillSchaden:0,fernSchaden:0,nahSchaden:0,block:0,lebensraub:0,regeneration:0,abklingzeit:0,gesundheit:0});
+  const [summonLevel, setSummonLevel] = useState(1);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [techTree, setTechTree] = useState({});
 
@@ -1382,18 +1380,30 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   }
 
   // ── Berechnete Werte aus Tech Tree ───────────────────────
-  // freeForge: manuell (aus Schmiede-Ast) + Tech Tree Bonus in %
   const techFreeForgeBonus = Math.round(getTechTotalBonus("gratis_forge", 0.01) * 100);
   const effectiveFreeForge = freeForge + techFreeForgeBonus;
 
-  // Offline-Zeit: Tech Tree Level summiert → als Index in OFFLINE_DATA
-  // Jeder Offline-Zeit Node Level = 1 Schritt im Slider (max 25)
+  // Schmiede-Timer: −4% pro Level, max 25 Level = −100% (cap bei 90%)
+  const schmiedeTimerBonus = Math.min(90, Math.round(getTechTotalBonus("schmiede_timer", 0.04) * 100));
+  // Schmiede-Kosten: −2% pro Level
+  const schmiedeKostenBonus = Math.min(50, Math.round(getTechTotalBonus("aufruest_kosten", 0.02) * 100));
+  // Tech-Timer: −4% pro Level
+  const techTimerBonus = Math.min(90, Math.round(getTechTotalBonus("tech_timer", 0.04) * 100));
+  // Tech-Kosten: −2% pro Level
+  const techKostenBonus = Math.min(50, Math.round(getTechTotalBonus("tech_kosten", 0.02) * 100));
+  // Reittier-Chance: +2% pro Level
+  const reittierChanceBonus = Math.round(getTechTotalBonus("reittier_chan", 0.02) * 100);
+  // Reittier-Kosten: −1% pro Level
+  const reittierKostenBonus = Math.round(getTechTotalBonus("reittier_kost", 0.01) * 100);
+  // Skill-Kosten: −1% pro Level
+  const skillKostenBonus = Math.round(getTechTotalBonus("faehig_beschwk", 0.01) * 100);
+  // Ei-Chance: +4% pro Level (Invasion Dungeon)
+  const eiChanceBonus = Math.round(getTechTotalBonus("ei_chance", 0.04) * 100);
+
+  // Offline-Zeit
   const offlineTechLevel = Math.min(25, getTechTotalLevels("offline_zeit"));
 
-  // Ei-Timer: pro Seltenheit eigene Nodes, je Level = 1 Schritt (max 25)
-  // EGG_NODE_IDS[i] entspricht EGG_RARITY_LABELS[i]
   const EGG_NODE_IDS = ["ei_gewoeh","ei_selten","ei_episch","ei_legend","ei_ultimate","ei_mythisch"];
-  // Für den Kalkulator: aktuell gewählte Seltenheit bestimmt welchen Node wir nutzen
   const EGG_RARITY_LABELS_LOCAL = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
   const selectedEggNodeIdx = EGG_RARITY_LABELS_LOCAL.indexOf(eggRarity);
   const eggTimerLevel = Math.min(25, selectedEggNodeIdx >= 0
@@ -1416,10 +1426,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         if (p.forgeLevel) setForgeLevel(p.forgeLevel);
         if (p.freeForge !== undefined) setFreeForge(p.freeForge);
         if (p.summonType) setSummonType(p.summonType);
-        if (p.summonLevels) setSummonLevels(p.summonLevels);
-        else if (p.summonLevel) setSummonLevels(l=>({...l,[p.summonType||"Haustier"]:p.summonLevel}));
-        if (p.currentStage) setCurrentStage(p.currentStage);
-        if (p.substats) setSubstats(p.substats);
+        if (p.summonLevel) setSummonLevel(p.summonLevel);
         if (p.myNote !== undefined) setMyNote(p.myNote);
         if (p.techTree) setTechTree(p.techTree);
         setProfileLoaded(true);
@@ -1433,7 +1440,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   // Profil in Firebase speichern
   async function saveProfile() {
     await update(ref(db, `profiles/${user.username}`), {
-      forgeLevel, freeForge, summonType, summonLevels, myNote, techTree, currentStage, substats,
+      forgeLevel, freeForge, summonType, summonLevel, myNote, techTree,
       lastUpdated: Date.now(),
     });
     setProfileSaved(true);
@@ -1533,7 +1540,6 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const forgeRow = FORGE_DATA[forgeLevel-1]||FORGE_DATA[0];
   const eggTime = EGG_TIMES[eggRarity]?.[eggTimerLevel]||"?";
   const probData = summonType==="Haustier"?PET_PROBS:summonType==="Reittier"?MOUNT_PROBS:SKILL_PROBS;
-  const summonLevel = summonLevels?.[summonType] ?? 1;
   const nearestLvl = Object.keys(probData).map(Number).reduce((a,b)=>Math.abs(b-summonLevel)<Math.abs(a-summonLevel)?b:a);
   const curProbs = probData[nearestLvl];
 
@@ -1553,7 +1559,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["dungeon","🗝️ Dungeon"],["tagesplan","📋 Tagesplan"],["woche","📅 War-Woche"],["substats","🧬 Build"],["fortschritt","📈 Fortschritt"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
+        {[["forge","Schmiede"],["egg","Eier"],["offline","Offline"],["summon","Beschwörung"],["techtree","🔬 Tech Tree"]].map(([id,label])=>(
           <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
@@ -1713,10 +1719,24 @@ function MyPage({ user, memberList, warList, accountList, db }) {
                   <button key={t} className={`btn ${summonType===t?"btn-gold":"btn-ghost"}`} style={{flex:1,fontSize:12,justifyContent:"center"}} onClick={()=>{setSummonType(t);update(ref(db,`profiles/${user.username}`),{summonType:t});}}>{t}</button>
                 ))}
               </div>
-              <div><label className="lbl">Level ({summonType}): {summonLevels[summonType]}</label>
-                <input type="range" min={1} max={100} value={summonLevels[summonType]} onChange={e=>{const v=Number(e.target.value);const nl={...summonLevels,[summonType]:v};setSummonLevels(nl);update(ref(db,`profiles/${user.username}`),{summonLevels:nl});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              <div><label className="lbl">Level ({summonType}): {summonLevel}</label>
+                <input type="range" min={1} max={100} value={summonLevel} onChange={e=>{const v=Number(e.target.value);setSummonLevel(v);update(ref(db,`profiles/${user.username}`),{summonLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div style={{fontSize:11,color:"var(--text3)"}}>Naechste Auswertung bei Level {nearestLvl}</div>
+              {/* Tech Tree Boni für Beschwörung */}
+              {(summonType==="Reittier" && (reittierChanceBonus>0||reittierKostenBonus>0)) && (
+                <div style={{padding:"8px 10px",background:"#22c55e0a",border:"1px solid #22c55e25",borderRadius:8,display:"grid",gap:4}}>
+                  <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,marginBottom:2}}>🔗 TECH TREE BONI</div>
+                  {reittierChanceBonus>0 && <div style={{fontSize:12}}><span style={{color:"var(--text3)"}}>🍀🐴 Extra Reittier-Chance: </span><span style={{color:"#22c55e",fontWeight:600}}>+{reittierChanceBonus}%</span></div>}
+                  {reittierKostenBonus>0 && <div style={{fontSize:12}}><span style={{color:"var(--text3)"}}>🐴⭐ Kosten-Reduktion: </span><span style={{color:"#22c55e",fontWeight:600}}>−{reittierKostenBonus}%</span></div>}
+                </div>
+              )}
+              {(summonType==="Skill" && skillKostenBonus>0) && (
+                <div style={{padding:"8px 10px",background:"#22c55e0a",border:"1px solid #22c55e25",borderRadius:8}}>
+                  <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,marginBottom:2}}>🔗 TECH TREE BONI</div>
+                  <div style={{fontSize:12}}><span style={{color:"var(--text3)"}}>🟢⭐ Skill-Kosten-Reduktion: </span><span style={{color:"#22c55e",fontWeight:600}}>−{skillKostenBonus}%</span></div>
+                </div>
+              )}
             </div>
             <div style={{marginTop:14}}>
               {RARITY_NAMES.map((r,i)=>curProbs[i]>0?(
@@ -1747,31 +1767,6 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         </div>
       )}
 
-      {activeCalc==="dungeon" && (
-        <DungeonCalc warList={warList} user={user}/>
-      )}
-
-      {activeCalc==="tagesplan" && (
-        <TagesplanOptimizer user={user} warList={warList} forgeLevel={forgeLevel} effectiveFreeForge={effectiveFreeForge} hammers={hammers} setHammers={setHammers} summonLevels={summonLevels}/>
-      )}
-
-      {activeCalc==="woche" && (
-        <div>
-          <WarWochenUebersicht warList={warList} user={user} forgeLevel={forgeLevel} effectiveFreeForge={effectiveFreeForge}/>
-          <div style={{marginTop:16}}>
-            <MitgliederTechVergleich accountList={accountList} db={db} currentUser={user}/>
-          </div>
-        </div>
-      )}
-
-      {activeCalc==="substats" && (
-        <SubstatBuild substats={substats} setSubstats={setSubstats} db={db} user={user}/>
-      )}
-
-      {activeCalc==="fortschritt" && (
-        <FortschrittTracker currentStage={currentStage} setCurrentStage={setCurrentStage} db={db} user={user} accountList={accountList} warList={warList}/>
-      )}
-
       {activeCalc==="techtree" && (
         <TechTreePanel
           techTree={techTree}
@@ -1782,6 +1777,14 @@ function MyPage({ user, memberList, warList, accountList, db }) {
           techFreeForgeBonus={techFreeForgeBonus}
           offlineTechLevel={offlineTechLevel}
           EGG_NODE_IDS={EGG_NODE_IDS}
+          schmiedeTimerBonus={schmiedeTimerBonus}
+          schmiedeKostenBonus={schmiedeKostenBonus}
+          techTimerBonus={techTimerBonus}
+          techKostenBonus={techKostenBonus}
+          reittierChanceBonus={reittierChanceBonus}
+          reittierKostenBonus={reittierKostenBonus}
+          skillKostenBonus={skillKostenBonus}
+          eiChanceBonus={eiChanceBonus}
         />
       )}
 
@@ -1797,532 +1800,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   );
 }
 
-// ── DUNGEON KALKULATOR ───────────────────────────────────────
-function DungeonCalc({ warList, user }) {
-  const DUNGEONS = [
-    {id:"hammer",  name:"Hammerdieb",  icon:"🔨", color:"#f59e0b"},
-    {id:"ghost",   name:"Geisterstadt",icon:"👻", color:"#a855f7"},
-    {id:"invasion",name:"Invasion",    icon:"⚔️", color:"#ef4444"},
-    {id:"zombie",  name:"Zombiesturm", icon:"🧟", color:"#22c55e"},
-  ];
-  const PTS = 3000, MAX_KEYS = 2;
-  const WAR_DAYS = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-  const POINT_DAYS = [1,4];
-  const [keys, setKeys] = useState({hammer:2,ghost:2,invasion:2,zombie:2});
-  const [warDay, setWarDay] = useState(1);
-  const di = warDay-1;
-  const todayPts = POINT_DAYS.includes(di);
-  const totalKeys = Object.values(keys).reduce((s,v)=>s+v,0);
-  const totalToday = todayPts ? DUNGEONS.reduce((s,d)=>s+(keys[d.id]||0)*PTS,0) : 0;
-  const maxDay = DUNGEONS.length*MAX_KEYS*PTS;
-  const maxWar = maxDay*POINT_DAYS.length;
-  const remPtDays = POINT_DAYS.filter(d=>d>=di).length;
-  const projected = totalToday*remPtDays;
-  const lastWar = warList?.[0];
-  const myLast = lastWar?.memberPoints ? Number(Object.entries(lastWar.memberPoints).find(([n])=>n.toLowerCase()===user?.username?.toLowerCase())?.[1]||0) : 0;
-  return (
-    <div>
-      <div className="grid-2">
-        <div className="card">
-          <div className="card-title">🗝️ Dungeon-Schlüssel Kalkulator</div>
-          <div style={{marginBottom:14}}>
-            <label className="lbl">War-Tag: {warDay}/6 — {WAR_DAYS[di]}{todayPts?<span style={{color:"#22c55e",marginLeft:8,fontSize:11}}>✅ Punkte-Tag</span>:<span style={{color:"var(--text3)",marginLeft:8,fontSize:11}}>⏸ Kein Punkte-Tag</span>}</label>
-            <input type="range" min={1} max={6} value={warDay} onChange={e=>setWarDay(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)"}}/>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginTop:2}}>
-              {WAR_DAYS.map((d,i)=><span key={d} style={{color:POINT_DAYS.includes(i)?"#22c55e":i===di?"var(--gold2)":"var(--text3)",fontWeight:i===di?700:400}}>{d.slice(0,2)}{POINT_DAYS.includes(i)?"⭐":""}</span>)}
-            </div>
-          </div>
-          <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:14}}>
-            💡 Punkte nur an <strong style={{color:"#22c55e"}}>Mittwoch ⭐</strong> und <strong style={{color:"#22c55e"}}>Samstag ⭐</strong> — max. 2 Schlüssel/Dungeon/Tag, nicht sammelbar!
-          </div>
-          <div style={{display:"grid",gap:8}}>
-            {DUNGEONS.map(d=>{
-              const k=keys[d.id]||0, pts=todayPts?k*PTS:0;
-              return (
-                <div key={d.id} style={{padding:"10px 14px",background:`${d.color}10`,border:`1px solid ${d.color}30`,borderRadius:10,display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:20}}>{d.icon}</span>
-                  <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{d.name}</div><div style={{fontSize:11,color:"var(--text3)"}}>{todayPts?`${fmt(PTS)} Pkt/Schlüssel`:"Heute kein Punkte-Tag"}</div></div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <button onClick={()=>setKeys(p=>({...p,[d.id]:Math.max(0,p[d.id]-1)}))} disabled={k===0} style={{width:26,height:26,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k>0?d.color:"var(--text3)",cursor:k>0?"pointer":"default",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                    <div style={{width:34,height:34,borderRadius:8,background:k>0?`${d.color}25`:"var(--bg2)",border:`2px solid ${k>0?d.color:`${d.color}20`}`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Cinzel',serif",fontSize:15,fontWeight:700,color:k>0?d.color:"var(--text3)"}}>{k}</div>
-                    <button onClick={()=>setKeys(p=>({...p,[d.id]:Math.min(MAX_KEYS,p[d.id]+1)}))} disabled={k>=MAX_KEYS} style={{width:26,height:26,borderRadius:6,border:`1px solid ${d.color}50`,background:"var(--bg2)",color:k<MAX_KEYS?d.color:"var(--text3)",cursor:k<MAX_KEYS?"pointer":"default",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
-                  </div>
-                  <div style={{textAlign:"right",minWidth:65,flexShrink:0}}><div style={{color:pts>0?d.color:"var(--text3)",fontWeight:pts>0?700:400,fontSize:13}}>{fmt(pts)}</div><div style={{fontSize:10,color:"var(--text3)"}}>heute</div></div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div style={{display:"grid",gap:14,alignContent:"start"}}>
-          <div className="card">
-            <div className="card-title">📊 Auswertung</div>
-            <div style={{display:"grid",gap:8}}>
-              <div style={{padding:"14px",background:"linear-gradient(135deg,#c8850a20,var(--bg2))",borderRadius:10,textAlign:"center",border:"1px solid #c8850a30"}}>
-                <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>PUNKTE HEUTE</div>
-                <div style={{fontSize:32,fontWeight:700,color:todayPts?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif"}}>{todayPts?fmt(totalToday):"—"}</div>
-                {todayPts&&<><div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>von max. {fmt(maxDay)}</div><div className="pbar" style={{marginTop:8,height:5}}><div className="pfill" style={{width:`${(totalToday/maxDay)*100}%`}}/></div></>}
-                {!todayPts&&<div style={{fontSize:12,color:"var(--text3)",marginTop:4}}>Nächster Punkte-Tag: {WAR_DAYS[POINT_DAYS.find(d=>d>di)??POINT_DAYS[0]]}</div>}
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Verbl. Punkte-Tage</span><span style={{fontWeight:600}}>{remPtDays}</span></div>
-              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Hochrechnung War</span><span style={{color:"#3b82f6",fontWeight:600}}>{fmt(projected)}</span></div>
-              <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Max. möglich</span><span style={{color:"var(--text3)"}}>{fmt(maxWar)}</span></div>
-              {myLast>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}><span style={{color:"var(--text3)"}}>Letzter War</span><span style={{color:"#22c55e",fontWeight:600}}>{fmt(myLast)}</span></div>}
-              {todayPts&&totalKeys<DUNGEONS.length*MAX_KEYS&&<div style={{padding:"10px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>⚠️ {DUNGEONS.length*MAX_KEYS-totalKeys} Schlüssel verfallen → {fmt((DUNGEONS.length*MAX_KEYS-totalKeys)*PTS)} Pkt verloren!</div>}
-              {todayPts&&totalKeys===DUNGEONS.length*MAX_KEYS&&<div style={{padding:"10px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>✅ Alle Schlüssel werden heute genutzt!</div>}
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-title">📅 War-Tage</div>
-            {WAR_DAYS.map((day,i)=>{const isT=i===di,isPt=POINT_DAYS.includes(i),isPast=i<di;return <div key={day} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderRadius:6,fontSize:12,background:isT?"#c8850a20":"transparent",border:isT?"1px solid #c8850a40":"1px solid transparent",marginBottom:2}}><span style={{color:isT?"var(--gold2)":isPast?"var(--text3)":"var(--text2)",fontWeight:isT?700:400}}>{isT?"▶ ":""}{day}{isPt?" ⭐":""}</span><span style={{color:isPt&&!isPast?"#22c55e":"var(--text3)",fontWeight:isT?600:400}}>{isPt?(isT?fmt(totalToday):isPast?"—":fmt(totalToday)+" erw."):"—"}</span></div>;})}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── TAGESPLAN OPTIMIERER ─────────────────────────────────────
-function TagesplanOptimizer({ user, warList, forgeLevel, effectiveFreeForge, hammers, setHammers, summonLevels }) {
-  const WAR_DAY_NAMES = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-  const DAY_ACTIONS = {
-    0:["schmieden","skill"],
-    1:["schmiede_muenzen","dungeon","eier","haustier_mergen"],
-    2:["schmieden","skill","reittier"],
-    3:["schmiede_muenzen","eier","haustier_mergen"],
-    4:["schmieden","dungeon","reittier","skill"],
-    5:["pvp"],
-  };
-  const warStatus = getWarStatus();
-  const autoDay = warStatus.isActive ? [2,3,4,5,6,0].indexOf(new Date().getUTCDay()) : 0;
-  const [warDay, setWarDay] = useState(Math.max(0,autoDay));
-  const [localHammers, setLocalHammers] = useState(hammers);
-  const [dungeonKeys, setDungeonKeys] = useState({hammer:2,ghost:2,invasion:2,zombie:2});
-  const [skillTickets, setSkillTickets] = useState(0);
-  const [reittierTickets, setReittierTickets] = useState(0);
-  const [eierAnzahl, setEierAnzahl] = useState({gewoeh:0,selten:0,episch:0,legend:0,ultimate:0,mythisch:0});
-  const todayActions = DAY_ACTIONS[warDay]||[];
-  const hasSchmieden = todayActions.includes("schmieden")||todayActions.includes("schmiede_muenzen");
-  const hasDungeon = todayActions.includes("dungeon");
-  const hasEier = todayActions.includes("eier");
-  const hasSkill = todayActions.includes("skill");
-  const hasReittier = todayActions.includes("reittier");
-  const hasPvP = todayActions.includes("pvp");
-  const FORGE_FULL = [[1,[100,0,0,0,0,0,0,0,0,0]],[5,[91.5,8,0.5,0,0,0,0,0,0,0]],[10,[6,60,32,2,0,0,0,0,0,0]],[15,[0,0,31.7,64,4,0.25,0,0,0,0]],[20,[0,0,0,0,91,8,1,0.05,0,0]],[25,[0,0,0,0,0,64,32,4,0.05,0]],[30,[0,0,0,0,0,0,60,36,4,0.05]],[35,[0,0,0,0,0,0,0,60,36,4]]];
-  const WAR_PTS_ARR = [1,1,1,2,2,2,3,3,3,3];
-  const forgeRowFull = FORGE_FULL.reduce((b,r)=>r[0]<=forgeLevel?r:b,FORGE_FULL[0]);
-  const avgPts = forgeRowFull[1].reduce((s,p,i)=>s+(p/100)*WAR_PTS_ARR[i],0);
-  const effHammers = localHammers*(1+effectiveFreeForge/100);
-  const forgePts = hasSchmieden?Math.round(effHammers*avgPts):0;
-  const dungeonPts = hasDungeon?Object.values(dungeonKeys).reduce((s,k)=>s+k*3000,0):0;
-  const EI_PTS = {gewoeh:200,selten:800,episch:1600,legend:3200,ultimate:6400,mythisch:12800};
-  const eierPts = hasEier?Object.entries(eierAnzahl).reduce((s,[k,v])=>s+v*(EI_PTS[k]||0),0):0;
-  const avgSkillPts = [125,150,175,200,225,250].reduce((s,v)=>s+v,0)/6;
-  const avgMountPts = [50,100,250,500,1500,2500].reduce((s,v)=>s+v,0)/6;
-  const skillPts = hasSkill?Math.round(skillTickets*avgSkillPts):0;
-  const reittierPts = hasReittier?Math.round(reittierTickets*avgMountPts):0;
-  const totalPts = forgePts+dungeonPts+eierPts+skillPts+reittierPts;
-  const sources = [
-    hasSchmieden&&{label:"⚒️ Schmieden",pts:forgePts,color:"#c8850a",detail:`${fmt(Math.round(effHammers))} eff. Hämmer (Lvl ${forgeLevel}, ${effectiveFreeForge}% gratis)`},
-    hasDungeon&&{label:"🗝️ Dungeon",pts:dungeonPts,color:"#3b82f6",detail:`${Object.values(dungeonKeys).reduce((s,v)=>s+v,0)} Schlüssel × 3.000 Pkt`},
-    hasEier&&{label:"🥚 Eier",pts:eierPts,color:"#22c55e",detail:`${Object.values(eierAnzahl).reduce((s,v)=>s+v,0)} Eier gesamt`},
-    hasSkill&&{label:"✨ Skill",pts:skillPts,color:"#a855f7",detail:`${skillTickets} Tickets × ∅${Math.round(avgSkillPts)} Pkt`},
-    hasReittier&&{label:"🐴 Reittier",pts:reittierPts,color:"#f59e0b",detail:`${reittierTickets} Tickets × ∅${Math.round(avgMountPts)} Pkt`},
-  ].filter(Boolean);
-  return (
-    <div>
-      <div className="grid-2">
-        <div style={{display:"grid",gap:14,alignContent:"start"}}>
-          <div className="card">
-            <div className="card-title">📅 War-Tag</div>
-            <input type="range" min={0} max={5} value={warDay} onChange={e=>setWarDay(Number(e.target.value))} style={{width:"100%",accentColor:"var(--gold2)",marginBottom:6}}/>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:8}}>
-              {WAR_DAY_NAMES.map((d,i)=><span key={d} style={{color:i===warDay?"var(--gold2)":"var(--text3)",fontWeight:i===warDay?700:400}}>{d.slice(0,2)}</span>)}
-            </div>
-            <div style={{padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text2)"}}>
-              <strong style={{color:"var(--gold2)"}}>{WAR_DAY_NAMES[warDay]}</strong> — {[hasSchmieden&&"⚒️",hasDungeon&&"🗝️⭐",hasEier&&"🥚",hasSkill&&"✨",hasReittier&&"🐴",hasPvP&&"⚔️"].filter(Boolean).join(" ")}
-            </div>
-          </div>
-          {hasSchmieden&&<div className="card" style={{borderColor:"#c8850a30"}}>
-            <div style={{fontSize:12,color:"#c8850a",fontWeight:600,marginBottom:10}}>⚒️ Schmiede</div>
-            <div style={{padding:"8px 12px",background:"#c8850a10",borderRadius:8,fontSize:12,color:"var(--text3)",marginBottom:10}}>Level <strong style={{color:"var(--gold2)"}}>{forgeLevel}</strong> · Gratis-Forge: <strong style={{color:"#22c55e"}}>{effectiveFreeForge}%</strong></div>
-            <div><label className="lbl">Hämmer: {localHammers}</label><input type="range" min={0} max={500} step={5} value={localHammers} onChange={e=>setLocalHammers(Number(e.target.value))} style={{width:"100%",accentColor:"#c8850a"}}/></div>
-          </div>}
-          {hasDungeon&&<div className="card" style={{borderColor:"#3b82f630"}}>
-            <div style={{fontSize:12,color:"#3b82f6",fontWeight:600,marginBottom:10}}>🗝️ Dungeon-Schlüssel ⭐</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {[{id:"hammer",icon:"🔨",name:"Hammerdieb"},{id:"ghost",icon:"👻",name:"Geisterstadt"},{id:"invasion",icon:"⚔️",name:"Invasion"},{id:"zombie",icon:"🧟",name:"Zombiesturm"}].map(d=>(
-                <div key={d.id} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 10px",background:"var(--bg2)",borderRadius:8}}>
-                  <span>{d.icon}</span><span style={{flex:1,fontSize:12}}>{d.name}</span>
-                  <select style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:4,color:"var(--gold2)",fontSize:12,padding:"2px 4px"}} value={dungeonKeys[d.id]} onChange={e=>setDungeonKeys(p=>({...p,[d.id]:Number(e.target.value)}))}>
-                    {[0,1,2].map(v=><option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>}
-          {hasEier&&<div className="card" style={{borderColor:"#22c55e30"}}>
-            <div style={{fontSize:12,color:"#22c55e",fontWeight:600,marginBottom:10}}>🥚 Eier ausbrüten</div>
-            <div style={{display:"grid",gap:5}}>
-              {[["gewoeh","Gewöhnlich","#9ca3af",200],["selten","Selten","#22c55e",800],["episch","Episch","#a855f7",1600],["legend","Legendär","#f59e0b",3200],["ultimate","Ultimate","#ef4444",6400],["mythisch","Mythisch","#ec4899",12800]].map(([k,name,col,pts])=>(
-                <div key={k} style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:11,color:col,width:68,flexShrink:0}}>{name}</span>
-                  <input type="range" min={0} max={20} value={eierAnzahl[k]} onChange={e=>setEierAnzahl(p=>({...p,[k]:Number(e.target.value)}))} style={{flex:1,accentColor:col}}/>
-                  <span style={{width:16,textAlign:"center",fontSize:12}}>{eierAnzahl[k]}</span>
-                  <span style={{fontSize:11,color:col,width:55,textAlign:"right",flexShrink:0}}>{fmt(eierAnzahl[k]*pts)}</span>
-                </div>
-              ))}
-            </div>
-          </div>}
-          {hasSkill&&<div className="card" style={{borderColor:"#a855f730"}}>
-            <div style={{fontSize:12,color:"#a855f7",fontWeight:600,marginBottom:8}}>✨ Skill-Tickets</div>
-            <div><label className="lbl">Tickets: {skillTickets}</label><input type="range" min={0} max={50} value={skillTickets} onChange={e=>setSkillTickets(Number(e.target.value))} style={{width:"100%",accentColor:"#a855f7"}}/></div>
-            <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>∅ {Math.round(avgSkillPts)} Pkt/Ticket</div>
-          </div>}
-          {hasReittier&&<div className="card" style={{borderColor:"#f59e0b30"}}>
-            <div style={{fontSize:12,color:"#f59e0b",fontWeight:600,marginBottom:8}}>🐴 Reittier-Tickets</div>
-            <div><label className="lbl">Tickets: {reittierTickets}</label><input type="range" min={0} max={50} value={reittierTickets} onChange={e=>setReittierTickets(Number(e.target.value))} style={{width:"100%",accentColor:"#f59e0b"}}/></div>
-            <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>∅ {Math.round(avgMountPts)} Pkt/Ticket</div>
-          </div>}
-          {hasPvP&&<div className="card" style={{borderColor:"#ec489930"}}>
-            <div style={{fontSize:12,color:"#ec4899",fontWeight:600,marginBottom:6}}>⚔️ All-Out Brawl</div>
-            <div style={{fontSize:12,color:"var(--text3)"}}>5 Tickets · 1.000 Pkt/Sieg · Reset nach allen Niederlagen</div>
-          </div>}
-        </div>
-        <div style={{display:"grid",gap:14,alignContent:"start"}}>
-          <div className="card">
-            <div className="card-title">📊 Ergebnis — {WAR_DAY_NAMES[warDay]}</div>
-            <div style={{padding:"16px",background:"linear-gradient(135deg,#c8850a25,var(--bg2))",borderRadius:12,textAlign:"center",border:"1px solid #c8850a40",marginBottom:14}}>
-              <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>GESAMT HEUTE</div>
-              <div style={{fontSize:38,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{fmt(totalPts)}</div>
-            </div>
-            {sources.map(r=>(
-              <div key={r.label} style={{marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:13}}>{r.label}</span><span style={{fontSize:13,color:r.color,fontWeight:600}}>{fmt(r.pts)}</span></div>
-                <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>{r.detail}</div>
-                <div className="pbar" style={{height:4}}><div className="pfill" style={{width:`${totalPts>0?(r.pts/totalPts)*100:0}%`,background:r.color}}/></div>
-              </div>
-            ))}
-            {totalPts===0&&<div style={{textAlign:"center",color:"var(--text3)",fontSize:13,padding:20}}>Ressourcen eintragen um Punkte zu sehen</div>}
-          </div>
-          <div className="card">
-            <div className="card-title">💡 Empfehlungen</div>
-            <div style={{display:"grid",gap:6}}>
-              {hasDungeon&&Object.values(dungeonKeys).some(k=>k<2)&&<div style={{padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>⚠️ Heute ist Punkte-Tag! {fmt((8-Object.values(dungeonKeys).reduce((s,v)=>s+v,0))*3000)} Pkt durch Schlüssel möglich</div>}
-              {hasDungeon&&Object.values(dungeonKeys).every(k=>k===2)&&<div style={{padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e"}}>✅ Alle Dungeon-Schlüssel werden heute genutzt</div>}
-              {!hasDungeon&&warDay!==5&&<div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6"}}>ℹ️ Nächster Dungeon-Punkte-Tag: {warDay<1?"Mittwoch":"Samstag"}</div>}
-              {warDay===4&&<div style={{padding:"8px 12px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:8,fontSize:12,color:"#ef4444"}}>💡 Samstag ist der stärkste Punkte-Tag!</div>}
-              {warDay===5&&<div style={{padding:"8px 12px",background:"#ec489915",border:"1px solid #ec489930",borderRadius:8,fontSize:12,color:"#ec4899"}}>💡 Alle 5 Brawl-Tickets nutzen — 1.000 Pkt/Sieg</div>}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── SUBSTAT BUILD RECHNER ─────────────────────────────────────
-function SubstatBuild({ substats, setSubstats, db, user }) {
-  const SUBSTAT_MAX = {kritChance:12,kritSchaden:100,angriffsGeschw:40,doppelChance:40,schaden:15,skillSchaden:30,fernSchaden:15,nahSchaden:50,block:5,lebensraub:20,regeneration:6,abklingzeit:7,gesundheit:15};
-  const SUBSTAT_NAMES = {kritChance:"Krit-Chance",kritSchaden:"Krit-Schaden",angriffsGeschw:"Angriffsgeschwindigkeit",doppelChance:"Doppelchance",schaden:"Schaden",skillSchaden:"Skill-Schaden",fernSchaden:"Fernkampf-Schaden",nahSchaden:"Nahkampf-Schaden",block:"Block",lebensraub:"Lebensraub",regeneration:"Regeneration",abklingzeit:"Abklingzeit",gesundheit:"Gesundheit"};
-  const SUBSTAT_COLORS = {kritChance:"#f59e0b",kritSchaden:"#f59e0b",angriffsGeschw:"#22c55e",doppelChance:"#22c55e",schaden:"#ef4444",skillSchaden:"#a855f7",fernSchaden:"#3b82f6",nahSchaden:"#3b82f6",block:"#9ca3af",lebensraub:"#ec4899",regeneration:"#22c55e",abklingzeit:"#06b6d4",gesundheit:"#ef4444"};
-
-  // Build-Übereinstimmung berechnen
-  const BUILDS = [
-    {name:"🌱 Einsteiger",color:"#22c55e",stats:{regeneration:4,doppelChance:32,angriffsGeschw:40,lebensraub:12}},
-    {name:"⚖️ Balanced",color:"#3b82f6",stats:{angriffsGeschw:40,lebensraub:16,doppelChance:32,schaden:10}},
-    {name:"💎 Endgame Krit",color:"#f59e0b",stats:{kritChance:10,kritSchaden:80,lebensraub:12,doppelChance:40,angriffsGeschw:40}},
-  ];
-
-  function buildMatch(build) {
-    const keys = Object.keys(build.stats);
-    const total = keys.reduce((s,k) => {
-      const target = build.stats[k];
-      const current = substats[k]||0;
-      return s + Math.min(1, current/target);
-    }, 0);
-    return Math.round((total/keys.length)*100);
-  }
-
-  function bestBuild() {
-    return BUILDS.reduce((best,b) => buildMatch(b)>buildMatch(best)?b:best, BUILDS[0]);
-  }
-
-  async function saveSubstats(newStats) {
-    setSubstats(newStats);
-    await update(ref(db,`profiles/${user.username}`), {substats: newStats});
-  }
-
-  const best = bestBuild();
-
-  return (
-    <div>
-      <div className="grid-2">
-        <div className="card">
-          <div className="card-title">🧬 Meine Substats</div>
-          <div style={{padding:"8px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6",marginBottom:14}}>
-            💡 Trage deine aktuellen Substat-Werte ein — das Tool zeigt deinen Build und was noch fehlt.
-          </div>
-          <div style={{display:"grid",gap:8}}>
-            {Object.keys(SUBSTAT_MAX).map(key=>{
-              const val = substats[key]||0;
-              const max = SUBSTAT_MAX[key];
-              const col = SUBSTAT_COLORS[key];
-              const pct = Math.round((val/max)*100);
-              return (
-                <div key={key}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:3,alignItems:"center"}}>
-                    <label style={{fontSize:12,color:"var(--text2)"}}>{SUBSTAT_NAMES[key]}</label>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <input type="number" min={0} max={max} value={val}
-                        onChange={e=>saveSubstats({...substats,[key]:Math.min(max,Math.max(0,Number(e.target.value)))})}
-                        style={{width:52,padding:"2px 6px",borderRadius:6,border:`1px solid ${col}40`,background:"var(--bg2)",color:col,fontSize:12,textAlign:"center",fontFamily:"'Cinzel',serif",fontWeight:700}}/>
-                      <span style={{fontSize:11,color:"var(--text3)",width:32}}>/{max}</span>
-                    </div>
-                  </div>
-                  <div style={{height:4,background:"var(--bg)",borderRadius:2,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${pct}%`,background:col,borderRadius:2,transition:"width .2s"}}/>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div style={{display:"grid",gap:14,alignContent:"start"}}>
-          <div className="card" style={{borderColor:`${best.color}40`}}>
-            <div className="card-title">🎯 Dein Build</div>
-            <div style={{padding:"14px",background:`${best.color}15`,borderRadius:10,textAlign:"center",border:`1px solid ${best.color}30`,marginBottom:14}}>
-              <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,marginBottom:4}}>BESTER MATCH</div>
-              <div style={{fontSize:22,fontWeight:700,color:best.color,fontFamily:"'Cinzel',serif"}}>{best.name}</div>
-              <div style={{fontSize:13,color:"var(--text3)",marginTop:4}}>{buildMatch(best)}% übereinstimmend</div>
-            </div>
-            {BUILDS.map(b=>{
-              const match = buildMatch(b);
-              return (
-                <div key={b.name} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                    <span style={{fontSize:13,color:b===best?"var(--text)":"var(--text3)"}}>{b.name}</span>
-                    <span style={{fontSize:13,color:b.color,fontWeight:600}}>{match}%</span>
-                  </div>
-                  <div className="pbar" style={{height:5}}><div className="pfill" style={{width:`${match}%`,background:b.color}}/></div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="card">
-            <div className="card-title">📋 Was fehlt noch?</div>
-            {BUILDS.map(b=>{
-              const missing = Object.entries(b.stats).filter(([k,target])=>(substats[k]||0)<target);
-              if (missing.length===0) return <div key={b.name} style={{padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12,color:"#22c55e",marginBottom:6}}>✅ {b.name} — vollständig!</div>;
-              return (
-                <div key={b.name} style={{marginBottom:10,padding:"10px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:`3px solid ${b.color}`}}>
-                  <div style={{fontWeight:600,fontSize:12,color:b.color,marginBottom:6}}>{b.name}</div>
-                  {missing.map(([k,target])=>{
-                    const current = substats[k]||0;
-                    const need = target-current;
-                    return <div key={k} style={{fontSize:12,color:"var(--text2)",marginBottom:3}}>
-                      {SUBSTAT_NAMES[k]}: <span style={{color:SUBSTAT_COLORS[k]}}>{current}/{target}</span> <span style={{color:"var(--text3)"}}>→ noch +{need}</span>
-                    </div>;
-                  })}
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="card">
-            <div className="card-title">📊 Gesamtfortschritt</div>
-            {Object.keys(SUBSTAT_MAX).map(key=>{
-              const val=substats[key]||0, max=SUBSTAT_MAX[key], col=SUBSTAT_COLORS[key];
-              if (val===0) return null;
-              return (
-                <div key={key} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <span style={{fontSize:11,color:"var(--text3)",width:130,flexShrink:0}}>{SUBSTAT_NAMES[key]}</span>
-                  <div style={{flex:1,height:6,background:"var(--bg)",borderRadius:3,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${(val/max)*100}%`,background:col,borderRadius:3}}/>
-                  </div>
-                  <span style={{fontSize:11,color:col,width:40,textAlign:"right",flexShrink:0}}>{val}/{max}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── FORTSCHRITT TRACKER ───────────────────────────────────────
-function FortschrittTracker({ currentStage, setCurrentStage, db, user, accountList, warList }) {
-  const UNLOCKS = [
-    {stage:"2-1", name:"Shop", icon:"🛒", color:"#9ca3af"},
-    {stage:"2-5", name:"Battle Pass", icon:"🎫", color:"#22c55e"},
-    {stage:"2-10", name:"Auto-Schmiede", icon:"⚒️", color:"#c8850a"},
-    {stage:"2-10", name:"Dungeon: Hammerdieb", icon:"🔨", color:"#f59e0b"},
-    {stage:"2-15", name:"Dungeon: Geisterstadt", icon:"👻", color:"#a855f7"},
-    {stage:"2-15", name:"Skills, Haustiere & Tech-Baum", icon:"🧠", color:"#3b82f6"},
-    {stage:"2-15", name:"Skill-Slot #2", icon:"🧩", color:"#3b82f6"},
-    {stage:"3-1", name:"Dungeon: Invasion", icon:"⚔️", color:"#ef4444"},
-    {stage:"3-1", name:"Haustier-Slot #2", icon:"🐾", color:"#22c55e"},
-    {stage:"3-10", name:"PvP Liga", icon:"🏆", color:"#f59e0b"},
-    {stage:"3-10", name:"Globaler Chat", icon:"💬", color:"#3b82f6"},
-    {stage:"4-1", name:"Dungeon: Zombiesturm", icon:"🧟", color:"#22c55e"},
-    {stage:"4-1", name:"Skill-Slot #3", icon:"🧩", color:"#a855f7"},
-    {stage:"4-10", name:"Haustier-Slot #3", icon:"🐾", color:"#22c55e"},
-    {stage:"4-15", name:"Clan beitreten / gründen", icon:"🏕️", color:"#f59e0b"},
-    {stage:"5-1", name:"Skill-Slot #4", icon:"🧩", color:"#a855f7"},
-    {stage:"5-15", name:"Extra Hammer-Slot #1", icon:"🔨", color:"#c8850a"},
-    {stage:"6-1", name:"Haustier-Slot #4", icon:"🐾", color:"#22c55e"},
-    {stage:"6-15", name:"Stepping Stones Event", icon:"🏃", color:"#ec4899"},
-    {stage:"7-15", name:"Extra Hammer-Slot #2", icon:"🔨", color:"#c8850a"},
-  ];
-
-  function stageToNum(s) {
-    if (!s||!s.includes("-")) return 0;
-    const [w,l] = s.split("-").map(Number);
-    return w*100+l;
-  }
-
-  function isUnlocked(stage) {
-    return stageToNum(currentStage) >= stageToNum(stage);
-  }
-
-  function nextUnlock() {
-    const cur = stageToNum(currentStage);
-    return UNLOCKS.find(u => stageToNum(u.stage) > cur);
-  }
-
-  const unlockedCount = UNLOCKS.filter(u=>isUnlocked(u.stage)).length;
-  const pct = Math.round((unlockedCount/UNLOCKS.length)*100);
-  const next = nextUnlock();
-
-  async function saveStage(stage) {
-    setCurrentStage(stage);
-    await update(ref(db,`profiles/${user.username}`), {currentStage: stage});
-  }
-
-  // Mitglieder-Stage-Übersicht aus Profilen laden
-  const [memberStages, setMemberStages] = useState({});
-  useEffect(() => {
-    const unsubs = accountList.map(a => {
-      return onValue(ref(db,`profiles/${a.username}`), snap => {
-        if (snap.val()?.currentStage) {
-          setMemberStages(prev => ({...prev, [a.username]: snap.val().currentStage}));
-        }
-      });
-    });
-    return () => unsubs.forEach(u=>u());
-  }, [accountList]);
-
-  return (
-    <div>
-      <div className="grid-2">
-        <div style={{display:"grid",gap:14,alignContent:"start"}}>
-          <div className="card">
-            <div className="card-title">📈 Mein Fortschritt</div>
-            <div style={{marginBottom:14}}>
-              <label className="lbl">Aktuelle Stage</label>
-              <input className="inp" placeholder="z.B. 4-15" value={currentStage}
-                onChange={e=>saveStage(e.target.value)}/>
-            </div>
-            <div style={{padding:"14px",background:"linear-gradient(135deg,#c8850a20,var(--bg2))",borderRadius:10,textAlign:"center",border:"1px solid #c8850a30",marginBottom:14}}>
-              <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,marginBottom:4}}>FREISCHALTUNGEN</div>
-              <div style={{fontSize:32,fontWeight:700,color:"var(--gold2)",fontFamily:"'Cinzel',serif"}}>{unlockedCount}/{UNLOCKS.length}</div>
-              <div style={{fontSize:12,color:"var(--text3)",marginTop:2}}>{pct}% abgeschlossen</div>
-              <div className="pbar" style={{marginTop:8,height:6}}><div className="pfill" style={{width:`${pct}%`}}/></div>
-            </div>
-            {next&&(
-              <div style={{padding:"10px 12px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8}}>
-                <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>NÄCHSTE FREISCHALTUNG</div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:20}}>{next.icon}</span>
-                  <div><div style={{fontWeight:600,fontSize:13,color:next.color}}>{next.name}</div><div style={{fontSize:11,color:"var(--text3)"}}>Stage {next.stage}</div></div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="card">
-            <div className="card-title">🗺️ Alle Freischaltungen</div>
-            <div style={{maxHeight:400,overflowY:"auto",display:"grid",gap:4}}>
-              {UNLOCKS.map((u,i)=>{
-                const unlocked = isUnlocked(u.stage);
-                return (
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,background:unlocked?`${u.color}10`:"var(--bg2)",border:`1px solid ${unlocked?u.color+"30":"var(--border)"}`}}>
-                    <span style={{fontSize:16,flexShrink:0}}>{u.icon}</span>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,color:unlocked?u.color:"var(--text3)",fontWeight:unlocked?600:400}}>{u.name}</div>
-                      <div style={{fontSize:10,color:"var(--text3)"}}>Stage {u.stage}</div>
-                    </div>
-                    <span style={{fontSize:14,flexShrink:0}}>{unlocked?"✅":"🔒"}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div style={{display:"grid",gap:14,alignContent:"start"}}>
-          <div className="card">
-            <div className="card-title">👥 Clan-Fortschritt Übersicht</div>
-            {accountList.length===0&&<div className="text-muted text-sm">Keine Mitglieder gefunden</div>}
-            <div style={{display:"grid",gap:6}}>
-              {accountList
-                .filter(a=>!a.isGuest)
-                .sort((a,b)=>stageToNum(memberStages[b.username]||"0-0")-stageToNum(memberStages[a.username]||"0-0"))
-                .map(a=>{
-                  const stage = memberStages[a.username];
-                  const unlocked = stage ? UNLOCKS.filter(u=>stageToNum(u.stage)<=stageToNum(stage)).length : 0;
-                  const isMe = a.username.toLowerCase()===user.username.toLowerCase();
-                  return (
-                    <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:isMe?"#c8850a15":"var(--bg2)",borderRadius:8,border:isMe?"1px solid #c8850a30":"1px solid var(--border)"}}>
-                      <span style={{fontSize:16,flexShrink:0}}>{RANK_ICONS[a.role]||"⚒️"}</span>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:13,fontWeight:isMe?700:400,color:isMe?"var(--gold2)":"var(--text)"}}>{a.username}{isMe?" (du)":""}</div>
-                        <div style={{fontSize:11,color:"var(--text3)"}}>
-                          {stage?`Stage ${stage} · ${unlocked}/${UNLOCKS.length} freigeschaltet`:"Stage nicht eingetragen"}
-                        </div>
-                      </div>
-                      {stage&&(
-                        <div style={{textAlign:"right",flexShrink:0}}>
-                          <div style={{fontFamily:"'Cinzel',serif",fontSize:13,color:"var(--gold2)",fontWeight:600}}>{stage}</div>
-                          <div style={{width:60,height:4,background:"var(--bg)",borderRadius:2,marginTop:3,overflow:"hidden"}}>
-                            <div style={{height:"100%",width:`${(unlocked/UNLOCKS.length)*100}%`,background:"var(--gold2)",borderRadius:2}}/>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-title">🏆 Stage-Meilensteine</div>
-            {[
-              {stage:"2-10",tip:"Auto-Schmiede + Hammerdieb-Dungeon → Hämmer sammeln beginnt"},
-              {stage:"2-15",tip:"Skills & Haustiere freischalten → großer Power-Spike"},
-              {stage:"3-10",tip:"PvP Liga → wöchentliche Liga-Belohnungen"},
-              {stage:"4-15",tip:"Clan → Clan War Punkte & Belohnungen"},
-              {stage:"5-15",tip:"Extra Hammer-Slot → deutlich mehr Schmiede-Effizienz"},
-            ].map(({stage,tip})=>{
-              const unlocked = stageToNum(currentStage)>=stageToNum(stage);
-              return (
-                <div key={stage} style={{display:"flex",gap:10,padding:"8px 12px",background:unlocked?"#22c55e10":"var(--bg2)",borderRadius:8,marginBottom:6,borderLeft:`3px solid ${unlocked?"#22c55e":"var(--border)"}` }}>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:unlocked?"#22c55e":"var(--text3)",fontWeight:600,width:42,flexShrink:0}}>{stage}</div>
-                  <div style={{fontSize:12,color:unlocked?"var(--text2)":"var(--text3)"}}>{tip}</div>
-                  {unlocked&&<span style={{flexShrink:0}}>✅</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── TECH TREE PANEL ──────────────────────────────────────────
-function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTotalBonus, getTechLvl, techFreeForgeBonus, offlineTechLevel, EGG_NODE_IDS }) {
+function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTotalBonus, getTechLvl, techFreeForgeBonus, offlineTechLevel, EGG_NODE_IDS, schmiedeTimerBonus, schmiedeKostenBonus, techTimerBonus, techKostenBonus, reittierChanceBonus, reittierKostenBonus, skillKostenBonus, eiChanceBonus }) {
   const [activeTree, setActiveTree] = useState("schmiede");
   const TIERS = ["Tier I","Tier II","Tier III","Tier IV","Tier V"];
   const TIER_COLORS = {"Tier I":"#22c55e","Tier II":"#3b82f6","Tier III":"#a855f7","Tier IV":"#f59e0b","Tier V":"#ef4444"};
@@ -2339,25 +1818,30 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
     <div>
       {/* Aktive Kalkulator-Boni */}
       <div style={{padding:"12px 16px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:10,marginBottom:16}}>
-        <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>🔗 Aktive Kalkulator-Verknüpfungen</div>
-        <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-          <div style={{fontSize:13}}>
-            <span style={{color:"var(--text3)"}}>🍀 Gratis-Schmiede: </span>
-            <span style={{color:"#22c55e",fontWeight:600}}>+{techFreeForgeBonus}%</span>
-          </div>
-          <div style={{fontSize:13}}>
-            <span style={{color:"var(--text3)"}}>💤 Offline-Zeit: </span>
-            <span style={{color:"#22c55e",fontWeight:600}}>Tech Level {offlineTechLevel}/25</span>
-          </div>
-          {EGG_NODE_IDS.map((nid,i)=>{
-            const lvl = getTechTotalLevels(nid);
-            return lvl > 0 ? (
-              <div key={nid} style={{fontSize:13}}>
-                <span style={{color:"var(--text3)"}}>🥚 {["Gew.","Selt.","Episch","Legend.","Ultim.","Myth."][i]}: </span>
-                <span style={{color:"#22c55e",fontWeight:600}}>Lvl {lvl}/25</span>
-              </div>
-            ) : null;
-          })}
+        <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>🔗 Aktive Kalkulator-Verknüpfungen</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:6}}>
+          {[
+            {icon:"🍀", label:"Gratis-Schmiede",    val:techFreeForgeBonus>0?`+${techFreeForgeBonus}%`:"—",     active:techFreeForgeBonus>0},
+            {icon:"⏰", label:"Schmiede-Zeit −",     val:schmiedeTimerBonus>0?`−${schmiedeTimerBonus}%`:"—",    active:schmiedeTimerBonus>0},
+            {icon:"🏷️", label:"Schmiede-Kosten −",   val:schmiedeKostenBonus>0?`−${schmiedeKostenBonus}%`:"—", active:schmiedeKostenBonus>0},
+            {icon:"💤", label:"Offline-Zeit",         val:`Lvl ${offlineTechLevel}/25`,                          active:offlineTechLevel>0},
+            {icon:"⏰", label:"Tech-Forschungszeit −",val:techTimerBonus>0?`−${techTimerBonus}%`:"—",            active:techTimerBonus>0},
+            {icon:"🏷️", label:"Tech-Kosten −",        val:techKostenBonus>0?`−${techKostenBonus}%`:"—",         active:techKostenBonus>0},
+            {icon:"🍀🐴",label:"Reittier-Chance +",   val:reittierChanceBonus>0?`+${reittierChanceBonus}%`:"—", active:reittierChanceBonus>0},
+            {icon:"🐴⭐",label:"Reittier-Kosten −",   val:reittierKostenBonus>0?`−${reittierKostenBonus}%`:"—", active:reittierKostenBonus>0},
+            {icon:"🟢⭐",label:"Skill-Kosten −",      val:skillKostenBonus>0?`−${skillKostenBonus}%`:"—",        active:skillKostenBonus>0},
+            {icon:"🐾🍀",label:"Invasion Ei-Chance +",val:eiChanceBonus>0?`+${eiChanceBonus}%`:"—",              active:eiChanceBonus>0},
+            ...EGG_NODE_IDS.map((nid,i)=>{
+              const lvl=getTechTotalLevels(nid);
+              const names=["Gew.Ei","Selt.Ei","Ep.Ei","Leg.Ei","Ult.Ei","Myth.Ei"];
+              return {icon:"🥚",label:`${names[i]} Timer −`,val:lvl>0?`${lvl*10}% (Lvl ${lvl}/25)`:"—",active:lvl>0};
+            }),
+          ].map(({icon,label,val,active})=>(
+            <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:active?"#22c55e0a":"var(--bg2)",borderRadius:6,border:`1px solid ${active?"#22c55e25":"var(--border)"}`}}>
+              <span style={{fontSize:12,color:active?"var(--text2)":"var(--text3)"}}>{icon} {label}</span>
+              <span style={{fontSize:12,color:active?"#22c55e":"var(--text3)",fontWeight:active?700:400}}>{val}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -2405,7 +1889,7 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
                       {isLinked&&<span style={{color:"#22c55e",fontSize:10,marginLeft:6,fontWeight:400}}>🔗 Kalkulator</span>}
                     </div>
                     <div style={{fontSize:11,color:"var(--text3)"}}>
-                      {node.effekt<1?`+${(node.effekt*100).toFixed(0)}% / Level`:`+${node.effekt} / Level`}
+                      {node.desc || (node.effekt<1?`+${(node.effekt*100).toFixed(0)}% / Level`:`+${node.effekt} / Level`)}
                     </div>
                   </div>
                 </div>
@@ -2452,168 +1936,6 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
                   <div className="pfill" style={{width:`${(totalLvl/maxTotal)*100}%`,background:currentTree.color}}/>
                 </div>
               )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── MITGLIEDER TECH TREE VERGLEICH ───────────────────────────
-function MitgliederTechVergleich({ accountList, db, currentUser }) {
-  const [profiles, setProfiles] = useState({});
-  const [activeTree, setActiveTree] = useState("schmiede");
-
-  useEffect(() => {
-    const unsubs = accountList.map(a =>
-      onValue(ref(db,`profiles/${a.username}`), snap => {
-        if (snap.val()) setProfiles(prev=>({...prev,[a.username]:snap.val()}));
-      })
-    );
-    return ()=>unsubs.forEach(u=>u());
-  }, [accountList]);
-
-  const TIERS = ["Tier I","Tier II","Tier III","Tier IV","Tier V"];
-
-  function getMemberTechTotal(username, treeKey) {
-    const p = profiles[username];
-    if (!p?.techTree) return 0;
-    const tree = TECH_TREE_DATA[treeKey];
-    return tree.nodes.reduce((s,node) =>
-      s + TIERS.reduce((ts,tier) => ts + (p.techTree[`${node.id}_${tier}`]||0), 0), 0);
-  }
-
-  function getMemberTechMax(treeKey) {
-    const tree = TECH_TREE_DATA[treeKey];
-    return tree.nodes.reduce((s,node) => s + node.maxLevel * TIERS.length, 0);
-  }
-
-  function getGlobalTotal(username) {
-    return Object.keys(TECH_TREE_DATA).reduce((s,k) => s + getMemberTechTotal(username,k), 0);
-  }
-
-  function getGlobalMax() {
-    return Object.keys(TECH_TREE_DATA).reduce((s,k) => s + getMemberTechMax(k), 0);
-  }
-
-  const globalMax = getGlobalMax();
-  const treeMax = getMemberTechMax(activeTree);
-
-  const sortedMembers = accountList
-    .filter(a=>!a.isGuest)
-    .sort((a,b)=>getGlobalTotal(b.username)-getGlobalTotal(a.username));
-
-  return (
-    <div className="card">
-      <div className="card-title">🔬 Tech Tree Vergleich</div>
-      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
-        <button className={`btn ${activeTree==="alle"?"btn-gold":"btn-ghost"}`} style={{fontSize:11}} onClick={()=>setActiveTree("alle")}>🌐 Gesamt</button>
-        {Object.entries(TECH_TREE_DATA).map(([k,t])=>(
-          <button key={k} className={`btn ${activeTree===k?"btn-gold":"btn-ghost"}`} style={{fontSize:11}} onClick={()=>setActiveTree(k)}>{t.label}</button>
-        ))}
-      </div>
-      <div style={{display:"grid",gap:6}}>
-        {sortedMembers.map((a,i)=>{
-          const total = activeTree==="alle" ? getGlobalTotal(a.username) : getMemberTechTotal(a.username,activeTree);
-          const max = activeTree==="alle" ? globalMax : treeMax;
-          const pct = max>0 ? Math.round((total/max)*100) : 0;
-          const isMe = a.username.toLowerCase()===currentUser.username.toLowerCase();
-          const col = TECH_TREE_DATA[activeTree==="alle"?"schmiede":activeTree]?.color||"#c8850a";
-          return (
-            <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:isMe?"#c8850a15":"var(--bg2)",borderRadius:8,border:isMe?"1px solid #c8850a30":"1px solid var(--border)"}}>
-              <div style={{width:20,fontSize:12,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",textAlign:"center",flexShrink:0}}>{i+1}</div>
-              <span style={{fontSize:14,flexShrink:0}}>{RANK_ICONS[a.role]||"⚒️"}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:13,fontWeight:isMe?700:400,color:isMe?"var(--gold2)":"var(--text)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.username}</span>
-                  <span style={{fontSize:12,color:col,fontWeight:600,flexShrink:0,marginLeft:8}}>{total}/{max}</span>
-                </div>
-                <div className="pbar" style={{height:4}}><div className="pfill" style={{width:`${pct}%`,background:col}}/></div>
-              </div>
-              <div style={{fontSize:12,color:"var(--text3)",width:35,textAlign:"right",flexShrink:0}}>{pct}%</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── WAR WOCHEN ÜBERSICHT ──────────────────────────────────────
-function WarWochenUebersicht({ warList, user, forgeLevel, effectiveFreeForge }) {
-  const WAR_DAY_NAMES = ["Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
-  const WAR_COLORS = ["#22c55e","#3b82f6","#a855f7","#f59e0b","#ef4444","#ec4899"];
-  const DUNGEON_DAYS = [1,4];
-
-  const warStatus = getWarStatus();
-  const todayIdx = warStatus.isActive ? [2,3,4,5,6,0].indexOf(new Date().getUTCDay()) : -1;
-
-  // Schmiede-Punkte Schätzung
-  const FORGE_FULL = [[1,[100,0,0,0,0,0,0,0,0,0]],[5,[91.5,8,0.5,0,0,0,0,0,0,0]],[10,[6,60,32,2,0,0,0,0,0,0]],[15,[0,0,31.7,64,4,0.25,0,0,0,0]],[20,[0,0,0,0,91,8,1,0.05,0,0]],[25,[0,0,0,0,0,64,32,4,0.05,0]],[30,[0,0,0,0,0,0,60,36,4,0.05]],[35,[0,0,0,0,0,0,0,60,36,4]]];
-  const WAR_PTS_ARR = [1,1,1,2,2,2,3,3,3,3];
-  const forgeRowFull = FORGE_FULL.reduce((b,r)=>r[0]<=forgeLevel?r:b,FORGE_FULL[0]);
-  const avgPts = forgeRowFull[1].reduce((s,p,i)=>s+(p/100)*WAR_PTS_ARR[i],0);
-
-  // Letzter War meine Punkte
-  const lastWar = warList?.[0];
-  const myLastPts = lastWar?.memberPoints
-    ? Number(Object.entries(lastWar.memberPoints).find(([n])=>n.toLowerCase()===user?.username?.toLowerCase())?.[1]||0)
-    : 0;
-
-  // Tages-Schätzungen (vereinfacht)
-  const DAY_ESTIMATES = [
-    {hammers:true, dungeon:false, eggs:false, skill:true,  mount:false},
-    {hammers:true, dungeon:true,  eggs:true,  skill:false, mount:false},
-    {hammers:true, dungeon:false, eggs:false, skill:true,  mount:true},
-    {hammers:true, dungeon:false, eggs:true,  skill:false, mount:false},
-    {hammers:true, dungeon:true,  eggs:false, skill:true,  mount:true},
-    {hammers:false,dungeon:false, eggs:false, skill:false, mount:false},
-  ];
-
-  const [hammers100, setHammers100] = useState(100);
-  const dayPts = DAY_ESTIMATES.map(d=>{
-    let pts = 0;
-    if (d.hammers) pts += Math.round(hammers100*(1+effectiveFreeForge/100)*avgPts);
-    if (d.dungeon) pts += 4*2*3000;
-    return pts;
-  });
-  const totalEstimate = dayPts.reduce((s,v)=>s+v,0);
-
-  return (
-    <div className="card">
-      <div className="card-title">📅 War-Wochen Übersicht</div>
-      <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14,flexWrap:"wrap"}}>
-        <div><label className="lbl" style={{marginBottom:2}}>Hämmer/Tag: {hammers100}</label>
-          <input type="range" min={0} max={500} step={10} value={hammers100} onChange={e=>setHammers100(Number(e.target.value))} style={{width:160,accentColor:"var(--gold2)"}}/>
-        </div>
-        <div style={{padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12}}>
-          <span style={{color:"var(--text3)"}}>Geschätzte War-Punkte: </span>
-          <span style={{color:"var(--gold2)",fontWeight:700}}>{fmt(totalEstimate)}</span>
-        </div>
-        {myLastPts>0&&<div style={{padding:"8px 12px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,fontSize:12}}>
-          <span style={{color:"var(--text3)"}}>Letzter War: </span><span style={{color:"#22c55e",fontWeight:700}}>{fmt(myLastPts)}</span>
-        </div>}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>
-        {WAR_DAY_NAMES.map((day,i)=>{
-          const isToday = i===todayIdx;
-          const isPast = todayIdx>=0 && i<todayIdx;
-          const d = DAY_ESTIMATES[i];
-          const pts = dayPts[i];
-          return (
-            <div key={day} style={{padding:"10px 8px",background:isToday?"#c8850a20":isPast?"var(--bg)":"var(--bg2)",border:`1px solid ${isToday?"#c8850a40":WAR_COLORS[i]+"20"}`,borderRadius:10,textAlign:"center",borderTop:`3px solid ${isToday?"#c8850a":WAR_COLORS[i]}`}}>
-              <div style={{fontSize:11,color:isToday?"var(--gold2)":WAR_COLORS[i],fontWeight:700,marginBottom:6}}>{day.slice(0,2)}{isToday?" 🔥":""}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:2,justifyContent:"center",marginBottom:6,minHeight:22}}>
-                {d.hammers&&<span title="Schmieden" style={{fontSize:12}}>⚒️</span>}
-                {d.dungeon&&<span title="Dungeon" style={{fontSize:12}}>🗝️</span>}
-                {d.eggs&&<span title="Eier" style={{fontSize:12}}>🥚</span>}
-                {d.skill&&<span title="Skill" style={{fontSize:12}}>✨</span>}
-                {d.mount&&<span title="Reittier" style={{fontSize:12}}>🐴</span>}
-                {i===5&&<span title="PvP" style={{fontSize:12}}>⚔️</span>}
-              </div>
-              <div style={{fontSize:12,color:isPast?"var(--text3)":"var(--gold2)",fontWeight:600}}>{pts>0?fmt(pts):"—"}</div>
-              {DUNGEON_DAYS.includes(i)&&<div style={{fontSize:9,color:"#22c55e",marginTop:2}}>⭐ Schlüssel</div>}
             </div>
           );
         })}
@@ -3351,7 +2673,7 @@ function Messages({ messages, currentUser, accountList, db }) {
 }
 
 // ── ADMIN ────────────────────────────────────────────────────
-function Admin({ accounts, memberList, db, currentUser, wars, accountList }) {
+function Admin({ accounts, memberList, db, currentUser, wars }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({username:"",password:"",role:"R5"});
   const [editId, setEditId] = useState(null);
@@ -3551,107 +2873,6 @@ function Admin({ accounts, memberList, db, currentUser, wars, accountList }) {
               <button className="btn btn-red" onClick={resetWeeklyPoints}>✅ Ja, zurücksetzen</button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Stage-Übersicht aller Mitglieder */}
-      {accountList && accountList.length > 0 && (
-        <div className="mt-20">
-          <AdminStageUebersicht accountList={accountList} db={db}/>
-        </div>
-      )}
-
-      {/* Tech Tree Vergleich */}
-      {accountList && accountList.length > 0 && (
-        <div className="mt-20">
-          <MitgliederTechVergleich accountList={accountList} db={db} currentUser={currentUser}/>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── ADMIN STAGE ÜBERSICHT ─────────────────────────────────────
-function AdminStageUebersicht({ accountList, db }) {
-  const [profiles, setProfiles] = useState({});
-
-  useEffect(() => {
-    const unsubs = accountList.map(a =>
-      onValue(ref(db,`profiles/${a.username}`), snap => {
-        if (snap.val()) setProfiles(prev=>({...prev,[a.username]:snap.val()}));
-      })
-    );
-    return ()=>unsubs.forEach(u=>u());
-  }, [accountList]);
-
-  const DUNGEON_STAGES = ["2-10","2-15","3-1","4-1"];
-  const DUNGEON_NAMES = ["Hammerdieb","Geisterstadt","Invasion","Zombiesturm"];
-  const DUNGEON_ICONS = ["🔨","👻","⚔️","🧟"];
-
-  function stageToNum(s) {
-    if (!s||!s.includes("-")) return 0;
-    const [w,l] = s.split("-").map(Number);
-    return w*100+l;
-  }
-
-  function hasDungeon(username, dungeonStage) {
-    const stage = profiles[username]?.currentStage;
-    if (!stage) return null; // unbekannt
-    return stageToNum(stage) >= stageToNum(dungeonStage);
-  }
-
-  const membersWithStage = accountList.filter(a => profiles[a.username]?.currentStage);
-  const membersWithout = accountList.filter(a => !profiles[a.username]?.currentStage);
-
-  return (
-    <div className="card">
-      <div className="card-title">📈 Mitglieder Stage & Dungeon-Übersicht (Admin)</div>
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-          <thead>
-            <tr>
-              <th style={{padding:"6px 10px",textAlign:"left",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>Mitglied</th>
-              <th style={{padding:"6px 10px",textAlign:"center",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>Stage</th>
-              {DUNGEON_NAMES.map((n,i)=>(
-                <th key={n} style={{padding:"6px 10px",textAlign:"center",color:"var(--text3)",borderBottom:"1px solid var(--border)"}}>{DUNGEON_ICONS[i]} {n}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {accountList
-              .sort((a,b)=>stageToNum(profiles[b.username]?.currentStage||"0-0")-stageToNum(profiles[a.username]?.currentStage||"0-0"))
-              .map(a=>{
-                const stage = profiles[a.username]?.currentStage;
-                return (
-                  <tr key={a.id} style={{borderBottom:"1px solid var(--border)20"}}>
-                    <td style={{padding:"7px 10px"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <span>{RANK_ICONS[a.role]||"⚒️"}</span>
-                        <span style={{color:"var(--text)"}}>{a.username}</span>
-                      </div>
-                    </td>
-                    <td style={{padding:"7px 10px",textAlign:"center",fontFamily:"'Cinzel',serif",color:"var(--gold2)",fontWeight:600}}>
-                      {stage||<span style={{color:"var(--text3)"}}>—</span>}
-                    </td>
-                    {DUNGEON_STAGES.map((ds,i)=>{
-                      const unlocked = hasDungeon(a.username, ds);
-                      return (
-                        <td key={ds} style={{padding:"7px 10px",textAlign:"center"}}>
-                          {unlocked===null ? <span style={{color:"var(--text3)"}}>?</span>
-                           : unlocked ? <span style={{color:"#22c55e"}}>✅</span>
-                           : <span style={{color:"#ef444460"}}>🔒</span>}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
-      {membersWithout.length > 0 && (
-        <div style={{marginTop:10,padding:"8px 12px",background:"#f59e0b10",border:"1px solid #f59e0b30",borderRadius:8,fontSize:12,color:"#f59e0b"}}>
-          ⚠️ {membersWithout.length} Mitglied(er) haben ihre Stage noch nicht eingetragen: {membersWithout.map(a=>a.username).join(", ")}
         </div>
       )}
     </div>
