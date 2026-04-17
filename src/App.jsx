@@ -1994,7 +1994,7 @@ function BuildAnalyse({ user, db }) {
       id:"endgame", name:"💎 Endgame Krit-Build", untertitel:"Sobald Dual-Substat-Ausrüstung verfügbar", farbe:"#f59e0b",
       beschreibung:"Bestes Setup für Endgame. Ein einziger Krit-Treffer kann oft die halbe HP heilen. Benötigt starke Haustiere und gute Ausrüstung.",
       ziele:{
-        kritChance:   {ziel:40, prio:1, wichtig:true,  einheit:""},
+        kritChance:   {ziel:40, prio:1, wichtig:true,  einheit:"%"},
         kritSchaden:  {ziel:350,prio:2, wichtig:true,  einheit:""},
         lebensraub:   {ziel:30, prio:3, wichtig:true,  einheit:"%"},
         doppelChance: {ziel:100,prio:4, wichtig:true,  einheit:"%"},
@@ -2162,7 +2162,7 @@ function BuildAnalyse({ user, db }) {
                         </div>
                         <span style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>
                           {ist}{ziel.einheit} / {ziel.ziel}{ziel.einheit}
-                          {ist<ziel.ziel&&<span style={{color:ampel.farbe,marginLeft:4}}>(noch {ziel.ziel-ist}{ziel.einheit})</span>}
+                          {ist<ziel.ziel&&<span style={{color:ampel.farbe,marginLeft:4}}>(noch {parseFloat((ziel.ziel-ist).toFixed(2))}{ziel.einheit})</span>}
                         </span>
                       </div>
                     </div>
