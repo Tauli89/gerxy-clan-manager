@@ -2056,50 +2056,18 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
   function naechsterUtcTag(zielWochentag) {
     const now = new Date();
 
-    // Berliner Datum heute als Zahlen holen
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: BERLIN_TZ,
-      year:"numeric", month:"2-digit", day:"2-digit"
-    });
-    const [bJahr, bMonat, bTag] = fmt.format(now).split("-").map(Number);
+    // Heutigen UTC-Wochentag holen
+    const utcWochentag = now.getUTCDay(); // 0=So,1=Mo,...
 
-    // Berliner Wochentag heute (0=So ... 6=Sa)
-    const wdFmt = new Intl.DateTimeFormat("en-US", {timeZone: BERLIN_TZ, weekday:"short"});
-    const WD_MAP = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
-    const berlinWochentag = WD_MAP[wdFmt.format(now)];
-
-    // Wie viele Tage bis zum Zielwochentag (immer vorwärts, nie heute)
-    let diff = (zielWochentag - berlinWochentag + 7) % 7;
+    // Wie viele Tage bis zum Ziel-UTC-Wochentag (immer vorwärts, nie heute)
+    let diff = (zielWochentag - utcWochentag + 7) % 7;
     if (diff === 0) diff = 7;
 
-    // Zieldatum in Berliner Zeit: heute + diff Tage
-    const zielDatum = new Date(bJahr, bMonat - 1, bTag + diff);
-
-    // Berliner Offset für dieses Datum bestimmen:
-    // UTC-Mitternacht dieses Tages → schauen welche UTC-Stunde Berliner 00:00 entspricht
-    // Methode: 00:00 Berliner Zeit = UTC 23:00 (Sommer, -2h) oder UTC 23:00 (Winter, -1h)
-    // Wir testen UTC-23:00 des Vortags und UTC-22:00 des Vortags
-    const vortagUtcMidnight = Date.UTC(
-      zielDatum.getFullYear(), zielDatum.getMonth(), zielDatum.getDate() - 1,
-      23, 0, 0, 0
-    );
-
-    // Probe: Was ist die Berliner Stunde bei UTC 23:00 des Vortags?
-    const probe23 = new Date(vortagUtcMidnight);
-    const berlinStunde23 = parseInt(new Intl.DateTimeFormat("en-US", {
-      timeZone: BERLIN_TZ, hour:"2-digit", hour12:false
-    }).format(probe23));
-
-    // Wenn berlinStunde23 === 0 → UTC 23:00 Vortag = Berliner 00:00 (Winterzeit, UTC+1)
-    // Wenn berlinStunde23 === 23 → UTC 23:00 ist noch Berliner 23:00 → Sommerzeit, Berliner 00:00 = UTC 22:00
-    let zielUtc;
-    if (berlinStunde23 === 0) {
-      // Winterzeit: Berliner 00:00 = UTC 23:00 des Vortags
-      zielUtc = new Date(vortagUtcMidnight);
-    } else {
-      // Sommerzeit: Berliner 00:00 = UTC 22:00 des Vortags
-      zielUtc = new Date(vortagUtcMidnight - 3600000);
-    }
+    // Ziel: 00:00 UTC des Zieltages — genau der Ingame-Tageswechsel
+    const zielUtc = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff,
+      0, 0, 0, 0
+    ));
 
     return zielUtc;
   }
@@ -2183,8 +2151,8 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
     });
   });
 
-  // Heutiger Wochentag in Berliner Zeit (0=So,1=Mo,...)
-  const heuteUtcDay = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Berlin"})).getDay();
+  // Heutiger UTC-Wochentag für Hervorhebung
+  const heuteUtcDay = now.getUTCDay();
 
   return (
     <div style={{display:"grid",gap:20}}>
@@ -3672,4 +3640,3 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
     </div>
   );
 }
-
