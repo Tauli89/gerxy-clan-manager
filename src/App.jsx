@@ -2033,28 +2033,75 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
     return `${s}s`;
   }
 
+  // Alle Zeiten in Berliner Zeit (automatisch Sommer/Winterzeit)
+  const BERLIN_TZ = "Europe/Berlin";
+
+  function formatBerlin(date, mitTag=true) {
+    const optionen = {
+      timeZone: BERLIN_TZ,
+      hour: "2-digit", minute: "2-digit", hour12: false,
+      ...(mitTag ? {weekday:"short"} : {})
+    };
+    return date.toLocaleString("de-DE", optionen) + " Uhr";
+  }
+
   function formatUhrzeit(date) {
-    const tag = ["So","Mo","Di","Mi","Do","Fr","Sa"][date.getUTCDay()];
-    const h = String(date.getUTCHours()).padStart(2,"0");
-    const m = String(date.getUTCMinutes()).padStart(2,"0");
-    return `${tag} ${h}:${m} UTC`;
+    return formatBerlin(date, true);
   }
 
   function formatLokal(date) {
-    return date.toLocaleTimeString("de-DE",{weekday:"short",hour:"2-digit",minute:"2-digit"});
+    return formatBerlin(date, true);
   }
 
-  // Nächstes Datum für einen UTC-Wochentag berechnen
-  function naechsterUtcTag(utcDay) {
+  function naechsterUtcTag(zielWochentag) {
     const now = new Date();
-    const heute = now.getUTCDay();
-    let diff = (utcDay - heute + 7) % 7;
-    if (diff === 0) diff = 7; // nächste Woche wenn heute
-    const ziel = new Date(Date.UTC(
-      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff,
-      3, 0, 0, 0 // 03:00 UTC Zielzeit
-    ));
-    return ziel;
+
+    // Berliner Datum heute als Zahlen holen
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: BERLIN_TZ,
+      year:"numeric", month:"2-digit", day:"2-digit"
+    });
+    const [bJahr, bMonat, bTag] = fmt.format(now).split("-").map(Number);
+
+    // Berliner Wochentag heute (0=So ... 6=Sa)
+    const wdFmt = new Intl.DateTimeFormat("en-US", {timeZone: BERLIN_TZ, weekday:"short"});
+    const WD_MAP = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+    const berlinWochentag = WD_MAP[wdFmt.format(now)];
+
+    // Wie viele Tage bis zum Zielwochentag (immer vorwärts, nie heute)
+    let diff = (zielWochentag - berlinWochentag + 7) % 7;
+    if (diff === 0) diff = 7;
+
+    // Zieldatum in Berliner Zeit: heute + diff Tage
+    const zielDatum = new Date(bJahr, bMonat - 1, bTag + diff);
+
+    // Berliner Offset für dieses Datum bestimmen:
+    // UTC-Mitternacht dieses Tages → schauen welche UTC-Stunde Berliner 00:00 entspricht
+    // Methode: 00:00 Berliner Zeit = UTC 23:00 (Sommer, -2h) oder UTC 23:00 (Winter, -1h)
+    // Wir testen UTC-23:00 des Vortags und UTC-22:00 des Vortags
+    const vortagUtcMidnight = Date.UTC(
+      zielDatum.getFullYear(), zielDatum.getMonth(), zielDatum.getDate() - 1,
+      23, 0, 0, 0
+    );
+
+    // Probe: Was ist die Berliner Stunde bei UTC 23:00 des Vortags?
+    const probe23 = new Date(vortagUtcMidnight);
+    const berlinStunde23 = parseInt(new Intl.DateTimeFormat("en-US", {
+      timeZone: BERLIN_TZ, hour:"2-digit", hour12:false
+    }).format(probe23));
+
+    // Wenn berlinStunde23 === 0 → UTC 23:00 Vortag = Berliner 00:00 (Winterzeit, UTC+1)
+    // Wenn berlinStunde23 === 23 → UTC 23:00 ist noch Berliner 23:00 → Sommerzeit, Berliner 00:00 = UTC 22:00
+    let zielUtc;
+    if (berlinStunde23 === 0) {
+      // Winterzeit: Berliner 00:00 = UTC 23:00 des Vortags
+      zielUtc = new Date(vortagUtcMidnight);
+    } else {
+      // Sommerzeit: Berliner 00:00 = UTC 22:00 des Vortags
+      zielUtc = new Date(vortagUtcMidnight - 3600000);
+    }
+
+    return zielUtc;
   }
 
   // Ei-Dauer direkt aus EGG_TIMES holen (gleiche Quelle wie Ei-Kalkulator)
@@ -2136,8 +2183,8 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
     });
   });
 
-  // Aktuellen UTC-Tag ermitteln für Hervorhebung
-  const heuteUtcDay = now.getUTCDay();
+  // Heutiger Wochentag in Berliner Zeit (0=So,1=Mo,...)
+  const heuteUtcDay = new Date(new Date().toLocaleString("en-US", {timeZone: "Europe/Berlin"})).getDay();
 
   return (
     <div style={{display:"grid",gap:20}}>
@@ -2147,13 +2194,13 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
         <div className="card-title">⏰ War-Planer — Startzeiten für maximale Punkte</div>
         <div style={{fontSize:13,color:"var(--text2)",lineHeight:1.7}}>
           Zeigt wann du ein Ei oder eine Tech-Forschung starten musst, damit sie am nächsten relevanten War-Tag
-          <strong style={{color:"var(--gold2)"}}> exakt um 03:00 UTC</strong> fertig ist — bereit zum sofortigen Abgeben.
-          Alle Zeiten basieren auf deinem aktuellen <strong style={{color:"var(--gold2)"}}>Tech Tree Stand</strong>.
+          <strong style={{color:"var(--gold2)"}}> um 01:00 / 02:00 Uhr DE</strong> fertig ist — bereit zum sofortigen Abgeben.
+          Alle Zeiten in <strong style={{color:"var(--gold2)"}}>Berliner Zeit</strong> (Sommer/Winterzeit automatisch).
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
           <span style={{padding:"4px 10px",background:"#22c55e15",border:"1px solid #22c55e40",borderRadius:6,fontSize:12,color:"#22c55e"}}>🥚 Eier: Mittwoch + Freitag</span>
           <span style={{padding:"4px 10px",background:"#f59e0b15",border:"1px solid #f59e0b40",borderRadius:6,fontSize:12,color:"#f59e0b"}}>🔬 Tech: Dienstag + Freitag</span>
-          <span style={{padding:"4px 10px",background:"#3b82f615",border:"1px solid #3b82f640",borderRadius:6,fontSize:12,color:"#3b82f6"}}>🎯 Ziel: 03:00 UTC</span>
+          <span style={{padding:"4px 10px",background:"#3b82f615",border:"1px solid #3b82f640",borderRadius:6,fontSize:12,color:"#3b82f6"}}>🎯 Ziel: 01:00 / 02:00 Uhr DE</span>
           {techTimerBonus > 0 && <span style={{padding:"4px 10px",background:"#a855f715",border:"1px solid #a855f740",borderRadius:6,fontSize:12,color:"#a855f7"}}>⏱️ Tech-Reduktion: −{techTimerBonus}%</span>}
         </div>
       </div>
@@ -2162,7 +2209,7 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
       <div className="card">
         <div className="card-title">🥚 Eier-Planer</div>
         <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>
-          Nächste Eier-Punkte-Tage — starte das Ei zur angezeigten Zeit um es pünktlich um 03:00 UTC abgeben zu können.
+          Nächste Eier-Punkte-Tage — starte das Ei zur angezeigten Zeit um es pünktlich zum Tagesstart abgeben zu können.
         </div>
 
         {eierTage.map(warTag => {
@@ -2216,7 +2263,7 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
                           {formatUhrzeit(e.startzeit)}
                         </div>
                         <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>
-                          {formatLokal(e.startzeit)} (lokal)
+
                         </div>
                         {e.moeglich && e.zeitBis && (
                           <div style={{fontSize:11,color:"#22c55e",marginTop:2}}>
@@ -2240,7 +2287,7 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
       <div className="card">
         <div className="card-title">🔬 Tech-Forschungs-Planer</div>
         <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>
-          Nächste Tech-Punkte-Tage — starte die Forschung zur angezeigten Zeit damit sie pünktlich um 03:00 UTC fertig ist.
+          Nächste Tech-Punkte-Tage — starte die Forschung zur angezeigten Zeit damit sie pünktlich zum Tagesstart fertig ist.
           {techTimerBonus > 0 && <span style={{color:"#a855f7"}}> Tech-Reduktion −{techTimerBonus}% bereits eingerechnet.</span>}
         </div>
 
@@ -2310,7 +2357,7 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
                           {formatUhrzeit(e.startzeit)}
                         </div>
                         <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>
-                          {formatLokal(e.startzeit)} (lokal)
+
                         </div>
                         {e.moeglich && e.zeitBis && (
                           <div style={{fontSize:11,color:"#22c55e",marginTop:2}}>
@@ -2332,7 +2379,7 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
 
       {/* Hinweis */}
       <div style={{padding:"10px 14px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a",lineHeight:1.6}}>
-        💡 <strong>Hinweis:</strong> Alle Uhrzeiten sind in UTC. Die lokale Zeit wird zusätzlich angezeigt.
+        💡 <strong>Hinweis:</strong> Alle Uhrzeiten in Berliner Zeit (automatisch Sommer/Winterzeit). Das Spiel startet einen neuen Tag um 00:00 UTC = 01:00 Uhr (Winter) / 02:00 Uhr (Sommer) Berliner Zeit.
         Tech-Tier I ist so kurz (5 Min.) dass du ihn fast immer am selben Tag starten kannst.
         Für Tier IV/V empfiehlt sich das Starten mehrere Tage vorher — der Planer zeigt wann genau.
       </div>
@@ -2671,7 +2718,7 @@ function Spielinfo() {
             <div className="card-title">📋 Grundlegende Spielmechaniken</div>
             <div style={{display:"grid",gap:8}}>
               {[
-                ["🕛","Täglicher Reset","Täglich um Mitternacht UTC — Dungeons, Challenge-Tickets und War-Tage werden zurückgesetzt"],
+                ["🕛","Täglicher Reset","Täglich um 01:00 / 02:00 Uhr DE (00:00 UTC) — Dungeons, Challenge-Tickets und War-Tage werden zurückgesetzt"],
                 ["💤","Offline-Timer","Basis: 4 Stunden. Verlängerbar durch den Tech-Baum"],
                 ["✏️","Namensänderung","Einmal kostenlos — jede weitere Änderung kostet 200 Edelsteine"],
                 ["🏕️","Clan erstellen","Kostet 150 Edelsteine"],
@@ -2681,7 +2728,7 @@ function Spielinfo() {
                 ["💰","Münzen","Jeder Kill gibt 1 Münze"],
                 ["🐾","Haustier-Max","Level 100"],
                 ["✨","Skill-Max","Level 300"],
-                ["🕐","Alle Zeiten","Nach UTC (Koordinierte Weltzeit)"],
+                ["🕐","Alle Zeiten","Berliner Zeit — Neuer Tag um 01:00 / 02:00 Uhr (Sommer/Winterzeit)"],
               ].map(([icon,title,desc])=>(
                 <div key={title} style={{padding:"10px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:"3px solid var(--gold)40"}}>
                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
@@ -2698,7 +2745,7 @@ function Spielinfo() {
             {[
               ["🔧","Ausrüstung testen","Du kannst neue Gegenstände anlegen und deinen Fortschritt im Hintergrund beobachten bevor du sie verkaufst — ideal zum sicheren Testen von Upgrades"],
               ["🏰","Dungeons täglich","Immer alle 4 Dungeons täglich abschließen — sie sind essenziell für Materialien und Fortschritt"],
-              ["🎯","Schlüssel verfallen","Dungeon-Schlüssel werden täglich um Mitternacht UTC zurückgesetzt und übertragen sich nicht auf den nächsten Tag"],
+              ["🎯","Schlüssel verfallen","Dungeon-Schlüssel werden täglich um 01:00 / 02:00 Uhr DE zurückgesetzt und übertragen sich nicht auf den nächsten Tag"],
               ["⚔️","Schlüssel-Mechanik","Schlüssel werden nur verbraucht wenn du eine Stufe gewinnst — nicht bei Niederlagen"],
             ].map(([icon,title,desc])=>(
               <div key={title} style={{padding:"12px 14px",background:"var(--bg2)",borderRadius:8,borderLeft:"3px solid var(--gold2)",marginBottom:8}}>
@@ -2788,7 +2835,7 @@ function Spielinfo() {
               <div className="card-title">📋 Dungeon-Regeln</div>
               <div style={{display:"grid",gap:8}}>
                 {[
-                  ["🕛","Schlüssel-Reset","Täglich um Mitternacht UTC — Schlüssel übertragen sich nicht auf den nächsten Tag"],
+                  ["🕛","Schlüssel-Reset","Täglich um 01:00 / 02:00 Uhr DE — Schlüssel übertragen sich nicht auf den nächsten Tag"],
                   ["✅","Schlüssel-Verbrauch","Schlüssel werden nur bei einem Sieg verbraucht — Niederlagen kosten keine Schlüssel"],
                   ["🔄","Sweep Last","Falls du nicht weiterkommst: 'Letzten Sweep' nutzen um die letzte abgeschlossene Stufe automatisch zu wiederholen"],
                   ["🎯","Manuelle Skills","Bei schwierigen Stufen helfen manuell eingesetzte Skills oft entscheidend"],
@@ -3625,3 +3672,4 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
     </div>
   );
 }
+
