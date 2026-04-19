@@ -1790,7 +1790,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
 
       {activeCalc==="analyse" && <BuildAnalyse user={user} db={db}/>}
 
-      {activeCalc==="planer" && <WarPlaner techTree={techTree} getTechTotalLevels={getTechTotalLevels} EGG_NODE_IDS={EGG_NODE_IDS} techTimerBonus={techTimerBonus}/>}
+      {activeCalc==="planer" && <WarPlaner techTree={techTree} getTechTotalLevels={getTechTotalLevels} EGG_NODE_IDS={EGG_NODE_IDS} techTimerBonus={techTimerBonus} EGG_TIMES={EGG_TIMES}/>}
 
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
@@ -1949,7 +1949,7 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
 }
 
 // ── WAR-PLANER ───────────────────────────────────────────────
-function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus }) {
+function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus, EGG_TIMES }) {
 
   // ── Konstanten ────────────────────────────────────────────
   // War-Rotation: Di=Tag1, Mi=Tag2, Do=Tag3, Fr=Tag4, Sa=Tag5, So=Tag6, Mo=Tag7
@@ -1963,15 +1963,8 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
     { tag:"Sonntag",   utcDay:0, farbe:"#ec4899", eier:false, tech:false },
   ];
 
-  // Ei-Basiszeiten in Sekunden (Level 0 = kein Tech)
-  const EI_BASIS_SEKUNDEN = {
-    "Gewoehnlich": 30*60,
-    "Selten":      2*3600,
-    "Episch":      4*3600,
-    "Legendaer":   8*3600,
-    "Ultimate":    16*3600,
-    "Mythisch":    32*3600,
-  };
+  // Ei-Zeiten kommen direkt aus EGG_TIMES (bereits tech-reduziert)
+  // EGG_TIMES[seltenheit][techLevel] gibt den korrekten String zurück
   const EI_FARBEN = {
     "Gewoehnlich":"#9ca3af","Selten":"#22c55e","Episch":"#a855f7",
     "Legendaer":"#f59e0b","Ultimate":"#ef4444","Mythisch":"#ec4899"
@@ -1982,13 +1975,13 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
   };
   const EI_IDS = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
 
-  // Tech-Tier-Zeiten in Sekunden (Basis ohne Reduktion)
-  const TECH_TIER_BASIS = {
-    "Tier I":   5*60,
-    "Tier II":  2*3600+40*60,
-    "Tier III": 26*3600,
-    "Tier IV":  47*3600,
-    "Tier V":   83*3600,
+  // Exakte Tech-Zeiten in Sekunden pro Tier + Stufe (aus Guide-Tabelle)
+  const TECH_STUFEN = {
+    "Tier I":   [5*60, 10*60, 20*60, 40*60, 80*60],
+    "Tier II":  [2*3600+40*60, 5*3600+20*60, 10*3600+40*60, 21*3600+20*60, 23*3600+28*60],
+    "Tier III": [1*86400+1*3600+48*60, 1*86400+4*3600+23*60, 1*86400+7*3600+14*60, 1*86400+10*3600+21*60, 1*86400+13*3600+47*60],
+    "Tier IV":  [1*86400+17*3600+34*60, 1*86400+21*3600+43*60, 2*86400+2*3600+18*60, 2*86400+7*3600+19*60, 2*86400+12*3600+51*60],
+    "Tier V":   [2*86400+18*3600+57*60, 3*86400+1*3600+38*60, 3*86400+9*3600+0*60, 3*86400+17*3600+6*60, 4*86400+2*3600+1*60],
   };
   const TECH_TIER_FARBEN = {
     "Tier I":"#22c55e","Tier II":"#3b82f6","Tier III":"#a855f7","Tier IV":"#f59e0b","Tier V":"#ef4444"
@@ -1996,6 +1989,7 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
   const TECH_TIER_PUNKTE = {
     "Tier I":1000,"Tier II":10000,"Tier III":30000,"Tier IV":50000,"Tier V":100000
   };
+  const TECH_STUFEN_LABELS = ["1/5","2/5","3/5","4/5","5/5"];
 
   // ── Hilfsfunktionen ───────────────────────────────────────
   function zeitStringZuSekunden(str) {
@@ -2043,18 +2037,17 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
     return ziel;
   }
 
-  // Ei-Dauer mit Tech-Reduktion berechnen
+  // Ei-Dauer direkt aus EGG_TIMES holen (gleiche Quelle wie Ei-Kalkulator)
   function eiDauerSekunden(seltenheit, eiIndex) {
-    const basisSek = EI_BASIS_SEKUNDEN[seltenheit] || 0;
     const nodeId = EGG_NODE_IDS[eiIndex];
     const techLvl = nodeId ? Math.min(25, getTechTotalLevels(nodeId)) : 0;
-    const reduktion = techLvl * 0.10; // 10% pro Level
-    return Math.round(basisSek * (1 - reduktion));
+    const zeitStr = EGG_TIMES[seltenheit]?.[techLvl] || "0";
+    return zeitStringZuSekunden(zeitStr);
   }
 
-  // Tech-Dauer mit Timer-Reduktion berechnen
-  function techDauerSekunden(tier) {
-    const basis = TECH_TIER_BASIS[tier] || 0;
+  // Tech-Dauer: exakte Stufen-Zeit mit Timer-Reduktion
+  function techDauerSekunden(tier, stufeIdx) {
+    const basis = TECH_STUFEN[tier]?.[stufeIdx] || 0;
     const reduktion = (techTimerBonus || 0) / 100;
     return Math.round(basis * (1 - reduktion));
   }
@@ -2079,6 +2072,11 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
   // ── Berechnung aller Einträge ─────────────────────────────
   const now = new Date();
 
+  // State: welche Stufe pro Tier ist gerade relevant
+  const [techStufen, setTechStufen] = useState({
+    "Tier I":0,"Tier II":0,"Tier III":0,"Tier IV":0,"Tier V":0
+  });
+
   // Eier-Planer: Mi + Fr
   const eierTage = WAR_ROTATION.filter(t => t.eier);
   const eierEintraege = [];
@@ -2098,19 +2096,20 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
     });
   });
 
-  // Tech-Planer: Di + Fr
+  // Tech-Planer: Di + Fr — pro Tier + gewählte Stufe
   const techTage = WAR_ROTATION.filter(t => t.tech);
   const techEintraege = [];
 
   techTage.forEach(warTag => {
     const zielDatum = naechsterUtcTag(warTag.utcDay);
-    Object.keys(TECH_TIER_BASIS).forEach(tier => {
-      const dauerSek = techDauerSekunden(tier);
+    Object.keys(TECH_STUFEN).forEach(tier => {
+      const stufeIdx = techStufen[tier] || 0;
+      const dauerSek = techDauerSekunden(tier, stufeIdx);
       const startzeit = berechneStartzeit(zielDatum, dauerSek);
       const moeglich = istNochMoeglich(startzeit);
       const zeitBis = zeitBisStart(startzeit);
       techEintraege.push({
-        warTag, tier, dauerSek,
+        warTag, tier, stufeIdx, dauerSek,
         zielDatum, startzeit, moeglich, zeitBis,
         punkte: TECH_TIER_PUNKTE[tier],
       });
@@ -2183,9 +2182,9 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
                         <span style={{fontSize:11,color:"var(--gold2)",fontWeight:600}}>{e.punkte.toLocaleString("de-DE")} Pkt</span>
                       </div>
                       <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>
-                        Dauer: <span style={{color:"var(--text2)"}}>{sekundenZuZeitString(e.dauerSek)}</span>
+                        Dauer: <span style={{color:"var(--text2)"}}>{EGG_TIMES[e.seltenheit]?.[Math.min(25, EGG_NODE_IDS[e.eiIdx] ? getTechTotalLevels(EGG_NODE_IDS[e.eiIdx]) : 0)] || "?"}</span>
                         {EGG_NODE_IDS[e.eiIdx] && getTechTotalLevels(EGG_NODE_IDS[e.eiIdx]) > 0 && (
-                          <span style={{color:"#22c55e",marginLeft:4}}>(-{getTechTotalLevels(EGG_NODE_IDS[e.eiIdx])*10}%)</span>
+                          <span style={{color:"#22c55e",marginLeft:4}}>(Tech Lvl {getTechTotalLevels(EGG_NODE_IDS[e.eiIdx])})</span>
                         )}
                       </div>
                       <div style={{
@@ -2255,14 +2254,33 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus 
                       border:`1px solid ${farbe}30`,borderRadius:8,
                       opacity: e.moeglich ? 1 : 0.5,
                     }}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                         <span style={{fontSize:13,fontWeight:700,color:farbe}}>🔬 {e.tier}</span>
                         <span style={{fontSize:11,color:"var(--gold2)",fontWeight:600}}>{e.punkte.toLocaleString("de-DE")} Pkt</span>
                       </div>
-                      <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>
-                        Dauer: <span style={{color:"var(--text2)"}}>{sekundenZuZeitString(e.dauerSek)}</span>
+
+                      {/* Stufen-Auswahl */}
+                      <div style={{marginBottom:8}}>
+                        <div style={{fontSize:10,color:"var(--text3)",marginBottom:4,textTransform:"uppercase",letterSpacing:1}}>Welche Stufe upgradest du?</div>
+                        <div style={{display:"flex",gap:4}}>
+                          {TECH_STUFEN_LABELS.map((lbl,si) => (
+                            <button key={si}
+                              onClick={()=>setTechStufen(prev=>({...prev,[e.tier]:si}))}
+                              style={{
+                                flex:1,padding:"3px 0",borderRadius:5,border:`1px solid ${farbe}${techStufen[e.tier]===si?"90":"30"}`,
+                                background:techStufen[e.tier]===si?farbe+"30":"var(--bg3,#0d0700)",
+                                color:techStufen[e.tier]===si?farbe:"var(--text3)",
+                                fontSize:10,cursor:"pointer",fontWeight:techStufen[e.tier]===si?700:400,
+                              }}>{lbl}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{fontSize:11,color:"var(--text3)",marginBottom:6}}>
+                        Dauer: <span style={{color:"var(--text2)",fontWeight:600}}>{sekundenZuZeitString(e.dauerSek)}</span>
                         {techTimerBonus > 0 && <span style={{color:"#a855f7",marginLeft:4}}>(-{techTimerBonus}%)</span>}
                       </div>
+
                       <div style={{
                         padding:"6px 8px",background:status.bg,
                         border:`1px solid ${status.farbe}30`,borderRadius:6,
