@@ -162,6 +162,20 @@ async function hashPw(pw) {
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Gibt den Ingame-Namen zurück (falls gesetzt), sonst username
+function getIngameName(acc) {
+  return (acc?.ingameName && acc.ingameName.trim()) ? acc.ingameName.trim() : acc?.username || "";
+}
+
+// Findet einen Account anhand eines Namens (prüft ingameName UND username, case-insensitive)
+function findAccountByName(accList, name) {
+  const n = name.toLowerCase();
+  return accList.find(a =>
+    (a.ingameName||"").toLowerCase()===n ||
+    a.username.toLowerCase()===n
+  );
+}
+
 function getWarStatus() {
   const now = new Date();
   const day = now.getUTCDay(); // 0=So,1=Mo,2=Di,...,6=Sa
@@ -1032,7 +1046,7 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   async function addWar() {
     if (!form.opponent) return;
     const memberPoints = {};
-    accountList.forEach(a => { memberPoints[a.username] = 0; });
+    accountList.forEach(a => { memberPoints[getIngameName(a)] = 0; });
     await push(ref(db,"wars"), {
       ...form, theirPoints:Number(form.theirPoints)||0,
       memberPoints, ourPoints:0,
@@ -1076,7 +1090,12 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   async function applyCSV(warId) {
     if (!csvPreview||!csvPreview.length) return;
     const pts = {};
-    csvPreview.forEach(item => { pts[item.name]=item.points; });
+    csvPreview.forEach(item => {
+      // Namen auf ingameName normalisieren
+      const matched = findAccountByName(accountList, item.name);
+      const finalName = matched ? getIngameName(matched) : item.name;
+      pts[finalName] = (pts[finalName]||0) + (Number(item.points)||0);
+    });
     await savePoints(warId, pts);
     setShowImport(false); setCsvText(""); setCsvPreview(null);
   }
@@ -1085,10 +1104,8 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   if (selectedWar) {
     const war = warList.find(w=>w.id===selectedWar.id)||selectedWar;
     const pts = editingPoints||war.memberPoints||{};
-    // Nur Mitglieder anzeigen die tatsächlich Punkte haben (aus CSV importiert)
-    // Plus editierbare Felder für alle Accounts wenn im Bearbeitungsmodus
     const participantNames = editingPoints
-      ? [...new Set([...accountList.map(a=>a.username),...Object.keys(war.memberPoints||{})])]
+      ? [...new Set([...accountList.map(a=>getIngameName(a)),...Object.keys(war.memberPoints||{})])]
       : Object.keys(war.memberPoints||{}).filter(n => Number(war.memberPoints[n])>0);
     const allNames = [...new Set(participantNames)];
     const sorted = [...allNames].sort((a,b)=>(Number(pts[b]||0))-(Number(pts[a]||0)));
@@ -1180,7 +1197,7 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
               </thead>
               <tbody>
                 {sorted.map((name,i)=>{
-                  const role = accountList.find(a=>a.username===name)?.role;
+                  const role = findAccountByName(accountList, name)?.role;
                   const p = editingPoints?(editingPoints[name]??""):(Number(pts[name])||0);
                   return (
                     <tr key={name}>
@@ -1347,7 +1364,10 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   // Gesamtpunkte aus allen Wars berechnen
   const myTotalWarPts = (warList||[]).reduce((sum, w) => {
     if (!w.memberPoints) return sum;
-    const entry = Object.entries(w.memberPoints).find(([name]) => name.toLowerCase()===user.username?.toLowerCase());
+    const entry = Object.entries(w.memberPoints).find(([name]) => {
+      const myIngame = (accountList?.find(a=>a.username?.toLowerCase()===user.username?.toLowerCase())?.ingameName||user.username).toLowerCase();
+      return name.toLowerCase()===myIngame;
+    });
     return sum + (entry ? Number(entry[1])||0 : 0);
   }, 0);
   const [activeCalc, setActiveCalc] = useState("forge");
@@ -1550,7 +1570,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
           {RANK_ICONS[myRank]||"⚒️"}
         </div>
         <div>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:17,color:"var(--gold2)"}}>{user.username}</div>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:17,color:"var(--gold2)"}}>{getIngameName(myAccount)||user.username}</div>
           <span className="rank-badge" style={{color:RANK_COLORS[myRank]||"#c88500",borderColor:`${RANK_COLORS[myRank]||"#c88500"}40`,background:`${RANK_COLORS[myRank]||"#c88500"}10`}}>{myRank}</span>
         </div>
         <div style={{marginLeft:"auto",textAlign:"right"}}>
@@ -3319,10 +3339,13 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({username:"",password:"",role:"R5"});
   const [editId, setEditId] = useState(null);
+  const [editIngameId, setEditIngameId] = useState(null);
+  const [editIngameVal, setEditIngameVal] = useState("");
   const [settings, setSettings] = useState({clanName:"GERXY",announcement:""});
   const [localSettings, setLocalSettings] = useState({clanName:"GERXY",announcement:""});
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [ingameSaved, setIngameSaved] = useState(false);
 
   useEffect(() => {
     const unsub = onValue(ref(db,"settings"), s => { if(s.val()){setSettings(s.val());setLocalSettings(s.val());} });
@@ -3362,7 +3385,39 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
     setShowReset(false);
   }
 
-  // Bereinigt doppelte Namen in allen Wars (Groß/Kleinschreibung)
+  async function saveIngameName(id, val) {
+    const trimmed = val.trim();
+    await update(ref(db,`accounts/${id}`), {ingameName: trimmed || null});
+    setEditIngameId(null);
+    setIngameSaved(true);
+    setTimeout(()=>setIngameSaved(false),2000);
+  }
+
+  // Ingame-Namen für alle auf einmal setzen (Massenbearbeitung)
+  const [showMassEdit, setShowMassEdit] = useState(false);
+  const [massNames, setMassNames] = useState({});
+
+  function openMassEdit() {
+    const init = {};
+    accList.forEach(a => { init[a.id] = a.ingameName || a.username; });
+    setMassNames(init);
+    setShowMassEdit(true);
+  }
+
+  async function saveMassNames() {
+    for (const [id, val] of Object.entries(massNames)) {
+      const acc = accList.find(a=>a.id===id);
+      if (!acc) continue;
+      const trimmed = val.trim();
+      const effective = trimmed === acc.username ? null : trimmed || null;
+      await update(ref(db,`accounts/${id}`), {ingameName: effective});
+    }
+    setShowMassEdit(false);
+    setIngameSaved(true);
+    setTimeout(()=>setIngameSaved(false),2000);
+  }
+
+  // Bereinigt doppelte Namen in allen Wars — nutzt jetzt auch ingameName
   async function cleanupNames() {
     const warSnap = Object.entries(wars).map(([id,w])=>({id,...w}));
     let fixed = 0;
@@ -3371,9 +3426,12 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
       const normalized = {};
       let changed = false;
       Object.entries(war.memberPoints).forEach(([name, val]) => {
-        // Finde den richtigen Account-Namen
-        const matchedAccount = accList.find(a => a.username.toLowerCase()===name.toLowerCase());
-        const finalName = matchedAccount ? matchedAccount.username : name;
+        // Suche zuerst nach ingameName, dann username (beide case-insensitive)
+        const matchedAccount = accList.find(a =>
+          (a.ingameName||"").toLowerCase()===name.toLowerCase() ||
+          a.username.toLowerCase()===name.toLowerCase()
+        );
+        const finalName = matchedAccount ? (matchedAccount.ingameName||matchedAccount.username) : name;
         if (finalName !== name) changed = true;
         normalized[finalName] = (normalized[finalName]||0) + (Number(val)||0);
       });
@@ -3436,7 +3494,11 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
       <div className="card mt-20">
         <div className="flex-between mb-16">
           <div className="card-title" style={{marginBottom:0}}>👥 Account-Verwaltung</div>
-          <button className="btn btn-gold btn-sm" onClick={()=>setShowAdd(true)}>+ Account</button>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {ingameSaved && <span style={{color:"#22c55e",fontSize:13}}>✅ Gespeichert!</span>}
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#a855f740",color:"#a855f7"}} onClick={openMassEdit}>🎮 Ingame-Namen</button>
+            <button className="btn btn-gold btn-sm" onClick={()=>setShowAdd(true)}>+ Account</button>
+          </div>
         </div>
         {accList.map(acc=>(
           <div key={acc.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"var(--bg2)",border:`1px solid ${RANK_COLORS[acc.role]||"#5a3a00"}30`,borderRadius:10,marginBottom:8}}>
@@ -3444,7 +3506,13 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
               {RANK_ICONS[acc.role]||"⚒️"}
             </div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:600}}>{acc.username} {acc.id===currentUser.id&&<span style={{fontSize:11,color:"#22c55e90"}}>(Du)</span>}</div>
+              <div style={{fontWeight:600,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                {acc.username}
+                {acc.ingameName && acc.ingameName!==acc.username && (
+                  <span style={{fontSize:11,padding:"1px 7px",borderRadius:10,background:"#a855f720",border:"1px solid #a855f740",color:"#a855f7"}}>🎮 {acc.ingameName}</span>
+                )}
+                {acc.id===currentUser.id && <span style={{fontSize:11,color:"#22c55e90"}}>(Du)</span>}
+              </div>
               {editId===acc.id ? (
                 <div style={{display:"flex",gap:6,marginTop:4}}>
                   <select className="inp" style={{maxWidth:150}} defaultValue={acc.role} onChange={e=>changeRole(acc.id,e.target.value)}>
@@ -3466,6 +3534,43 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
         ))}
         {accList.length===0 && <div className="text-muted text-sm">Noch keine Accounts</div>}
       </div>
+
+      {/* Massen-Ingame-Namen Editor */}
+      {showMassEdit && (
+        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setShowMassEdit(false)}>
+          <div className="modal" style={{maxWidth:560}}>
+            <div className="modal-title">🎮 Ingame-Namen verwalten</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:16,lineHeight:1.6}}>
+              Trage den exakten Ingame-Namen ein wie er im Spiel steht. Dieser wird für den War-Abgleich genutzt. Der Login-Name bleibt unverändert.
+            </div>
+            <div style={{maxHeight:400,overflowY:"auto",display:"grid",gap:8}}>
+              {accList.map(acc=>(
+                <div key={acc.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:"var(--bg2)",borderRadius:8,border:"1px solid var(--border)"}}>
+                  <div style={{width:120,flexShrink:0}}>
+                    <div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{acc.username}</div>
+                    <div style={{fontSize:10,color:"var(--text3)"}}>Login-Name</div>
+                  </div>
+                  <div style={{color:"var(--text3)",fontSize:14}}>→</div>
+                  <input
+                    className="inp"
+                    style={{flex:1,padding:"5px 10px",fontSize:13}}
+                    value={massNames[acc.id]??acc.ingameName??acc.username}
+                    onChange={e=>setMassNames(prev=>({...prev,[acc.id]:e.target.value}))}
+                    placeholder={acc.username}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:11,color:"var(--text3)",marginTop:12,padding:"8px 10px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:6,lineHeight:1.6}}>
+              💡 Nach dem Speichern bitte einmal <strong style={{color:"var(--gold2)"}}>🔧 Namen bereinigen</strong> klicken — damit werden auch alle bestehenden War-Einträge auf die neuen Ingame-Namen umgestellt.
+            </div>
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}>
+              <button className="btn btn-ghost" onClick={()=>setShowMassEdit(false)}>Abbrechen</button>
+              <button className="btn btn-gold" onClick={saveMassNames}>💾 Alle speichern</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Role Overview */}
       <div className="card mt-20">
