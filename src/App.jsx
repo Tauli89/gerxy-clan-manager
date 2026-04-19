@@ -1516,7 +1516,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
     40:[17.5,15.31,62.89,4.18,0.12,0],67:[17.5,16.5,16.5,42.1,7.4,0],82:[17.5,16.5,16.5,16.5,30.79,2.21],100:[17.5,16.5,16.5,16.5,16.5,16.5]};
 
   const WAR_PTS = [1,1,1,2,2,2,3,3,3,3];
-  const RARITY_COLORS_ARR = ["#9ca3af","#22c55e","#a855f7","#f59e0b","#ef4444","#ec4899"];
+  const RARITY_COLORS_ARR = ["#9ca3af","#3b82f6","#22c55e","#f59e0b","#ec4899","#a855f7"];
   const RARITY_NAMES = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
 
   function calcWarPoints() {
@@ -1966,8 +1966,8 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
   // Ei-Zeiten kommen direkt aus EGG_TIMES (bereits tech-reduziert)
   // EGG_TIMES[seltenheit][techLevel] gibt den korrekten String zurück
   const EI_FARBEN = {
-    "Gewoehnlich":"#9ca3af","Selten":"#22c55e","Episch":"#a855f7",
-    "Legendaer":"#f59e0b","Ultimate":"#ef4444","Mythisch":"#ec4899"
+    "Gewoehnlich":"#9ca3af","Selten":"#3b82f6","Episch":"#22c55e",
+    "Legendaer":"#f59e0b","Ultimate":"#ec4899","Mythisch":"#a855f7"
   };
   const EI_PUNKTE = {
     "Gewoehnlich":200,"Selten":800,"Episch":1600,
@@ -2045,11 +2045,11 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
     return zeitStringZuSekunden(zeitStr);
   }
 
-  // Tech-Dauer: exakte Stufen-Zeit mit Timer-Reduktion
+  // Tech-Dauer: Basiszeit / (1 + timerSpeed) — gleiche Logik wie Ei-Timer
   function techDauerSekunden(tier, stufeIdx) {
     const basis = TECH_STUFEN[tier]?.[stufeIdx] || 0;
-    const reduktion = (techTimerBonus || 0) / 100;
-    return Math.round(basis * (1 - reduktion));
+    const speed = (techTimerBonus || 0) / 100;
+    return Math.round(basis / (1 + speed));
   }
 
   // Startzeitpunkt berechnen: Zielzeit - Dauer
@@ -2958,11 +2958,11 @@ function Spielinfo() {
             <div style={{display:"grid",gap:6,marginBottom:14}}>
               {[
                 ["Gewöhnlich","#9ca3af","+10% Schaden & Gesundheit"],
-                ["Selten","#22c55e","+40% Schaden & Gesundheit"],
-                ["Episch","#a855f7","+80% Schaden & Gesundheit"],
+                ["Selten","#3b82f6","+40% Schaden & Gesundheit"],
+                ["Episch","#22c55e","+80% Schaden & Gesundheit"],
                 ["Legendär","#f59e0b","+150% Schaden & Gesundheit"],
-                ["Ultimate","#ef4444","+250% Schaden & Gesundheit"],
-                ["Mythisch","#ec4899","+400% Schaden & Gesundheit"],
+                ["Ultimate","#ec4899","+250% Schaden & Gesundheit"],
+                ["Mythisch","#a855f7","+400% Schaden & Gesundheit"],
               ].map(([name,col,bonus])=>(
                 <div key={name} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,borderLeft:`3px solid ${col}`}}>
                   <span style={{flex:1,fontSize:13,color:col,fontWeight:600}}>{name}</span>
