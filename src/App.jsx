@@ -1559,7 +1559,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge","⚒️ Schmiede"],["egg","🥚 Eier"],["offline","💤 Offline"],["summon","🎯 Beschwörung"],["techtree","🔬 Tech Tree"],["analyse","🔍 Build-Analyse"]].map(([id,label])=>(
+        {[["forge","⚒️ Schmiede"],["egg","🥚 Eier"],["offline","💤 Offline"],["summon","🎯 Beschwörung"],["techtree","🔬 Tech Tree"],["analyse","🔍 Build-Analyse"],["planer","⏰ Planer"]].map(([id,label])=>(
           <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
@@ -1790,6 +1790,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
 
       {activeCalc==="analyse" && <BuildAnalyse user={user} db={db}/>}
 
+      {activeCalc==="planer" && <WarPlaner techTree={techTree} getTechTotalLevels={getTechTotalLevels} EGG_NODE_IDS={EGG_NODE_IDS} techTimerBonus={techTimerBonus}/>}
+
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
@@ -1942,6 +1944,361 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ── WAR-PLANER ───────────────────────────────────────────────
+function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus }) {
+
+  // ── Konstanten ────────────────────────────────────────────
+  // War-Rotation: Di=Tag1, Mi=Tag2, Do=Tag3, Fr=Tag4, Sa=Tag5, So=Tag6, Mo=Tag7
+  // UTC-Wochentage: 0=So,1=Mo,2=Di,3=Mi,4=Do,5=Fr,6=Sa
+  const WAR_ROTATION = [
+    { tag:"Dienstag",  utcDay:2, farbe:"#22c55e", eier:false, tech:true  },
+    { tag:"Mittwoch",  utcDay:3, farbe:"#3b82f6", eier:true,  tech:false },
+    { tag:"Donnerstag",utcDay:4, farbe:"#a855f7", eier:false, tech:false },
+    { tag:"Freitag",   utcDay:5, farbe:"#f59e0b", eier:true,  tech:true  },
+    { tag:"Samstag",   utcDay:6, farbe:"#ef4444", eier:false, tech:false },
+    { tag:"Sonntag",   utcDay:0, farbe:"#ec4899", eier:false, tech:false },
+  ];
+
+  // Ei-Basiszeiten in Sekunden (Level 0 = kein Tech)
+  const EI_BASIS_SEKUNDEN = {
+    "Gewoehnlich": 30*60,
+    "Selten":      2*3600,
+    "Episch":      4*3600,
+    "Legendaer":   8*3600,
+    "Ultimate":    16*3600,
+    "Mythisch":    32*3600,
+  };
+  const EI_FARBEN = {
+    "Gewoehnlich":"#9ca3af","Selten":"#22c55e","Episch":"#a855f7",
+    "Legendaer":"#f59e0b","Ultimate":"#ef4444","Mythisch":"#ec4899"
+  };
+  const EI_PUNKTE = {
+    "Gewoehnlich":200,"Selten":800,"Episch":1600,
+    "Legendaer":3200,"Ultimate":6400,"Mythisch":12800
+  };
+  const EI_IDS = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
+
+  // Tech-Tier-Zeiten in Sekunden (Basis ohne Reduktion)
+  const TECH_TIER_BASIS = {
+    "Tier I":   5*60,
+    "Tier II":  2*3600+40*60,
+    "Tier III": 26*3600,
+    "Tier IV":  47*3600,
+    "Tier V":   83*3600,
+  };
+  const TECH_TIER_FARBEN = {
+    "Tier I":"#22c55e","Tier II":"#3b82f6","Tier III":"#a855f7","Tier IV":"#f59e0b","Tier V":"#ef4444"
+  };
+  const TECH_TIER_PUNKTE = {
+    "Tier I":1000,"Tier II":10000,"Tier III":30000,"Tier IV":50000,"Tier V":100000
+  };
+
+  // ── Hilfsfunktionen ───────────────────────────────────────
+  function zeitStringZuSekunden(str) {
+    if (!str) return 0;
+    let s = 0;
+    const d = str.match(/(\d+)d/); if (d) s += parseInt(d[1])*86400;
+    const h = str.match(/(\d+)h/); if (h) s += parseInt(h[1])*3600;
+    const m = str.match(/(\d+)m/); if (m) s += parseInt(m[1])*60;
+    const sec = str.match(/(\d+)s/); if (sec) s += parseInt(sec[1]);
+    return s;
+  }
+
+  function sekundenZuZeitString(s) {
+    s = Math.max(0, Math.round(s));
+    const d = Math.floor(s/86400); s -= d*86400;
+    const h = Math.floor(s/3600);  s -= h*3600;
+    const m = Math.floor(s/60);    s -= m*60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+  function formatUhrzeit(date) {
+    const tag = ["So","Mo","Di","Mi","Do","Fr","Sa"][date.getUTCDay()];
+    const h = String(date.getUTCHours()).padStart(2,"0");
+    const m = String(date.getUTCMinutes()).padStart(2,"0");
+    return `${tag} ${h}:${m} UTC`;
+  }
+
+  function formatLokal(date) {
+    return date.toLocaleTimeString("de-DE",{weekday:"short",hour:"2-digit",minute:"2-digit"});
+  }
+
+  // Nächstes Datum für einen UTC-Wochentag berechnen
+  function naechsterUtcTag(utcDay) {
+    const now = new Date();
+    const heute = now.getUTCDay();
+    let diff = (utcDay - heute + 7) % 7;
+    if (diff === 0) diff = 7; // nächste Woche wenn heute
+    const ziel = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff,
+      3, 0, 0, 0 // 03:00 UTC Zielzeit
+    ));
+    return ziel;
+  }
+
+  // Ei-Dauer mit Tech-Reduktion berechnen
+  function eiDauerSekunden(seltenheit, eiIndex) {
+    const basisSek = EI_BASIS_SEKUNDEN[seltenheit] || 0;
+    const nodeId = EGG_NODE_IDS[eiIndex];
+    const techLvl = nodeId ? Math.min(25, getTechTotalLevels(nodeId)) : 0;
+    const reduktion = techLvl * 0.10; // 10% pro Level
+    return Math.round(basisSek * (1 - reduktion));
+  }
+
+  // Tech-Dauer mit Timer-Reduktion berechnen
+  function techDauerSekunden(tier) {
+    const basis = TECH_TIER_BASIS[tier] || 0;
+    const reduktion = (techTimerBonus || 0) / 100;
+    return Math.round(basis * (1 - reduktion));
+  }
+
+  // Startzeitpunkt berechnen: Zielzeit - Dauer
+  function berechneStartzeit(zielDatum, dauerSekunden) {
+    return new Date(zielDatum.getTime() - dauerSekunden * 1000);
+  }
+
+  // Ist die Startzeit noch in der Zukunft?
+  function istNochMoeglich(startzeit) {
+    return startzeit > new Date();
+  }
+
+  // Wie viel Zeit bleibt noch bis zum Start?
+  function zeitBisStart(startzeit) {
+    const diffMs = startzeit - new Date();
+    if (diffMs <= 0) return null;
+    return sekundenZuZeitString(Math.floor(diffMs / 1000));
+  }
+
+  // ── Berechnung aller Einträge ─────────────────────────────
+  const now = new Date();
+
+  // Eier-Planer: Mi + Fr
+  const eierTage = WAR_ROTATION.filter(t => t.eier);
+  const eierEintraege = [];
+
+  eierTage.forEach(warTag => {
+    const zielDatum = naechsterUtcTag(warTag.utcDay);
+    EI_IDS.forEach((seltenheit, eiIdx) => {
+      const dauerSek = eiDauerSekunden(seltenheit, eiIdx);
+      const startzeit = berechneStartzeit(zielDatum, dauerSek);
+      const moeglich = istNochMoeglich(startzeit);
+      const zeitBis = zeitBisStart(startzeit);
+      eierEintraege.push({
+        warTag, seltenheit, eiIdx, dauerSek,
+        zielDatum, startzeit, moeglich, zeitBis,
+        punkte: EI_PUNKTE[seltenheit],
+      });
+    });
+  });
+
+  // Tech-Planer: Di + Fr
+  const techTage = WAR_ROTATION.filter(t => t.tech);
+  const techEintraege = [];
+
+  techTage.forEach(warTag => {
+    const zielDatum = naechsterUtcTag(warTag.utcDay);
+    Object.keys(TECH_TIER_BASIS).forEach(tier => {
+      const dauerSek = techDauerSekunden(tier);
+      const startzeit = berechneStartzeit(zielDatum, dauerSek);
+      const moeglich = istNochMoeglich(startzeit);
+      const zeitBis = zeitBisStart(startzeit);
+      techEintraege.push({
+        warTag, tier, dauerSek,
+        zielDatum, startzeit, moeglich, zeitBis,
+        punkte: TECH_TIER_PUNKTE[tier],
+      });
+    });
+  });
+
+  // Aktuellen UTC-Tag ermitteln für Hervorhebung
+  const heuteUtcDay = now.getUTCDay();
+
+  return (
+    <div style={{display:"grid",gap:20}}>
+
+      {/* Header */}
+      <div className="card" style={{borderColor:"#c8850a30"}}>
+        <div className="card-title">⏰ War-Planer — Startzeiten für maximale Punkte</div>
+        <div style={{fontSize:13,color:"var(--text2)",lineHeight:1.7}}>
+          Zeigt wann du ein Ei oder eine Tech-Forschung starten musst, damit sie am nächsten relevanten War-Tag
+          <strong style={{color:"var(--gold2)"}}> exakt um 03:00 UTC</strong> fertig ist — bereit zum sofortigen Abgeben.
+          Alle Zeiten basieren auf deinem aktuellen <strong style={{color:"var(--gold2)"}}>Tech Tree Stand</strong>.
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+          <span style={{padding:"4px 10px",background:"#22c55e15",border:"1px solid #22c55e40",borderRadius:6,fontSize:12,color:"#22c55e"}}>🥚 Eier: Mittwoch + Freitag</span>
+          <span style={{padding:"4px 10px",background:"#f59e0b15",border:"1px solid #f59e0b40",borderRadius:6,fontSize:12,color:"#f59e0b"}}>🔬 Tech: Dienstag + Freitag</span>
+          <span style={{padding:"4px 10px",background:"#3b82f615",border:"1px solid #3b82f640",borderRadius:6,fontSize:12,color:"#3b82f6"}}>🎯 Ziel: 03:00 UTC</span>
+          {techTimerBonus > 0 && <span style={{padding:"4px 10px",background:"#a855f715",border:"1px solid #a855f740",borderRadius:6,fontSize:12,color:"#a855f7"}}>⏱️ Tech-Reduktion: −{techTimerBonus}%</span>}
+        </div>
+      </div>
+
+      {/* ── EIER-PLANER ── */}
+      <div className="card">
+        <div className="card-title">🥚 Eier-Planer</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>
+          Nächste Eier-Punkte-Tage — starte das Ei zur angezeigten Zeit um es pünktlich um 03:00 UTC abgeben zu können.
+        </div>
+
+        {eierTage.map(warTag => {
+          const eintraege = eierEintraege.filter(e => e.warTag.utcDay === warTag.utcDay);
+          const istHeute = warTag.utcDay === heuteUtcDay;
+          return (
+            <div key={warTag.tag} style={{marginBottom:20}}>
+              <div style={{
+                display:"flex",alignItems:"center",gap:10,marginBottom:10,
+                padding:"8px 12px",background:warTag.farbe+"15",
+                border:`1px solid ${warTag.farbe}40`,borderRadius:8,
+              }}>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:warTag.farbe,fontWeight:700}}>
+                  🥚 {warTag.tag} {istHeute?"(heute)":""}
+                </span>
+                <span style={{fontSize:11,color:"var(--text3)"}}>
+                  Ziel: {formatUhrzeit(eintraege[0]?.zielDatum || new Date())}
+                </span>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:8}}>
+                {eintraege.map(e => {
+                  const farbe = EI_FARBEN[e.seltenheit];
+                  const status = !e.moeglich
+                    ? {label:"❌ Zu spät", farbe:"#ef4444", bg:"#ef444415"}
+                    : e.zeitBis && parseInt(e.zeitBis) < 2
+                    ? {label:"⚠️ Bald", farbe:"#f59e0b", bg:"#f59e0b15"}
+                    : {label:"✅ Möglich", farbe:"#22c55e", bg:"#22c55e10"};
+
+                  return (
+                    <div key={e.seltenheit} style={{
+                      padding:"10px 12px",background:"var(--bg2)",
+                      border:`1px solid ${farbe}30`,borderRadius:8,
+                      opacity: e.moeglich ? 1 : 0.5,
+                    }}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontSize:13,fontWeight:700,color:farbe}}>🥚 {e.seltenheit}</span>
+                        <span style={{fontSize:11,color:"var(--gold2)",fontWeight:600}}>{e.punkte.toLocaleString("de-DE")} Pkt</span>
+                      </div>
+                      <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>
+                        Dauer: <span style={{color:"var(--text2)"}}>{sekundenZuZeitString(e.dauerSek)}</span>
+                        {EGG_NODE_IDS[e.eiIdx] && getTechTotalLevels(EGG_NODE_IDS[e.eiIdx]) > 0 && (
+                          <span style={{color:"#22c55e",marginLeft:4}}>(-{getTechTotalLevels(EGG_NODE_IDS[e.eiIdx])*10}%)</span>
+                        )}
+                      </div>
+                      <div style={{
+                        padding:"6px 8px",background:status.bg,
+                        border:`1px solid ${status.farbe}30`,borderRadius:6,
+                      }}>
+                        <div style={{fontSize:11,color:"var(--text3)",marginBottom:2}}>Starten um:</div>
+                        <div style={{fontSize:13,fontWeight:700,color:status.farbe}}>
+                          {formatUhrzeit(e.startzeit)}
+                        </div>
+                        <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>
+                          {formatLokal(e.startzeit)} (lokal)
+                        </div>
+                        {e.moeglich && e.zeitBis && (
+                          <div style={{fontSize:11,color:"#22c55e",marginTop:2}}>
+                            ⏳ noch {e.zeitBis} bis Startzeit
+                          </div>
+                        )}
+                        {!e.moeglich && (
+                          <div style={{fontSize:11,color:"#ef4444",marginTop:2}}>Startzeit bereits vergangen</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── TECH-PLANER ── */}
+      <div className="card">
+        <div className="card-title">🔬 Tech-Forschungs-Planer</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:14}}>
+          Nächste Tech-Punkte-Tage — starte die Forschung zur angezeigten Zeit damit sie pünktlich um 03:00 UTC fertig ist.
+          {techTimerBonus > 0 && <span style={{color:"#a855f7"}}> Tech-Reduktion −{techTimerBonus}% bereits eingerechnet.</span>}
+        </div>
+
+        {techTage.map(warTag => {
+          const eintraege = techEintraege.filter(e => e.warTag.utcDay === warTag.utcDay);
+          const istHeute = warTag.utcDay === heuteUtcDay;
+          return (
+            <div key={warTag.tag} style={{marginBottom:20}}>
+              <div style={{
+                display:"flex",alignItems:"center",gap:10,marginBottom:10,
+                padding:"8px 12px",background:warTag.farbe+"15",
+                border:`1px solid ${warTag.farbe}40`,borderRadius:8,
+              }}>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:warTag.farbe,fontWeight:700}}>
+                  🔬 {warTag.tag} {istHeute?"(heute)":""}
+                </span>
+                <span style={{fontSize:11,color:"var(--text3)"}}>
+                  Ziel: {formatUhrzeit(eintraege[0]?.zielDatum || new Date())}
+                </span>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:8}}>
+                {eintraege.map(e => {
+                  const farbe = TECH_TIER_FARBEN[e.tier];
+                  const status = !e.moeglich
+                    ? {label:"❌ Zu spät", farbe:"#ef4444", bg:"#ef444415"}
+                    : {label:"✅ Möglich", farbe:"#22c55e", bg:"#22c55e10"};
+
+                  return (
+                    <div key={e.tier} style={{
+                      padding:"10px 12px",background:"var(--bg2)",
+                      border:`1px solid ${farbe}30`,borderRadius:8,
+                      opacity: e.moeglich ? 1 : 0.5,
+                    }}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontSize:13,fontWeight:700,color:farbe}}>🔬 {e.tier}</span>
+                        <span style={{fontSize:11,color:"var(--gold2)",fontWeight:600}}>{e.punkte.toLocaleString("de-DE")} Pkt</span>
+                      </div>
+                      <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>
+                        Dauer: <span style={{color:"var(--text2)"}}>{sekundenZuZeitString(e.dauerSek)}</span>
+                        {techTimerBonus > 0 && <span style={{color:"#a855f7",marginLeft:4}}>(-{techTimerBonus}%)</span>}
+                      </div>
+                      <div style={{
+                        padding:"6px 8px",background:status.bg,
+                        border:`1px solid ${status.farbe}30`,borderRadius:6,
+                      }}>
+                        <div style={{fontSize:11,color:"var(--text3)",marginBottom:2}}>Starten um:</div>
+                        <div style={{fontSize:13,fontWeight:700,color:status.farbe}}>
+                          {formatUhrzeit(e.startzeit)}
+                        </div>
+                        <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>
+                          {formatLokal(e.startzeit)} (lokal)
+                        </div>
+                        {e.moeglich && e.zeitBis && (
+                          <div style={{fontSize:11,color:"#22c55e",marginTop:2}}>
+                            ⏳ noch {e.zeitBis} bis Startzeit
+                          </div>
+                        )}
+                        {!e.moeglich && (
+                          <div style={{fontSize:11,color:"#ef4444",marginTop:2}}>Startzeit bereits vergangen</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Hinweis */}
+      <div style={{padding:"10px 14px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a",lineHeight:1.6}}>
+        💡 <strong>Hinweis:</strong> Alle Uhrzeiten sind in UTC. Die lokale Zeit wird zusätzlich angezeigt.
+        Tech-Tier I ist so kurz (5 Min.) dass du ihn fast immer am selben Tag starten kannst.
+        Für Tier IV/V empfiehlt sich das Starten mehrere Tage vorher — der Planer zeigt wann genau.
+      </div>
+
     </div>
   );
 }
