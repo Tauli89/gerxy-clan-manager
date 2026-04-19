@@ -361,6 +361,7 @@ export default function GerxyApp() {
   const [loading, setLoading] = useState(true);
   const [timer, setTimer] = useState(0);
   const [messages, setMessages] = useState({});
+  const [polls, setPolls] = useState({});
 
   const isAdmin = user && ADMIN_ROLES.includes(user.role);
 
@@ -375,6 +376,7 @@ export default function GerxyApp() {
       onValue(ref(db,"notes"), s => setNotes(s.val()||{})),
       onValue(ref(db,"settings"), s => { if(s.val()) setSettings(s.val()); }),
       onValue(ref(db,"messages"), s => setMessages(s.val()||{})),
+      onValue(ref(db,"polls"), s => setPolls(s.val()||{})),
     ];
     return () => subs.forEach(u=>u());
   }, []);
@@ -471,7 +473,7 @@ export default function GerxyApp() {
           </div>
         ) : (
           <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px"}}>
-            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer}/>}
+            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer} polls={polls} user={user}/>}
             {tab==="members" && <Members accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} currentUser={user}/>}
             {tab==="war" && <WarTab warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} timer={timer}/>}
             {tab==="mypage" && !user.isGuest && <MyPage user={user} memberList={memberList} warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
@@ -597,8 +599,262 @@ function LoginScreen({ onLogin, onRegister, onGuest, accounts, loading }) {
   );
 }
 
+// ── BROWSER FINGERPRINT ──────────────────────────────────────
+async function getFingerprint() {
+  const raw = [
+    navigator.userAgent,
+    navigator.language,
+    screen.width + "x" + screen.height,
+    screen.colorDepth,
+    new Date().getTimezoneOffset(),
+    navigator.hardwareConcurrency || 0,
+    navigator.platform || "",
+  ].join("|");
+  const encoded = new TextEncoder().encode(raw);
+  const buf = await crypto.subtle.digest("SHA-256", encoded);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,16);
+}
+
+// ── UMFRAGEN WIDGET (im Dashboard) ──────────────────────────
+function UmfragenWidget({ polls, isAdmin, db, user }) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ frage:"", optionen:["",""], ablauf:"", hatAblauf:false });
+  const [fingerprint, setFingerprint] = useState(null);
+  const [abgestimmt, setAbgestimmt] = useState({}); // pollId → optionIdx
+
+  const BERLIN_TZ = "Europe/Berlin";
+
+  useEffect(() => {
+    getFingerprint().then(fp => setFingerprint(fp));
+    // LocalStorage: bereits abgestimmte Umfragen laden
+    try {
+      const saved = JSON.parse(localStorage.getItem("gerxy_votes")||"{}");
+      setAbgestimmt(saved);
+    } catch(e) {}
+  }, []);
+
+  const pollList = Object.entries(polls)
+    .map(([id,p])=>({id,...p}))
+    .filter(p => p.aktiv !== false)
+    .sort((a,b) => (b.erstellt||0) - (a.erstellt||0));
+
+  function istAbgelaufen(poll) {
+    if (!poll.ablauf) return false;
+    return Date.now() > poll.ablauf;
+  }
+
+  function hatGestimmt(poll) {
+    if (abgestimmt[poll.id] !== undefined) return true;
+    if (!fingerprint) return false;
+    return poll.fingerprints && poll.fingerprints[fingerprint];
+  }
+
+  async function abstimmen(poll, optIdx) {
+    if (hatGestimmt(poll) || istAbgelaufen(poll)) return;
+    if (!fingerprint) return;
+
+    const stimmenPfad = `polls/${poll.id}/stimmen/${optIdx}`;
+    const fpPfad = `polls/${poll.id}/fingerprints/${fingerprint}`;
+    const aktuelleStimmen = poll.stimmen?.[optIdx] || 0;
+
+    await update(ref(db, `polls/${poll.id}`), {
+      [`stimmen/${optIdx}`]: aktuelleStimmen + 1,
+      [`fingerprints/${fingerprint}`]: true,
+    });
+
+    // LocalStorage als zweite Sicherung
+    const neu = {...abgestimmt, [poll.id]: optIdx};
+    setAbgestimmt(neu);
+    try { localStorage.setItem("gerxy_votes", JSON.stringify(neu)); } catch(e) {}
+  }
+
+  async function umfrageErstellen() {
+    const optionen = form.optionen.filter(o=>o.trim());
+    if (!form.frage.trim() || optionen.length < 2) return;
+    const stimmen = {};
+    optionen.forEach((_,i) => { stimmen[i] = 0; });
+    await push(ref(db,"polls"), {
+      frage: form.frage.trim(),
+      optionen,
+      stimmen,
+      fingerprints: {},
+      erstellt: Date.now(),
+      erstelltVon: user?.username || "Admin",
+      aktiv: true,
+      ablauf: form.hatAblauf && form.ablauf ? new Date(form.ablauf).getTime() : null,
+    });
+    setForm({ frage:"", optionen:["",""], ablauf:"", hatAblauf:false });
+    setShowCreate(false);
+  }
+
+  async function umfrageSchliessen(id) {
+    await update(ref(db,`polls/${id}`), { aktiv: false });
+  }
+
+  async function umfrageLoeschen(id) {
+    await remove(ref(db,`polls/${id}`));
+  }
+
+  if (pollList.length === 0 && !isAdmin) return null;
+
+  return (
+    <div className="card" style={{borderColor:"#a855f730"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div className="card-title" style={{marginBottom:0}}>🗳️ Clan-Umfragen</div>
+        {isAdmin && (
+          <button className="btn btn-gold btn-sm" onClick={()=>setShowCreate(!showCreate)}>
+            {showCreate ? "✕ Abbrechen" : "+ Neue Umfrage"}
+          </button>
+        )}
+      </div>
+
+      {/* Umfrage erstellen */}
+      {showCreate && isAdmin && (
+        <div style={{padding:"14px",background:"var(--bg2)",borderRadius:10,border:"1px solid #a855f730",marginBottom:16}}>
+          <div style={{marginBottom:10}}>
+            <label className="lbl">Frage *</label>
+            <input className="inp" value={form.frage} onChange={e=>setForm(p=>({...p,frage:e.target.value}))} placeholder="Eure Abstimmungsfrage…"/>
+          </div>
+          <div style={{marginBottom:10}}>
+            <label className="lbl">Antwortmöglichkeiten *</label>
+            {form.optionen.map((opt,i)=>(
+              <div key={i} style={{display:"flex",gap:6,marginBottom:6}}>
+                <input className="inp" value={opt} onChange={e=>{const n=[...form.optionen];n[i]=e.target.value;setForm(p=>({...p,optionen:n}));}} placeholder={`Option ${i+1}`}/>
+                {form.optionen.length > 2 && (
+                  <button className="btn btn-ghost btn-sm" onClick={()=>{const n=form.optionen.filter((_,j)=>j!==i);setForm(p=>({...p,optionen:n}));}}>✕</button>
+                )}
+              </div>
+            ))}
+            {form.optionen.length < 6 && (
+              <button className="btn btn-ghost btn-sm" onClick={()=>setForm(p=>({...p,optionen:[...p.optionen,""]}))}>+ Option hinzufügen</button>
+            )}
+          </div>
+          <div style={{marginBottom:12}}>
+            <label style={{display:"flex",gap:8,alignItems:"center",cursor:"pointer",fontSize:13,marginBottom:6}}>
+              <input type="checkbox" checked={form.hatAblauf} onChange={e=>setForm(p=>({...p,hatAblauf:e.target.checked}))}/>
+              Automatische Ablaufzeit
+            </label>
+            {form.hatAblauf && (
+              <input className="inp" type="datetime-local" value={form.ablauf} onChange={e=>setForm(p=>({...p,ablauf:e.target.value}))}/>
+            )}
+          </div>
+          <button className="btn btn-gold" onClick={umfrageErstellen}>🗳️ Umfrage starten</button>
+        </div>
+      )}
+
+      {/* Aktive Umfragen */}
+      {pollList.length === 0 && (
+        <div className="text-muted text-sm">Keine aktiven Umfragen</div>
+      )}
+
+      {pollList.map(poll => {
+        const abgelaufen = istAbgelaufen(poll);
+        const bereitsGestimmt = hatGestimmt(poll);
+        const zeigeErgebnis = bereitsGestimmt || abgelaufen;
+        const gesamtStimmen = Object.values(poll.stimmen||{}).reduce((s,v)=>s+Number(v),0);
+        const maxStimmen = Math.max(...Object.values(poll.stimmen||{}).map(Number), 1);
+
+        // Ablaufzeit in Berliner Zeit formatieren
+        let ablaufAnzeige = null;
+        if (poll.ablauf) {
+          const ablaufDate = new Date(poll.ablauf);
+          ablaufAnzeige = ablaufDate.toLocaleString("de-DE", {
+            timeZone: BERLIN_TZ,
+            weekday:"short", day:"2-digit", month:"2-digit",
+            hour:"2-digit", minute:"2-digit"
+          }) + " Uhr";
+        }
+
+        return (
+          <div key={poll.id} style={{
+            marginBottom:14, padding:"14px",
+            background: abgelaufen ? "var(--bg2)" : "#a855f708",
+            border:`1px solid ${abgelaufen?"var(--border)":"#a855f730"}`,
+            borderRadius:10, opacity: abgelaufen ? 0.75 : 1,
+          }}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10,gap:8}}>
+              <div>
+                <div style={{fontWeight:600,fontSize:14,lineHeight:1.4}}>{poll.frage}</div>
+                <div style={{fontSize:11,color:"var(--text3)",marginTop:3}}>
+                  {abgelaufen ? "⏹️ Beendet" : "🟢 Aktiv"}
+                  {" · "}{gesamtStimmen} Stimme{gesamtStimmen!==1?"n":""}
+                  {ablaufAnzeige && !abgelaufen && <span style={{color:"#f59e0b"}}>{" · "}⏰ bis {ablaufAnzeige}</span>}
+                  {ablaufAnzeige && abgelaufen && <span>{" · "}Abgelaufen {ablaufAnzeige}</span>}
+                </div>
+              </div>
+              {isAdmin && (
+                <div style={{display:"flex",gap:4,flexShrink:0}}>
+                  {!abgelaufen && <button className="btn btn-ghost btn-sm" style={{fontSize:10}} onClick={()=>umfrageSchliessen(poll.id)}>⏹️ Schließen</button>}
+                  <button className="btn btn-red btn-sm" style={{fontSize:10}} onClick={()=>umfrageLoeschen(poll.id)}>🗑️</button>
+                </div>
+              )}
+            </div>
+
+            {/* Optionen */}
+            <div style={{display:"grid",gap:6}}>
+              {(poll.optionen||[]).map((opt,i)=>{
+                const stimmen = Number(poll.stimmen?.[i]||0);
+                const prozent = gesamtStimmen > 0 ? Math.round((stimmen/gesamtStimmen)*100) : 0;
+                const istGewinner = zeigeErgebnis && stimmen === maxStimmen && gesamtStimmen > 0;
+                const hatDieseGestimmt = abgestimmt[poll.id]===i || (bereitsGestimmt && poll.fingerprints?.[fingerprint] && abgestimmt[poll.id]===i);
+
+                return (
+                  <div key={i}>
+                    {!zeigeErgebnis ? (
+                      // Abstimmungs-Button
+                      <button onClick={()=>abstimmen(poll,i)} style={{
+                        width:"100%", padding:"10px 14px", borderRadius:8, cursor:"pointer",
+                        border:"1px solid #a855f740", background:"var(--bg3,#0d0700)",
+                        color:"var(--text)", fontSize:13, textAlign:"left",
+                        transition:"all .2s",fontFamily:"inherit",
+                      }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor="#a855f7";e.currentTarget.style.background="#a855f715";}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor="#a855f740";e.currentTarget.style.background="var(--bg3,#0d0700)";}}>
+                        {opt}
+                      </button>
+                    ) : (
+                      // Ergebnis-Balken
+                      <div style={{
+                        padding:"8px 12px", borderRadius:8,
+                        border:`1px solid ${istGewinner?"#f59e0b40":"var(--border)"}`,
+                        background: hatDieseGestimmt ? "#a855f715" : "var(--bg2)",
+                        position:"relative", overflow:"hidden",
+                      }}>
+                        <div style={{
+                          position:"absolute", left:0, top:0, bottom:0,
+                          width:`${prozent}%`,
+                          background: istGewinner ? "#f59e0b15" : "#a855f710",
+                          transition:"width .5s",
+                        }}/>
+                        <div style={{position:"relative",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span style={{fontSize:13,color:hatDieseGestimmt?"#a855f7":"var(--text)"}}>
+                            {hatDieseGestimmt?"✓ ":""}{istGewinner?"🏆 ":""}{opt}
+                          </span>
+                          <span style={{fontSize:12,fontWeight:700,color:istGewinner?"#f59e0b":"var(--text3)",marginLeft:8}}>
+                            {prozent}% ({stimmen})
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {!zeigeErgebnis && !abgelaufen && (
+              <div style={{fontSize:11,color:"var(--text3)",marginTop:8}}>
+                👁️ Ergebnis wird nach deiner Abstimmung angezeigt
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── DASHBOARD ────────────────────────────────────────────────
-function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
+function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, user }) {
   const warStatus = getWarStatus();
   const [ms, setMs] = useState(warStatus.msLeft);
   useEffect(() => { setMs(prev => prev - 1000); }, [timer]);
@@ -632,6 +888,9 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer }) {
           <span style={{fontSize:15,lineHeight:1.5}}>{settings.announcement}</span>
         </div>
       )}
+
+      {/* Umfragen */}
+      <UmfragenWidget polls={polls} isAdmin={isAdmin} db={db} user={user}/>
 
       {/* War Timer */}
       <div className="war-banner">
