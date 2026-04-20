@@ -1737,7 +1737,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const [profileSaved, setProfileSaved] = useState(false);
   const [eggRarity, setEggRarity] = useState("Gewoehnlich");
   const [summonType, setSummonType] = useState("Haustier");
-  const [summonLevel, setSummonLevel] = useState(1);
+  const [summonLevels, setSummonLevels] = useState({Haustier:1, Reittier:1, Skill:1});
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [techTree, setTechTree] = useState({});
 
@@ -1803,7 +1803,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
         if (p.forgeLevel) setForgeLevel(p.forgeLevel);
         if (p.freeForge !== undefined) setFreeForge(p.freeForge);
         if (p.summonType) setSummonType(p.summonType);
-        if (p.summonLevel) setSummonLevel(p.summonLevel);
+        if (p.summonLevels) setSummonLevels(p.summonLevels);
+        else if (p.summonLevel) setSummonLevels({Haustier:p.summonLevel, Reittier:p.summonLevel, Skill:p.summonLevel}); // Rückwärtskompatibilität
         if (p.myNote !== undefined) setMyNote(p.myNote);
         if (p.techTree) setTechTree(p.techTree);
         setProfileLoaded(true);
@@ -1817,7 +1818,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   // Profil in Firebase speichern
   async function saveProfile() {
     await update(ref(db, `profiles/${user.username}`), {
-      forgeLevel, freeForge, summonType, summonLevel, myNote, techTree,
+      forgeLevel, freeForge, summonType, summonLevels, myNote, techTree,
       lastUpdated: Date.now(),
     });
     setProfileSaved(true);
@@ -1917,6 +1918,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const forgeRow = FORGE_DATA[forgeLevel-1]||FORGE_DATA[0];
   const eggTime = EGG_TIMES[eggRarity]?.[eggTimerLevel]||"?";
   const probData = summonType==="Haustier"?PET_PROBS:summonType==="Reittier"?MOUNT_PROBS:SKILL_PROBS;
+  const summonLevel = summonLevels[summonType] || 1;
   const nearestLvl = Object.keys(probData).map(Number).reduce((a,b)=>Math.abs(b-summonLevel)<Math.abs(a-summonLevel)?b:a);
   const curProbs = probData[nearestLvl];
 
@@ -2096,8 +2098,15 @@ function MyPage({ user, memberList, warList, accountList, db }) {
                   <button key={t} className={`btn ${summonType===t?"btn-gold":"btn-ghost"}`} style={{flex:1,fontSize:12,justifyContent:"center"}} onClick={()=>{setSummonType(t);update(ref(db,`profiles/${user.username}`),{summonType:t});}}>{t}</button>
                 ))}
               </div>
-              <div><label className="lbl">Level ({summonType}): {summonLevel}</label>
-                <input type="range" min={1} max={100} value={summonLevel} onChange={e=>{const v=Number(e.target.value);setSummonLevel(v);update(ref(db,`profiles/${user.username}`),{summonLevel:v});}} style={{width:"100%",accentColor:"var(--gold2)"}}/>
+              <div><label className="lbl">Level ({summonType}): {summonLevels[summonType]||1}</label>
+                <input type="range" min={1} max={100} value={summonLevels[summonType]||1}
+                  onChange={e=>{
+                    const v=Number(e.target.value);
+                    const neu={...summonLevels,[summonType]:v};
+                    setSummonLevels(neu);
+                    update(ref(db,`profiles/${user.username}`),{summonLevels:neu});
+                  }}
+                  style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
               <div style={{fontSize:11,color:"var(--text3)"}}>Naechste Auswertung bei Level {nearestLvl}</div>
               {/* Tech Tree Boni für Beschwörung */}
