@@ -620,23 +620,37 @@ function UmfragenWidget({ polls, isAdmin, db, user }) {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ frage:"", optionen:["",""], ablauf:"", hatAblauf:false });
   const [fingerprint, setFingerprint] = useState(null);
-  const [abgestimmt, setAbgestimmt] = useState({}); // pollId → optionIdx
+  const [abgestimmt, setAbgestimmt] = useState({});
+  const [showArchiv, setShowArchiv] = useState(false);
 
   const BERLIN_TZ = "Europe/Berlin";
 
   useEffect(() => {
     getFingerprint().then(fp => setFingerprint(fp));
-    // LocalStorage: bereits abgestimmte Umfragen laden
     try {
       const saved = JSON.parse(localStorage.getItem("gerxy_votes")||"{}");
       setAbgestimmt(saved);
     } catch(e) {}
   }, []);
 
-  const pollList = Object.entries(polls)
+  // Abgelaufene Umfragen automatisch archivieren
+  useEffect(() => {
+    const jetzt = Date.now();
+    Object.entries(polls).forEach(([id, poll]) => {
+      if (!poll.archiviert && poll.ablauf && jetzt > poll.ablauf) {
+        update(ref(db, `polls/${id}`), { aktiv: false, archiviert: true });
+      }
+    });
+  }, [polls]);
+
+  const allPolls = Object.entries(polls)
     .map(([id,p])=>({id,...p}))
-    .filter(p => p.aktiv !== false)
     .sort((a,b) => (b.erstellt||0) - (a.erstellt||0));
+
+  // Aktive: nicht archiviert (aktiv kann false sein durch Ablauf/Schließen)
+  const pollList = allPolls.filter(p => !p.archiviert);
+  // Archiv: explizit archiviert
+  const archivList = allPolls.filter(p => p.archiviert);
 
   function istAbgelaufen(poll) {
     if (!poll.ablauf) return false;
@@ -652,17 +666,11 @@ function UmfragenWidget({ polls, isAdmin, db, user }) {
   async function abstimmen(poll, optIdx) {
     if (hatGestimmt(poll) || istAbgelaufen(poll)) return;
     if (!fingerprint) return;
-
-    const stimmenPfad = `polls/${poll.id}/stimmen/${optIdx}`;
-    const fpPfad = `polls/${poll.id}/fingerprints/${fingerprint}`;
     const aktuelleStimmen = poll.stimmen?.[optIdx] || 0;
-
     await update(ref(db, `polls/${poll.id}`), {
       [`stimmen/${optIdx}`]: aktuelleStimmen + 1,
       [`fingerprints/${fingerprint}`]: true,
     });
-
-    // LocalStorage als zweite Sicherung
     const neu = {...abgestimmt, [poll.id]: optIdx};
     setAbgestimmt(neu);
     try { localStorage.setItem("gerxy_votes", JSON.stringify(neu)); } catch(e) {}
@@ -681,6 +689,7 @@ function UmfragenWidget({ polls, isAdmin, db, user }) {
       erstellt: Date.now(),
       erstelltVon: user?.username || "Admin",
       aktiv: true,
+      archiviert: false,
       ablauf: form.hatAblauf && form.ablauf ? new Date(form.ablauf).getTime() : null,
     });
     setForm({ frage:"", optionen:["",""], ablauf:"", hatAblauf:false });
@@ -691,11 +700,17 @@ function UmfragenWidget({ polls, isAdmin, db, user }) {
     await update(ref(db,`polls/${id}`), { aktiv: false });
   }
 
+  // Archivieren statt löschen — Ergebnis bleibt erhalten
+  async function umfrageArchivieren(id) {
+    await update(ref(db,`polls/${id}`), { aktiv: false, archiviert: true });
+  }
+
+  // Endgültig löschen (nur aus Archiv heraus)
   async function umfrageLoeschen(id) {
     await remove(ref(db,`polls/${id}`));
   }
 
-  if (pollList.length === 0 && !isAdmin) return null;
+  if (pollList.length === 0 && archivList.length === 0 && !isAdmin) return null;
 
   return (
     <div className="card" style={{borderColor:"#a855f730"}}>
@@ -785,7 +800,7 @@ function UmfragenWidget({ polls, isAdmin, db, user }) {
               {isAdmin && (
                 <div style={{display:"flex",gap:4,flexShrink:0}}>
                   {!abgelaufen && <button className="btn btn-ghost btn-sm" style={{fontSize:10}} onClick={()=>umfrageSchliessen(poll.id)}>⏹️ Schließen</button>}
-                  <button className="btn btn-red btn-sm" style={{fontSize:10}} onClick={()=>umfrageLoeschen(poll.id)}>🗑️</button>
+                  <button className="btn btn-ghost btn-sm" style={{fontSize:10,borderColor:"#f59e0b40",color:"#f59e0b"}} onClick={()=>umfrageArchivieren(poll.id)}>📦 Archivieren</button>
                 </div>
               )}
             </div>
@@ -849,6 +864,89 @@ function UmfragenWidget({ polls, isAdmin, db, user }) {
           </div>
         );
       })}
+
+      {/* ── ARCHIV (nur Admins) ── */}
+      {isAdmin && archivList.length > 0 && (
+        <div style={{marginTop:16}}>
+          <button
+            className="btn btn-ghost"
+            style={{width:"100%",justifyContent:"space-between",fontSize:12,color:"var(--text3)",borderColor:"var(--border)"}}
+            onClick={()=>setShowArchiv(!showArchiv)}
+          >
+            <span>📦 Archiv ({archivList.length} Umfrage{archivList.length!==1?"n":""})</span>
+            <span>{showArchiv?"▲":"▼"}</span>
+          </button>
+
+          {showArchiv && (
+            <div style={{marginTop:10,display:"grid",gap:10}}>
+              {archivList.map(poll => {
+                const gesamtStimmen = Object.values(poll.stimmen||{}).reduce((s,v)=>s+Number(v),0);
+                const maxStimmen = Math.max(...Object.values(poll.stimmen||{}).map(Number), 1);
+                const erstelltDatum = poll.erstellt
+                  ? new Date(poll.erstellt).toLocaleString("de-DE",{timeZone:BERLIN_TZ,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})
+                  : "—";
+
+                return (
+                  <div key={poll.id} style={{
+                    padding:"12px 14px",
+                    background:"var(--bg2)",
+                    border:"1px solid var(--border)",
+                    borderRadius:10,
+                    opacity:0.85,
+                  }}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10,gap:8}}>
+                      <div>
+                        <div style={{fontWeight:600,fontSize:13,color:"var(--text)",lineHeight:1.4}}>{poll.frage}</div>
+                        <div style={{fontSize:11,color:"var(--text3)",marginTop:3}}>
+                          📦 Archiviert · {gesamtStimmen} Stimme{gesamtStimmen!==1?"n":""} · {erstelltDatum} Uhr
+                          {poll.erstelltVon && <span> · von {poll.erstelltVon}</span>}
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-red btn-sm"
+                        style={{fontSize:10,flexShrink:0}}
+                        onClick={()=>umfrageLoeschen(poll.id)}
+                      >🗑️ Löschen</button>
+                    </div>
+
+                    {/* Endergebnis */}
+                    <div style={{display:"grid",gap:5}}>
+                      {(poll.optionen||[]).map((opt,i)=>{
+                        const stimmen = Number(poll.stimmen?.[i]||0);
+                        const prozent = gesamtStimmen > 0 ? Math.round((stimmen/gesamtStimmen)*100) : 0;
+                        const istGewinner = stimmen === maxStimmen && gesamtStimmen > 0;
+                        return (
+                          <div key={i} style={{
+                            padding:"6px 10px",borderRadius:7,
+                            border:`1px solid ${istGewinner?"#f59e0b30":"var(--border)"}`,
+                            background:"var(--bg3,#0d0700)",
+                            position:"relative",overflow:"hidden",
+                          }}>
+                            <div style={{
+                              position:"absolute",left:0,top:0,bottom:0,
+                              width:`${prozent}%`,
+                              background:istGewinner?"#f59e0b12":"#ffffff08",
+                              transition:"width .4s",
+                            }}/>
+                            <div style={{position:"relative",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <span style={{fontSize:12,color:istGewinner?"#f59e0b":"var(--text2)"}}>
+                                {istGewinner?"🏆 ":""}{opt}
+                              </span>
+                              <span style={{fontSize:11,color:istGewinner?"#f59e0b":"var(--text3)",fontWeight:istGewinner?700:400,marginLeft:8}}>
+                                {prozent}% ({stimmen})
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
