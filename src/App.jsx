@@ -492,7 +492,7 @@ export default function GerxyApp() {
           </div>
         ) : (
           <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px"}}>
-            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer} polls={polls} user={user}/>}
+            {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer} polls={polls} user={user} mergedClanMembers={mergedClanMembers}/>}
             {tab==="members" && <Members accountList={accountList} clanMemberList={clanMemberList} mergedClanMembers={mergedClanMembers} isAdmin={isAdmin} db={db} currentUser={user} warList={warList}/>}
             {tab==="war" && <WarTab warList={warList} accountList={accountList} mergedClanMembers={mergedClanMembers} isAdmin={isAdmin} db={db} timer={timer}/>}
             {tab==="mypage" && !user.isGuest && <MyPage user={user} memberList={memberList} warList={warList} accountList={accountList} db={db}/>}
@@ -971,7 +971,7 @@ function UmfragenWidget({ polls, isAdmin, db, user }) {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
-function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, user }) {
+function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, user, mergedClanMembers }) {
   const warStatus = getWarStatus();
   const [ms, setMs] = useState(warStatus.msLeft);
   useEffect(() => { setMs(prev => prev - 1000); }, [timer]);
@@ -980,11 +980,19 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, u
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const activeMembers = memberList.filter(m=>m.active!==false).length;
 
-  // Gesamtpunkte aus allen Wars — Groß/Kleinschreibung ignorieren
+  // Namen-Set aller aktiven Clan-Mitglieder
+  const clanNamen = new Set();
+  (mergedClanMembers||[]).forEach(m => {
+    if (m.username) clanNamen.add(m.username.toLowerCase());
+    if (m.ingameName && m.ingameName.trim()) clanNamen.add(m.ingameName.trim().toLowerCase());
+  });
+
+  // Gesamtpunkte aus allen Wars — nur aktive Clan-Mitglieder
   const totalPerMember = {};
   warList.forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
+        if (!clanNamen.has(name.toLowerCase())) return;
         const key = name.toLowerCase();
         if (!totalPerMember[key]) totalPerMember[key] = { displayName: name, pts: 0 };
         totalPerMember[key].pts += Number(pts)||0;
@@ -1474,11 +1482,19 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const winrate = warList.length ? Math.round((wins/warList.length)*100) : 0;
 
-  // Alle Wars — Ranking
+  // Namen-Set aller aktiven Clan-Mitglieder (username + ingameName)
+  const clanMemberNames = new Set();
+  (mergedClanMembers||[]).forEach(m => {
+    if (m.username) clanMemberNames.add(m.username.toLowerCase());
+    if (m.ingameName && m.ingameName.trim()) clanMemberNames.add(m.ingameName.trim().toLowerCase());
+  });
+
+  // Alle Wars — Ranking (nur aktive Clan-Mitglieder)
   const totalPerMember = {};
   warList.forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
+        if (!clanMemberNames.has(name.toLowerCase())) return;
         totalPerMember[name] = (totalPerMember[name]||0) + Number(pts);
       });
     }
@@ -1488,11 +1504,12 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
     .sort((a,b)=>b.pts-a.pts);
   const maxTotal = totalRanking[0]?.pts || 1;
 
-  // Nur gewertete Wars — Ranking
+  // Nur gewertete Wars — Ranking (nur aktive Clan-Mitglieder)
   const gewertetPerMember = {};
   warList.filter(w=>w.gewertet!==false).forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
+        if (!clanMemberNames.has(name.toLowerCase())) return;
         gewertetPerMember[name] = (gewertetPerMember[name]||0) + Number(pts);
       });
     }
@@ -1501,14 +1518,6 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
     .map(([name,pts])=>({name,pts}))
     .sort((a,b)=>b.pts-a.pts);
   const maxGewertet = gewertetRanking[0]?.pts || 1;
-
-  // Clan-Mitglied-Namen-Set für Rang-Vergabe Check
-  // Enthält username UND ingameName (falls gesetzt) — beide lowercase
-  const clanMemberNames = new Set();
-  (mergedClanMembers||[]).forEach(m => {
-    if (m.username) clanMemberNames.add(m.username.toLowerCase());
-    if (m.ingameName && m.ingameName.trim()) clanMemberNames.add(m.ingameName.trim().toLowerCase());
-  });
 
   async function addWar() {
     if (!form.opponent) return;
@@ -1847,17 +1856,13 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
               <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>Basis für automatische Rang-Vergabe R1–R5</div>
               {gewertetRanking.length===0&&<div className="text-muted text-sm">Noch keine Punkte in gewerteten Wars</div>}
               {gewertetRanking.map((m,i)=>{
-                const istImClan = clanMemberNames.has(m.name.toLowerCase());
                 return (
-                  <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,opacity:istImClan?1:0.45}}>
-                    <div style={{width:22,color:i<3&&istImClan?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
+                  <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                    <div style={{width:22,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3,alignItems:"center"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                         <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
-                        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,marginLeft:8}}>
-                          {!istImClan && <span style={{fontSize:10,color:"#9ca3af",padding:"1px 5px",borderRadius:6,border:"1px solid #9ca3af30"}}>nicht im Clan</span>}
-                          <span style={{color:"#22c55e",fontSize:13}}>{fmt(m.pts)}</span>
-                        </div>
+                        <span style={{color:"#22c55e",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.pts)}</span>
                       </div>
                       <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxGewertet)*100}%`,background:"linear-gradient(90deg,#16a34a,#22c55e)"}}/></div>
                     </div>
