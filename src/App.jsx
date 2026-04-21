@@ -2652,7 +2652,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
                   }}
                   style={{width:"100%",accentColor:"var(--gold2)"}}/>
               </div>
-              <div style={{fontSize:11,color:"var(--text3)"}}>Naechste Auswertung bei Level {nearestLvl}</div>
+              <div style={{fontSize:11,color:"var(--text3)"}}>Aktuelle Auswertung bei Level {floorKey}</div>
               {/* Tech Tree Boni für Beschwörung */}
               {(summonType==="Reittier" && (reittierChanceBonus>0||reittierKostenBonus>0)) && (
                 <div style={{padding:"8px 10px",background:"#22c55e0a",border:"1px solid #22c55e25",borderRadius:8,display:"grid",gap:4}}>
