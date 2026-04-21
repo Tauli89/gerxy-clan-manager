@@ -4122,11 +4122,6 @@ function Messages({ messages, currentUser, accountList, db }) {
     ? (conversations[selectedUser]||[]).sort((a,b)=>a.createdAt-b.createdAt)
     : [];
 
-  // Auto-scroll ans Ende
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior:"smooth" });
-  }, [currentMsgs.length]);
-
   // Ungelesene als gelesen markieren
   useEffect(() => {
     if (!selectedUser) return;
@@ -4240,14 +4235,9 @@ function Messages({ messages, currentUser, accountList, db }) {
         </div>
 
         {/* Nachrichten */}
-        <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",justifyContent:"flex-end",gap:8}}>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {currentMsgs.length===0 && (
-            <div style={{textAlign:"center",color:"var(--text3)",fontSize:13,marginTop:20}}>
-              Noch keine Nachrichten. Schreib etwas!
-            </div>
-          )}
-          {currentMsgs.map(m=>{
+        <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column-reverse",gap:8}}>
+          <div ref={chatEndRef}/>
+          {[...currentMsgs].reverse().map(m=>{
             const isMe = m.from===currentUser.username;
             return (
               <div key={m.id} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start"}}>
@@ -4268,8 +4258,11 @@ function Messages({ messages, currentUser, accountList, db }) {
               </div>
             );
           })}
-          <div ref={chatEndRef}/>
-          </div>
+          {currentMsgs.length===0 && (
+            <div style={{textAlign:"center",color:"var(--text3)",fontSize:13}}>
+              Noch keine Nachrichten. Schreib etwas!
+            </div>
+          )}
         </div>
 
         {/* Input */}
