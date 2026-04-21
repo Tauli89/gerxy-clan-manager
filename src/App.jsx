@@ -218,97 +218,92 @@ const CSS = `
     --red:#dc2626; --blue:#2563eb; --green:#16a34a;
     --text:#f0e0c0; --text2:#c8a870; --text3:#8a6840;
     --shadow:0 4px 24px #00000080;
+    --tap-size:44px;
   }
-  body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;min-height:100vh}
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;min-height:100vh;-webkit-font-smoothing:antialiased}
   @keyframes flicker{0%,100%{opacity:1}45%{opacity:.9}47%{opacity:.7}49%{opacity:.95}93%{opacity:.85}95%{opacity:1}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
   @keyframes warPulse{0%,100%{box-shadow:0 0 10px #c8850a40}50%{box-shadow:0 0 30px #c8850a90,0 0 60px #c8850a30}}
-  
+
   .app{min-height:100vh;background:linear-gradient(160deg,#0a0600 0%,#120900 40%,#0e0800 100%)}
-  
+
   /* NAV */
   .nav{background:linear-gradient(90deg,#0e0800,#1a1000,#0e0800);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;backdrop-filter:blur(8px)}
-  .nav-inner{max-width:1200px;margin:0 auto;padding:0 16px}
-  .nav-top{display:flex;align-items:center;justify-content:space-between;padding:12px 0 8px}
-  .clan-logo{display:flex;align-items:center;gap:12px}
-  .clan-name{font-family:'Cinzel',serif;font-size:clamp(16px,4vw,22px);font-weight:900;color:var(--gold2);letter-spacing:2px;animation:flicker 8s infinite}
-  .clan-sub{font-size:11px;color:var(--text3);letter-spacing:3px;text-transform:uppercase}
-  .nav-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;border:1px solid;font-family:'Crimson Pro',serif}
-  .tabs{display:flex;gap:2px;overflow-x:auto;padding-bottom:1px;scrollbar-width:none}
+  .nav-inner{max-width:1200px;margin:0 auto;padding:0 12px}
+  .nav-top{display:flex;align-items:center;justify-content:space-between;padding:10px 0 6px;gap:8px;flex-wrap:wrap}
+  .clan-logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .clan-name{font-family:'Cinzel',serif;font-size:clamp(14px,4vw,22px);font-weight:900;color:var(--gold2);letter-spacing:2px;animation:flicker 8s infinite}
+  .clan-sub{font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase}
+  .nav-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:1;justify-content:flex-end}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;border:1px solid;font-family:'Crimson Pro',serif;white-space:nowrap}
+
+  /* TABS — scrollbar auf mobile ausgeblendet, touch-friendly */
+  .tabs{display:flex;gap:2px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .tabs::-webkit-scrollbar{display:none}
-  .tab{background:none;border:none;cursor:pointer;padding:8px 14px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;color:var(--text3);border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap}
+  .tab{background:none;border:none;cursor:pointer;padding:10px 12px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;color:var(--text3);border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;min-height:var(--tap-size);display:flex;align-items:center}
   .tab:hover{color:var(--gold)}
   .tab.active{color:var(--gold2);border-bottom-color:var(--gold2)}
-  
+
   /* CARDS */
-  .card{background:linear-gradient(135deg,var(--bg3),var(--bg4));border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden;animation:slideUp .3s ease}
+  .card{background:linear-gradient(135deg,var(--bg3),var(--bg4));border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;animation:slideUp .3s ease}
   .card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,#c8850a08,transparent 60%);pointer-events:none}
-  .card-title{font-family:'Cinzel',serif;font-size:13px;font-weight:600;color:var(--gold2);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-  
-  /* BUTTONS */
-  .btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:12px;letter-spacing:1px;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+  .card-title{font-family:'Cinzel',serif;font-size:12px;font-weight:600;color:var(--gold2);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+  /* BUTTONS — mindestens 44px Tippfläche */
+  .btn{padding:10px 16px;border-radius:8px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:12px;letter-spacing:1px;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:var(--tap-size);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .btn-gold{background:linear-gradient(135deg,var(--gold),#8a5c00);color:#000;font-weight:700}
   .btn-gold:hover{background:linear-gradient(135deg,var(--gold2),var(--gold));transform:translateY(-1px);box-shadow:0 4px 12px #c8850a40}
   .btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
   .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
   .btn-red{background:linear-gradient(135deg,#7f1d1d,#991b1b);color:#fca5a5}
   .btn-red:hover{background:#b91c1c}
-  .btn-sm{padding:4px 10px;font-size:11px}
-  
-  /* INPUTS */
-  .inp{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 13px;color:var(--text);font-family:'Crimson Pro',serif;font-size:15px;width:100%}
+  .btn-sm{padding:6px 10px;font-size:11px;min-height:36px}
+
+  /* INPUTS — größer auf Mobile */
+  .inp{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 13px;color:var(--text);font-family:'Crimson Pro',serif;font-size:16px;width:100%;-webkit-appearance:none;appearance:none}
   .inp:focus{outline:none;border-color:var(--gold);box-shadow:0 0 10px #c8850a25}
   .inp option{background:var(--bg2)}
   textarea.inp{resize:vertical;min-height:80px;line-height:1.5}
   label.lbl{display:block;font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
-  
-  /* MODAL */
+
+  /* MODAL — Desktop zentriert, Mobile von unten */
   .overlay{position:fixed;inset:0;background:#000000b0;backdrop-filter:blur(6px);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
-  .modal{background:linear-gradient(135deg,var(--bg3),var(--bg4));border:1px solid var(--gold)30;border-radius:16px;padding:28px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;animation:slideUp .2s ease}
+  .modal{background:linear-gradient(135deg,var(--bg3),var(--bg4));border:1px solid var(--gold)30;border-radius:16px;padding:28px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;animation:slideUp .25s ease}
   .modal-title{font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--gold2);margin-bottom:20px;display:flex;align-items:center;gap:10px}
-  
+
   /* WAR TIMER */
-  .war-banner{background:linear-gradient(135deg,#1a0800,#2a1000);border:1px solid var(--gold)50;border-radius:14px;padding:20px 24px;animation:warPulse 3s infinite;margin-bottom:20px}
-  .war-time{font-family:'Cinzel',serif;font-size:clamp(28px,8vw,48px);font-weight:900;color:var(--gold2);letter-spacing:4px;text-shadow:0 0 30px #c8850a60}
-  
+  .war-banner{background:linear-gradient(135deg,#1a0800,#2a1000);border:1px solid var(--gold)50;border-radius:14px;padding:16px 18px;animation:warPulse 3s infinite;margin-bottom:16px}
+  .war-time{font-family:'Cinzel',serif;font-size:clamp(26px,8vw,48px);font-weight:900;color:var(--gold2);letter-spacing:4px;text-shadow:0 0 30px #c8850a60}
+
   /* MEMBER TABLE */
   .member-table{width:100%;border-collapse:collapse}
-  .member-table th{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
-  .member-table td{padding:10px 12px;border-bottom:1px solid #2a180060;font-size:14px}
+  .member-table th{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;color:var(--text3);text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+  .member-table td{padding:10px 10px;border-bottom:1px solid #2a180060;font-size:14px}
   .member-table tr:hover td{background:#2a180040}
-  
+
   /* PROGRESS */
   .pbar{height:6px;border-radius:3px;background:var(--bg);overflow:hidden}
   .pfill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .6s}
-  
+
   /* RANK BADGE */
   .rank-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:11px;font-family:'Cinzel',serif;font-weight:600;border:1px solid}
-  
-  /* RESPONSIVE */
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  @media(max-width:768px){
-    .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
-    .war-time{font-size:32px}
-    .member-table .hide-mobile{display:none}
-    .nav-top{flex-wrap:wrap;gap:8px}
-    .modal{padding:20px}
-  }
-  @media(max-width:480px){
-    .grid-2{grid-template-columns:1fr}
-    .tab{padding:8px 10px;font-size:10px}
-  }
-  
-  ::-webkit-scrollbar{width:5px;height:5px}
+
+  /* GRIDS — responsiv */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+  /* SCROLLBARS */
+  ::-webkit-scrollbar{width:4px;height:4px}
   ::-webkit-scrollbar-track{background:var(--bg)}
   ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-  
-  .stat-num{font-family:'Cinzel',serif;font-size:clamp(20px,5vw,28px);font-weight:700}
+
+  /* UTILS */
+  .stat-num{font-family:'Cinzel',serif;font-size:clamp(18px,5vw,28px);font-weight:700}
   .divider{border:none;border-top:1px solid var(--border);margin:16px 0}
   .note-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
   .war-day-card{padding:12px 16px;border-radius:10px;border:1px solid;margin-bottom:8px;transition:all .2s}
@@ -316,7 +311,7 @@ const CSS = `
   .upload-zone:hover,.upload-zone.drag{border-color:var(--gold);background:#c8850a10}
   .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--gold2);border-radius:50%;animation:spin 1s linear infinite}
   .live-dot{width:8px;height:8px;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite}
-  .section-gap{margin-bottom:20px}
+  .section-gap{margin-bottom:16px}
   .flex{display:flex;align-items:center}
   .flex-between{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
   .gap-8{gap:8px}
@@ -332,19 +327,56 @@ const CSS = `
   .text-sm{font-size:13px}
   .text-xs{font-size:11px}
   .w100{width:100%}
-  .calc-result{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:12px}
+  .calc-result{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-top:12px}
   .calc-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:14px}
   .calc-row:last-child{border:none;font-weight:600;color:var(--gold2)}
-  
-  /* Login */
-  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a0a00 0%,#050200 100%);padding:20px}
-  .login-box{background:linear-gradient(135deg,#1e1200,#2a1800);border:1px solid var(--gold)40;border-radius:20px;padding:clamp(24px,5vw,44px);width:100%;max-width:400px;box-shadow:0 24px 64px #00000090}
+
+  /* LOGIN */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a0a00 0%,#050200 100%);padding:16px}
+  .login-box{background:linear-gradient(135deg,#1e1200,#2a1800);border:1px solid var(--gold)40;border-radius:20px;padding:clamp(20px,5vw,44px);width:100%;max-width:400px;box-shadow:0 24px 64px #00000090}
   .login-icon{font-size:56px;text-align:center;animation:flicker 4s infinite;margin-bottom:8px}
   .login-title{font-family:'Cinzel',serif;font-size:clamp(18px,5vw,24px);font-weight:900;color:var(--gold2);text-align:center;letter-spacing:3px}
   .login-sub{font-size:12px;color:var(--text3);text-align:center;letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
-  
   .shimmer{background:linear-gradient(90deg,var(--gold)40,var(--gold3)80,var(--gold)40);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite}
+
+  /* ── TABLET (768px) ── */
+  @media(max-width:768px){
+    .grid-3,.grid-4{grid-template-columns:1fr 1fr}
+    .war-time{font-size:36px}
+    .member-table .hide-mobile{display:none}
+    .card{padding:14px}
+  }
+
+  /* ── MOBILE (600px) ── */
+  @media(max-width:600px){
+    .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+    .nav-inner{padding:0 10px}
+    .clan-sub{display:none}
+    .badge{font-size:10px;padding:2px 7px}
+    .tab{padding:10px 9px;font-size:10px;letter-spacing:0}
+    .card{padding:12px;border-radius:10px}
+    .card-title{font-size:11px;margin-bottom:12px}
+    .btn{font-size:11px;padding:9px 12px}
+    .btn-sm{padding:5px 9px;font-size:10px;min-height:32px}
+    .overlay{align-items:flex-end;padding:0}
+    .modal{border-radius:20px 20px 0 0;padding:20px 16px 32px;max-width:100%}
+    .modal-title{font-size:14px}
+    .war-banner{padding:12px 14px}
+    .war-time{font-size:28px;letter-spacing:2px}
+    .member-table td,.member-table th{padding:8px 8px}
+    .stat-num{font-size:22px}
+    .section-gap{margin-bottom:12px}
+  }
+
+  /* ── SEHR KLEIN (380px) ── */
+  @media(max-width:380px){
+    .clan-name{font-size:13px;letter-spacing:1px}
+    .tab{padding:8px 7px;font-size:9px}
+    .grid-2{grid-template-columns:1fr}
+    .war-time{font-size:24px}
+  }
 `;
+
 
 // ═══════════════════════════════════════════════════════════
 //  MAIN APP
@@ -491,7 +523,7 @@ export default function GerxyApp() {
             <div className="text-muted text-sm">Verbinde mit Firebase…</div>
           </div>
         ) : (
-          <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px"}}>
+          <div style={{maxWidth:1200,margin:"0 auto",padding:"16px 12px"}}>
             {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer} polls={polls} user={user} mergedClanMembers={mergedClanMembers}/>}
             {tab==="members" && <Members accountList={accountList} clanMemberList={clanMemberList} mergedClanMembers={mergedClanMembers} isAdmin={isAdmin} db={db} currentUser={user} warList={warList}/>}
             {tab==="war" && <WarTab warList={warList} accountList={accountList} mergedClanMembers={mergedClanMembers} isAdmin={isAdmin} db={db} timer={timer}/>}
