@@ -1129,7 +1129,11 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
     setAddErr("");
     const name = newMemberName.trim();
     if (!name) { setAddErr("Bitte einen Namen eingeben."); return; }
-    const exists = mergedClanMembers.some(a => a.username?.toLowerCase()===name.toLowerCase());
+    const nameLow = name.toLowerCase();
+    const exists = mergedClanMembers.some(a =>
+      a.username?.toLowerCase()===nameLow ||
+      (a.ingameName||"").toLowerCase()===nameLow
+    );
     if (exists) { setAddErr("Dieser Name ist bereits in der Liste."); return; }
     await push(ref(db,"clanMembers"), { name, role:"R5", hinzugefuegt: Date.now() });
     setNewMemberName(""); setShowAddManual(false);
@@ -1499,9 +1503,12 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
   const maxGewertet = gewertetRanking[0]?.pts || 1;
 
   // Clan-Mitglied-Namen-Set für Rang-Vergabe Check
-  const clanMemberNames = new Set(
-    (mergedClanMembers||[]).map(m => m.username?.toLowerCase())
-  );
+  // Enthält username UND ingameName (falls gesetzt) — beide lowercase
+  const clanMemberNames = new Set();
+  (mergedClanMembers||[]).forEach(m => {
+    if (m.username) clanMemberNames.add(m.username.toLowerCase());
+    if (m.ingameName && m.ingameName.trim()) clanMemberNames.add(m.ingameName.trim().toLowerCase());
+  });
 
   async function addWar() {
     if (!form.opponent) return;
@@ -3981,9 +3988,11 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
 
     // Nur Mitglieder die im Clan sind (mergedClanMembers) und R1–R5 haben
     // Admins (Anführer/Kommandant/Hauptmann) werden übersprungen
+    // Map auf username UND ingameName (beide lowercase) damit War-Namen matchen
     const clanMemberMap = {};
     (mergedClanMembers||[]).forEach(m => {
-      clanMemberMap[m.username?.toLowerCase()] = m;
+      if (m.username) clanMemberMap[m.username.toLowerCase()] = m;
+      if (m.ingameName && m.ingameName.trim()) clanMemberMap[m.ingameName.trim().toLowerCase()] = m;
     });
 
     // Ranking nur der Clan-Mitglieder (keine Admins)
