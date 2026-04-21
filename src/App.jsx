@@ -4240,7 +4240,8 @@ function Messages({ messages, currentUser, accountList, db }) {
         </div>
 
         {/* Nachrichten */}
-        <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+        <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",justifyContent:"flex-end",gap:8}}>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {currentMsgs.length===0 && (
             <div style={{textAlign:"center",color:"var(--text3)",fontSize:13,marginTop:20}}>
               Noch keine Nachrichten. Schreib etwas!
@@ -4268,6 +4269,7 @@ function Messages({ messages, currentUser, accountList, db }) {
             );
           })}
           <div ref={chatEndRef}/>
+          </div>
         </div>
 
         {/* Input */}
@@ -4287,7 +4289,7 @@ function Messages({ messages, currentUser, accountList, db }) {
   return (
     <>
       {/* Desktop: Sidebar + Chat nebeneinander */}
-      <div className="msg-desktop" style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16,height:"calc(100vh - 200px)",minHeight:400}}>
+      <div className="msg-desktop" style={{gridTemplateColumns:"240px 1fr",gap:16,height:"calc(100vh - 200px)",minHeight:400}}>
         {Sidebar}
         {ChatWindow}
       </div>
