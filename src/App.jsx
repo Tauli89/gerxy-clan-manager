@@ -362,6 +362,7 @@ export default function GerxyApp() {
   const [timer, setTimer] = useState(0);
   const [messages, setMessages] = useState({});
   const [polls, setPolls] = useState({});
+  const [clanMembers, setClanMembers] = useState({});
 
   const isAdmin = user && ADMIN_ROLES.includes(user.role);
 
@@ -377,6 +378,7 @@ export default function GerxyApp() {
       onValue(ref(db,"settings"), s => { if(s.val()) setSettings(s.val()); }),
       onValue(ref(db,"messages"), s => setMessages(s.val()||{})),
       onValue(ref(db,"polls"), s => setPolls(s.val()||{})),
+      onValue(ref(db,"clanMembers"), s => setClanMembers(s.val()||{})),
     ];
     return () => subs.forEach(u=>u());
   }, []);
@@ -415,6 +417,23 @@ export default function GerxyApp() {
   const memberList = Object.entries(members).map(([id,m])=>({id,...m}));
   const warList = Object.entries(wars).map(([id,w])=>({id,...w})).sort((a,b)=>b.dateFrom?.localeCompare(a.dateFrom));
   const noteList = Object.entries(notes).map(([id,n])=>({id,...n})).sort((a,b)=>b.createdAt-a.createdAt);
+  const accountList = Object.entries(accounts).map(([id,a])=>({id,...a}));
+
+  // Zusammengeführte Clan-Mitgliederliste: accounts/ + clanMembers/ (ohne Account)
+  // Matching per Name (case-insensitive) — kein Duplikat wenn Account vorhanden
+  const clanMemberList = Object.entries(clanMembers).map(([id,m])=>({id,...m,_isManual:true}));
+  const mergedClanMembers = [...accountList];
+  clanMemberList.forEach(cm => {
+    const nameNorm = (cm.name||"").toLowerCase();
+    const hasAccount = accountList.some(a =>
+      a.username.toLowerCase()===nameNorm ||
+      (a.ingameName||"").toLowerCase()===nameNorm
+    );
+    if (!hasAccount) mergedClanMembers.push({
+      id: cm.id, username: cm.name, role: cm.role||"R5",
+      _isManual: true, _manualId: cm.id
+    });
+  });
 
   // Ungelesene Nachrichten zählen
   const unreadCount = Object.values(messages).filter(m =>
@@ -474,13 +493,13 @@ export default function GerxyApp() {
         ) : (
           <div style={{maxWidth:1200,margin:"0 auto",padding:"20px 16px"}}>
             {tab==="dashboard" && <Dashboard memberList={memberList} warList={warList} settings={settings} isAdmin={isAdmin} db={db} timer={timer} polls={polls} user={user}/>}
-            {tab==="members" && <Members accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} currentUser={user}/>}
-            {tab==="war" && <WarTab warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} isAdmin={isAdmin} db={db} timer={timer}/>}
-            {tab==="mypage" && !user.isGuest && <MyPage user={user} memberList={memberList} warList={warList} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
+            {tab==="members" && <Members accountList={accountList} clanMemberList={clanMemberList} mergedClanMembers={mergedClanMembers} isAdmin={isAdmin} db={db} currentUser={user} warList={warList}/>}
+            {tab==="war" && <WarTab warList={warList} accountList={accountList} mergedClanMembers={mergedClanMembers} isAdmin={isAdmin} db={db} timer={timer}/>}
+            {tab==="mypage" && !user.isGuest && <MyPage user={user} memberList={memberList} warList={warList} accountList={accountList} db={db}/>}
             {tab==="notes" && <Notes noteList={noteList} isAdmin={isAdmin} db={db} user={user}/>}
-            {tab==="messages" && !user.isGuest && <Messages messages={messages} currentUser={user} accountList={Object.entries(accounts).map(([id,a])=>({id,...a}))} db={db}/>}
+            {tab==="messages" && !user.isGuest && <Messages messages={messages} currentUser={user} accountList={accountList} db={db}/>}
             {tab==="spielinfo" && <Spielinfo/>}
-            {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members} wars={wars}/>}
+            {tab==="admin" && isAdmin && <Admin accounts={accounts} memberList={memberList} db={db} currentUser={user} members={members} wars={wars} clanMembers={clanMembers} mergedClanMembers={mergedClanMembers} warList={warList}/>}
           </div>
         )}
       </div>
@@ -1072,13 +1091,15 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, u
 }
 
 // ── MEMBERS ──────────────────────────────────────────────────
-// ── MEMBERS (zeigt registrierte Accounts) ───────────────────
-function Members({ accountList, isAdmin, db, currentUser }) {
+function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, currentUser, warList }) {
   const [search, setSearch] = useState("");
   const [filterRank, setFilterRank] = useState("Alle");
   const [editAcc, setEditAcc] = useState(null);
+  const [showAddManual, setShowAddManual] = useState(false);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [addErr, setAddErr] = useState("");
 
-  const filtered = accountList
+  const filtered = mergedClanMembers
     .filter(a => a.username?.toLowerCase().includes(search.toLowerCase()))
     .filter(a => filterRank==="Alle" || a.role===filterRank)
     .sort((a,b) => {
@@ -1087,14 +1108,41 @@ function Members({ accountList, isAdmin, db, currentUser }) {
     });
 
   async function saveRole() {
-    await update(ref(db,`accounts/${editAcc.id}`), { role: editAcc.role });
+    if (editAcc._isManual) {
+      await update(ref(db,`clanMembers/${editAcc._manualId}`), { role: editAcc.role });
+    } else {
+      await update(ref(db,`accounts/${editAcc.id}`), { role: editAcc.role });
+    }
     setEditAcc(null);
   }
 
-  async function deleteAcc(id) {
-    if (id === currentUser.id) { alert("Du kannst deinen eigenen Account nicht löschen!"); return; }
-    await remove(ref(db,`accounts/${id}`));
+  async function deleteAcc(member) {
+    if (member._isManual) {
+      await remove(ref(db,`clanMembers/${member._manualId}`));
+    } else {
+      if (member.id === currentUser.id) { alert("Du kannst deinen eigenen Account nicht löschen!"); return; }
+      await remove(ref(db,`accounts/${member.id}`));
+    }
   }
+
+  async function addManualMember() {
+    setAddErr("");
+    const name = newMemberName.trim();
+    if (!name) { setAddErr("Bitte einen Namen eingeben."); return; }
+    const exists = mergedClanMembers.some(a => a.username?.toLowerCase()===name.toLowerCase());
+    if (exists) { setAddErr("Dieser Name ist bereits in der Liste."); return; }
+    await push(ref(db,"clanMembers"), { name, role:"R5", hinzugefuegt: Date.now() });
+    setNewMemberName(""); setShowAddManual(false);
+  }
+
+  // Gewertete War-Punkte pro Mitglied (nur für Rang-Vorschau)
+  const gewertetePtsPerMember = {};
+  (warList||[]).filter(w=>w.gewertet!==false).forEach(w => {
+    if (w.memberPoints) Object.entries(w.memberPoints).forEach(([name,pts]) => {
+      const key = name.toLowerCase();
+      gewertetePtsPerMember[key] = (gewertetePtsPerMember[key]||0) + (Number(pts)||0);
+    });
+  });
 
   return (
     <div>
@@ -1106,13 +1154,16 @@ function Members({ accountList, isAdmin, db, currentUser }) {
             {ALL_RANKS.map(r=><option key={r}>{r}</option>)}
           </select>
         </div>
-        <div style={{fontSize:13,color:"var(--text3)"}}>{accountList.length} Mitglieder registriert</div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{fontSize:13,color:"var(--text3)"}}>{mergedClanMembers.length} Mitglieder</div>
+          {isAdmin && <button className="btn btn-gold btn-sm" onClick={()=>setShowAddManual(true)}>+ Mitglied</button>}
+        </div>
       </div>
 
       {/* Rang Übersicht */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
         {ALL_RANKS.map(r=>{
-          const cnt = accountList.filter(a=>a.role===r).length;
+          const cnt = mergedClanMembers.filter(a=>a.role===r).length;
           const limit = RANK_LIMITS[r];
           return cnt>0 ? (
             <span key={r} style={{padding:"3px 10px",borderRadius:20,fontSize:12,background:`${RANK_COLORS[r]}15`,border:`1px solid ${RANK_COLORS[r]}40`,color:RANK_COLORS[r]}}>
@@ -1130,7 +1181,7 @@ function Members({ accountList, isAdmin, db, currentUser }) {
               <tr>
                 <th>Mitglied</th>
                 <th>Rang</th>
-                <th className="hide-mobile">Account-ID</th>
+                <th className="hide-mobile">Status</th>
                 {isAdmin && <th>Aktionen</th>}
               </tr>
             </thead>
@@ -1143,9 +1194,10 @@ function Members({ accountList, isAdmin, db, currentUser }) {
                         {RANK_ICONS[a.role]||"⚒️"}
                       </div>
                       <div>
-                        <div style={{fontWeight:600,fontSize:14}}>
+                        <div style={{fontWeight:600,fontSize:14,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                           {a.username}
-                          {a.id===currentUser.id && <span style={{fontSize:11,color:"#22c55e",marginLeft:6}}>(Du)</span>}
+                          {a.id===currentUser.id && <span style={{fontSize:11,color:"#22c55e"}}>(Du)</span>}
+                          {a._isManual && <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:"#f59e0b20",border:"1px solid #f59e0b40",color:"#f59e0b"}}>kein Account</span>}
                         </div>
                         <span className="rank-badge" style={{color:RANK_COLORS[a.role]||"#c88500",borderColor:`${RANK_COLORS[a.role]||"#c88500"}40`,background:`${RANK_COLORS[a.role]||"#c88500"}10`}}>
                           {a.role}
@@ -1156,12 +1208,17 @@ function Members({ accountList, isAdmin, db, currentUser }) {
                   <td>
                     <span style={{color:RANK_COLORS[a.role]||"var(--gold2)",fontWeight:600}}>{RANK_ICONS[a.role]} {a.role}</span>
                   </td>
-                  <td className="hide-mobile" style={{color:"var(--text3)",fontSize:12,fontFamily:"var(--font-mono)"}}>{a.id?.slice(0,12)}…</td>
+                  <td className="hide-mobile">
+                    {a._isManual
+                      ? <span style={{fontSize:12,color:"#f59e0b"}}>👤 Nur Clan-Liste</span>
+                      : <span style={{fontSize:12,color:"#22c55e"}}>✅ Account vorhanden</span>
+                    }
+                  </td>
                   {isAdmin && (
                     <td>
                       <div style={{display:"flex",gap:4}}>
                         <button className="btn btn-ghost btn-sm" onClick={()=>setEditAcc({...a})}>🔑 Rang</button>
-                        {a.id!==currentUser.id && <button className="btn btn-red btn-sm" onClick={()=>deleteAcc(a.id)}>🗑️</button>}
+                        {a.id!==currentUser.id && <button className="btn btn-red btn-sm" onClick={()=>deleteAcc(a)}>🗑️</button>}
                       </div>
                     </td>
                   )}
@@ -1172,6 +1229,31 @@ function Members({ accountList, isAdmin, db, currentUser }) {
         </div>
         {filtered.length===0 && <div style={{padding:40,textAlign:"center",color:"var(--text3)"}}>Keine Mitglieder gefunden</div>}
       </div>
+
+      {/* Mitglied ohne Account hinzufügen */}
+      {showAddManual && (
+        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setShowAddManual(false)}>
+          <div className="modal">
+            <div className="modal-title">👤 Clan-Mitglied hinzufügen</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:14,lineHeight:1.6}}>
+              Füge Clan-Mitglieder hinzu die noch keinen Account haben. Sobald sie sich registrieren und ihr Ingame-Name übereinstimmt, werden sie automatisch erkannt und erscheinen nicht doppelt.
+            </div>
+            <div className="mb-12">
+              <label className="lbl">Ingame-Name *</label>
+              <input className="inp" value={newMemberName} onChange={e=>setNewMemberName(e.target.value)}
+                placeholder="Exakter Ingame-Name" onKeyDown={e=>e.key==="Enter"&&addManualMember()}/>
+            </div>
+            {addErr && <div style={{color:"#fca5a5",fontSize:13,marginBottom:8}}>⚠️ {addErr}</div>}
+            <div style={{padding:"8px 12px",background:"#f59e0b15",border:"1px solid #f59e0b30",borderRadius:6,fontSize:12,color:"#f59e0b",marginBottom:16}}>
+              💡 Rang wird automatisch R5. Du kannst ihn danach in der Liste anpassen.
+            </div>
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <button className="btn btn-ghost" onClick={()=>{setShowAddManual(false);setNewMemberName("");setAddErr("");}}>Abbrechen</button>
+              <button className="btn btn-gold" onClick={addManualMember}>Hinzufügen</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Rang Modal */}
       {editAcc && (
@@ -1371,7 +1453,7 @@ Falls keine Daten erkennbar sind, antworte mit: []`}
 }
 
 // ── WAR TAB ──────────────────────────────────────────────────
-function WarTab({ warList, accountList, isAdmin, db, timer }) {
+function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer }) {
   const today = new Date().toISOString().split("T")[0];
   const [showAdd, setShowAdd] = useState(false);
   const [selectedWar, setSelectedWar] = useState(null);
@@ -1379,7 +1461,8 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   const [showImport, setShowImport] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [csvPreview, setCsvPreview] = useState(null);
-  const [form, setForm] = useState({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:""});
+  const [rankingTab, setRankingTab] = useState("alle"); // "alle" | "gewertet"
+  const [form, setForm] = useState({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:"",gewertet:true});
   const warStatus = getWarStatus();
   const [ms, setMs] = useState(warStatus.msLeft);
   useEffect(() => { setMs(prev => prev-1000); }, [timer]);
@@ -1387,6 +1470,7 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
   const wins = warList.filter(w=>w.result==="Sieg").length;
   const winrate = warList.length ? Math.round((wins/warList.length)*100) : 0;
 
+  // Alle Wars — Ranking
   const totalPerMember = {};
   warList.forEach(w => {
     if (w.memberPoints) {
@@ -1400,6 +1484,25 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
     .sort((a,b)=>b.pts-a.pts);
   const maxTotal = totalRanking[0]?.pts || 1;
 
+  // Nur gewertete Wars — Ranking
+  const gewertetPerMember = {};
+  warList.filter(w=>w.gewertet!==false).forEach(w => {
+    if (w.memberPoints) {
+      Object.entries(w.memberPoints).forEach(([name, pts]) => {
+        gewertetPerMember[name] = (gewertetPerMember[name]||0) + Number(pts);
+      });
+    }
+  });
+  const gewertetRanking = Object.entries(gewertetPerMember)
+    .map(([name,pts])=>({name,pts}))
+    .sort((a,b)=>b.pts-a.pts);
+  const maxGewertet = gewertetRanking[0]?.pts || 1;
+
+  // Clan-Mitglied-Namen-Set für Rang-Vergabe Check
+  const clanMemberNames = new Set(
+    (mergedClanMembers||[]).map(m => m.username?.toLowerCase())
+  );
+
   async function addWar() {
     if (!form.opponent) return;
     const memberPoints = {};
@@ -1407,9 +1510,14 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
     await push(ref(db,"wars"), {
       ...form, theirPoints:Number(form.theirPoints)||0,
       memberPoints, ourPoints:0,
+      gewertet: form.gewertet !== false,
     });
-    setForm({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:""});
+    setForm({opponent:"",result:"Sieg",theirPoints:"",dateFrom:today,dateTo:today,note:"",gewertet:true});
     setShowAdd(false);
+  }
+
+  async function toggleGewertet(warId, currentVal) {
+    await update(ref(db,`wars/${warId}`), { gewertet: !currentVal });
   }
 
   async function deleteWar(id) {
@@ -1490,6 +1598,21 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
                 <div style={{fontWeight:600,color:"var(--gold2)",fontSize:15}}>{val}</div>
               </div>
             ))}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginTop:12,flexWrap:"wrap"}}>
+            <span style={{padding:"4px 12px",borderRadius:16,fontSize:12,fontWeight:600,
+              background:war.gewertet!==false?"#22c55e20":"#9ca3af20",
+              color:war.gewertet!==false?"#22c55e":"#9ca3af",
+              border:`1px solid ${war.gewertet!==false?"#22c55e":"#9ca3af"}40`}}>
+              {war.gewertet!==false?"✅ Gewertet":"⛔ Nicht gewertet"}
+            </span>
+            {isAdmin && (
+              <button className="btn btn-ghost btn-sm"
+                onClick={()=>toggleGewertet(war.id, war.gewertet!==false)}
+                style={{fontSize:11}}>
+                {war.gewertet!==false?"⛔ Als ungewertet markieren":"✅ Als gewertet markieren"}
+              </button>
+            )}
           </div>
           {war.note&&<div style={{marginTop:12,fontSize:13,color:"var(--text2)",borderTop:"1px solid var(--border)",paddingTop:10}}>📝 {war.note}</div>}
         </div>
@@ -1644,7 +1767,10 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
               onMouseLeave={e=>e.currentTarget.style.borderColor=w.result==="Sieg"?"#22c55e30":"#ef444430"}>
               <div style={{fontSize:26,flexShrink:0}}>{w.result==="Sieg"?"🏆":"💀"}</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600,fontSize:15}}>vs. {w.opponent}</div>
+                <div style={{fontWeight:600,fontSize:15,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  vs. {w.opponent}
+                  {w.gewertet===false && <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:"#9ca3af20",border:"1px solid #9ca3af40",color:"#9ca3af"}}>ungewertet</span>}
+                </div>
                 <div style={{fontSize:12,color:"var(--text3)"}}>
                   {w.dateFrom}{w.dateTo&&w.dateTo!==w.dateFrom?` → ${w.dateTo}`:""}
                   {" · "}{Object.values(w.memberPoints||{}).filter(v=>Number(v)>0).length} mit Punkten
@@ -1663,20 +1789,55 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
         </div>
 
         <div className="card">
-          <div className="card-title">🏅 Gesamtranking (alle Wars)</div>
-          {totalRanking.length===0&&<div className="text-muted text-sm">Noch keine Punkte eingetragen</div>}
-          {totalRanking.map((m,i)=>(
-            <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-              <div style={{width:22,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
-                  <span style={{color:"#a855f7",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.pts)}</span>
+          <div style={{display:"flex",gap:6,marginBottom:14}}>
+            <button className={`btn btn-sm ${rankingTab==="alle"?"btn-gold":"btn-ghost"}`} onClick={()=>setRankingTab("alle")}>📊 Alle Wars</button>
+            <button className={`btn btn-sm ${rankingTab==="gewertet"?"btn-gold":"btn-ghost"}`} onClick={()=>setRankingTab("gewertet")}>✅ Nur Gewertete</button>
+          </div>
+
+          {rankingTab==="alle" && (
+            <>
+              <div className="card-title" style={{marginBottom:10}}>🏅 Gesamtranking (alle Wars)</div>
+              {totalRanking.length===0&&<div className="text-muted text-sm">Noch keine Punkte eingetragen</div>}
+              {totalRanking.map((m,i)=>(
+                <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                  <div style={{width:22,color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
+                      <span style={{color:"#a855f7",fontSize:13,flexShrink:0,marginLeft:8}}>{fmt(m.pts)}</span>
+                    </div>
+                    <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxTotal)*100}%`,background:"linear-gradient(90deg,#7c3aed,#a855f7)"}}/></div>
+                  </div>
                 </div>
-                <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxTotal)*100}%`,background:"linear-gradient(90deg,#7c3aed,#a855f7)"}}/></div>
-              </div>
-            </div>
-          ))}
+              ))}
+            </>
+          )}
+
+          {rankingTab==="gewertet" && (
+            <>
+              <div className="card-title" style={{marginBottom:10}}>🏅 Ranking (nur gewertete Wars)</div>
+              <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>Basis für automatische Rang-Vergabe R1–R5</div>
+              {gewertetRanking.length===0&&<div className="text-muted text-sm">Noch keine Punkte in gewerteten Wars</div>}
+              {gewertetRanking.map((m,i)=>{
+                const istImClan = clanMemberNames.has(m.name.toLowerCase());
+                return (
+                  <div key={m.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,opacity:istImClan?1:0.45}}>
+                    <div style={{width:22,color:i<3&&istImClan?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",flexShrink:0}}>{i+1}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3,alignItems:"center"}}>
+                        <span style={{fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
+                        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0,marginLeft:8}}>
+                          {!istImClan && <span style={{fontSize:10,color:"#9ca3af",padding:"1px 5px",borderRadius:6,border:"1px solid #9ca3af30"}}>nicht im Clan</span>}
+                          <span style={{color:"#22c55e",fontSize:13}}>{fmt(m.pts)}</span>
+                        </div>
+                      </div>
+                      <div className="pbar"><div className="pfill" style={{width:`${(m.pts/maxGewertet)*100}%`,background:"linear-gradient(90deg,#16a34a,#22c55e)"}}/></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       </div>
 
@@ -1697,6 +1858,14 @@ function WarTab({ warList, accountList, isAdmin, db, timer }) {
                 </select>
               </div>
               <div><label className="lbl">Notiz</label><textarea className="inp" value={form.note} onChange={e=>setForm(p=>({...p,note:e.target.value}))} style={{minHeight:50}}/></div>
+              <div>
+                <label style={{display:"flex",gap:8,alignItems:"center",cursor:"pointer",fontSize:14,padding:"10px 12px",background:"var(--bg2)",borderRadius:8,border:`1px solid ${form.gewertet?"#22c55e40":"#9ca3af30"}`}}>
+                  <input type="checkbox" checked={form.gewertet!==false} onChange={e=>setForm(p=>({...p,gewertet:e.target.checked}))}/>
+                  <span style={{color:form.gewertet!==false?"#22c55e":"var(--text3)"}}>
+                    {form.gewertet!==false?"✅ Gewertet (zählt für Rang-Vergabe)":"⛔ Nicht gewertet (zählt nicht für Ränge)"}
+                  </span>
+                </label>
+              </div>
               <div style={{padding:"10px 14px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text3)"}}>
                 💡 Nach dem Erstellen auf den War klicken → CSV importieren oder Punkte manuell eintragen.
               </div>
@@ -3716,7 +3885,7 @@ function Messages({ messages, currentUser, accountList, db }) {
 }
 
 // ── ADMIN ────────────────────────────────────────────────────
-function Admin({ accounts, memberList, db, currentUser, wars }) {
+function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, mergedClanMembers, warList }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({username:"",password:"",role:"R5"});
   const [editId, setEditId] = useState(null);
@@ -3798,6 +3967,64 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
     setTimeout(()=>setIngameSaved(false),2000);
   }
 
+  // Ränge R1–R5 automatisch anhand gewerteter Wars vergeben
+  const [rangeSaved, setRangeSaved] = useState(false);
+  async function rangeAktualisieren() {
+    // Punkte aus nur gewerteten Wars berechnen
+    const gewertetPts = {};
+    (warList||[]).filter(w=>w.gewertet!==false).forEach(w => {
+      if (w.memberPoints) Object.entries(w.memberPoints).forEach(([name,pts]) => {
+        const key = name.toLowerCase();
+        gewertetPts[key] = (gewertetPts[key]||0) + (Number(pts)||0);
+      });
+    });
+
+    // Nur Mitglieder die im Clan sind (mergedClanMembers) und R1–R5 haben
+    // Admins (Anführer/Kommandant/Hauptmann) werden übersprungen
+    const clanMemberMap = {};
+    (mergedClanMembers||[]).forEach(m => {
+      clanMemberMap[m.username?.toLowerCase()] = m;
+    });
+
+    // Ranking nur der Clan-Mitglieder (keine Admins)
+    const ranking = Object.entries(gewertetPts)
+      .filter(([nameKey]) => {
+        const member = clanMemberMap[nameKey];
+        return member && !ADMIN_ROLES.includes(member.role);
+      })
+      .map(([nameKey, pts]) => ({ nameKey, member: clanMemberMap[nameKey], pts }))
+      .sort((a,b) => b.pts - a.pts);
+
+    // Rang-Grenzen: R1=Platz 1–3, R2=4–8, R3=9–15, R4=16–25, R5=Rest
+    // Basiert auf RANK_LIMITS: {R1:3, R2:5, R3:7, R4:10}
+    const rangGrenzen = [
+      { rang:"R1", bis: RANK_LIMITS.R1 },
+      { rang:"R2", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 },
+      { rang:"R3", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 + RANK_LIMITS.R3 },
+      { rang:"R4", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 + RANK_LIMITS.R3 + RANK_LIMITS.R4 },
+    ];
+
+    let updated = 0;
+    for (let i = 0; i < ranking.length; i++) {
+      const { member } = ranking[i];
+      let neuerRang = "R5";
+      for (const grenze of rangGrenzen) {
+        if (i < grenze.bis) { neuerRang = grenze.rang; break; }
+      }
+      if (member.role !== neuerRang) {
+        if (member._isManual) {
+          await update(ref(db,`clanMembers/${member._manualId}`), { role: neuerRang });
+        } else {
+          await update(ref(db,`accounts/${member.id}`), { role: neuerRang });
+        }
+        updated++;
+      }
+    }
+    setRangeSaved(true);
+    setTimeout(()=>setRangeSaved(false), 3000);
+    alert(`✅ Ränge aktualisiert! ${updated} Mitglied(er) haben einen neuen Rang erhalten.`);
+  }
+
   // Bereinigt doppelte Namen in allen Wars — nutzt jetzt auch ingameName
   async function cleanupNames() {
     const warSnap = Object.entries(wars).map(([id,w])=>({id,...w}));
@@ -3859,6 +4086,17 @@ function Admin({ accounts, memberList, db, currentUser, wars }) {
             <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>Wöchentliche Punkte zurücksetzen</div>
             <div style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>Setzt die Wochenpunkte aller Mitglieder auf 0 (Gesamtpunkte bleiben erhalten).</div>
             <button className="btn btn-red" onClick={()=>setShowReset(true)}>🔄 Wochenpunkte reset</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>🏅 Ränge automatisch vergeben</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Berechnet R1–R5 anhand der Punkte aus gewerteten Wars. Admins bleiben unverändert. Spieler die nicht im Clan sind werden übersprungen.
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button className="btn btn-ghost btn-sm" style={{borderColor:"#22c55e40",color:"#22c55e"}} onClick={rangeAktualisieren}>🏅 Ränge aktualisieren</button>
+              {rangeSaved && <span style={{fontSize:13,color:"#22c55e"}}>✅ Gespeichert!</span>}
+            </div>
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
