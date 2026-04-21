@@ -339,6 +339,11 @@ const CSS = `
   .login-sub{font-size:12px;color:var(--text3);text-align:center;letter-spacing:3px;text-transform:uppercase;margin-bottom:28px}
   .shimmer{background:linear-gradient(90deg,var(--gold)40,var(--gold3)80,var(--gold)40);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite}
 
+  /* NACHRICHTEN */
+  .msg-mobile{display:none}
+  .msg-desktop{display:grid}
+  .msg-back-btn{display:none}
+
   /* ── TABLET (768px) ── */
   @media(max-width:768px){
     .grid-3,.grid-4{grid-template-columns:1fr 1fr}
@@ -358,6 +363,9 @@ const CSS = `
     .card-title{font-size:11px;margin-bottom:12px}
     .btn{font-size:11px;padding:9px 12px}
     .btn-sm{padding:5px 9px;font-size:10px;min-height:32px}
+    .msg-desktop{display:none}
+    .msg-mobile{display:block}
+    .msg-back-btn{display:inline-flex}
     .overlay{align-items:flex-end;padding:0}
     .modal{border-radius:20px 20px 0 0;padding:20px 16px 32px;max-width:100%}
     .modal-title{font-size:14px}
@@ -4092,9 +4100,11 @@ function Notes({ noteList, isAdmin, db, user }) {
 function Messages({ messages, currentUser, accountList, db }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [text, setText] = useState("");
+  // Mobile: "liste" oder "chat"
+  const [mobileView, setMobileView] = useState("liste");
   const msgList = Object.entries(messages).map(([id,m])=>({id,...m}));
+  const chatEndRef = useRef(null);
 
-  // Konversationen: alle User mit denen ich Nachrichten habe
   const conversations = {};
   msgList.forEach(m => {
     const other = m.from===currentUser.username ? m.to : m.from;
@@ -4104,17 +4114,20 @@ function Messages({ messages, currentUser, accountList, db }) {
     }
   });
 
-  // Alle anderen User für neue Konversation
   const otherUsers = accountList
     .filter(a => a.username !== currentUser.username)
     .sort((a,b) => a.username.localeCompare(b.username));
 
-  // Nachrichten der aktuellen Konversation
   const currentMsgs = selectedUser
     ? (conversations[selectedUser]||[]).sort((a,b)=>a.createdAt-b.createdAt)
     : [];
 
-  // Ungelesene markieren als gelesen
+  // Auto-scroll ans Ende
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior:"smooth" });
+  }, [currentMsgs.length]);
+
+  // Ungelesene als gelesen markieren
   useEffect(() => {
     if (!selectedUser) return;
     msgList.forEach(m => {
@@ -4136,6 +4149,11 @@ function Messages({ messages, currentUser, accountList, db }) {
     setText("");
   }
 
+  function openChat(username) {
+    setSelectedUser(username);
+    setMobileView("chat");
+  }
+
   function unreadFrom(username) {
     return msgList.filter(m=>m.from===username&&m.to===currentUser.username&&!m.read).length;
   }
@@ -4145,117 +4163,140 @@ function Messages({ messages, currentUser, accountList, db }) {
     return msgs[0];
   };
 
-  // Alle User die eine Konversation haben + Rest
   const convUsers = Object.keys(conversations).sort((a,b)=>{
-    const la = lastMsg(a)?.createdAt||0;
-    const lb = lastMsg(b)?.createdAt||0;
-    return lb-la;
+    return (lastMsg(b)?.createdAt||0) - (lastMsg(a)?.createdAt||0);
   });
 
-  return (
-    <div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16,height:"calc(100vh - 200px)",minHeight:400}}>
-      {/* Sidebar */}
-      <div className="card" style={{padding:0,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-        <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",fontFamily:"'Cinzel',serif",fontSize:12,color:"var(--gold2)",letterSpacing:1}}>
-          💬 NACHRICHTEN
+  const totalUnread = convUsers.reduce((s,u)=>s+unreadFrom(u),0);
+
+  // ── Sidebar (Kontaktliste) ────────────────────────────────
+  const Sidebar = (
+    <div className="card" style={{padding:0,overflow:"hidden",display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",fontFamily:"'Cinzel',serif",fontSize:12,color:"var(--gold2)",letterSpacing:1,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span>💬 NACHRICHTEN</span>
+        {totalUnread>0 && <span style={{background:"var(--gold2)",color:"#000",borderRadius:10,fontSize:10,padding:"1px 7px",fontWeight:700}}>{totalUnread}</span>}
+      </div>
+      <div style={{overflowY:"auto",flex:1}}>
+        <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)"}}>
+          <select className="inp" style={{fontSize:13,padding:"6px 8px"}} value="" onChange={e=>{ if(e.target.value) openChat(e.target.value); }}>
+            <option value="">+ Neue Nachricht…</option>
+            {otherUsers.map(u=><option key={u.id} value={u.username}>{u.username}</option>)}
+          </select>
         </div>
-        <div style={{overflowY:"auto",flex:1}}>
-          {/* Neue Konversation */}
-          <div style={{padding:"8px 12px",borderBottom:"1px solid var(--border)"}}>
-            <select className="inp" style={{fontSize:12,padding:"5px 8px"}} value="" onChange={e=>{ if(e.target.value) setSelectedUser(e.target.value); }}>
-              <option value="">+ Neue Nachricht…</option>
-              {otherUsers.map(u=><option key={u.id} value={u.username}>{u.username}</option>)}
-            </select>
+        {convUsers.length===0 && (
+          <div style={{padding:"24px 16px",fontSize:13,color:"var(--text3)",textAlign:"center"}}>
+            Noch keine Nachrichten.<br/>Wähle oben einen Spieler aus.
           </div>
-          {/* Konversationsliste */}
-          {convUsers.length===0 && (
-            <div style={{padding:"20px 16px",fontSize:13,color:"var(--text3)",textAlign:"center"}}>
-              Noch keine Nachrichten.<br/>Wähle oben einen Spieler aus.
-            </div>
-          )}
-          {convUsers.map(username=>{
-            const unread = unreadFrom(username);
-            const last = lastMsg(username);
-            const isSelected = selectedUser===username;
-            return (
-              <div key={username} onClick={()=>setSelectedUser(username)}
-                style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid var(--border)",background:isSelected?"var(--bg4)":"transparent",borderLeft:isSelected?"3px solid var(--gold2)":"3px solid transparent"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
-                  <span style={{fontWeight:600,fontSize:13,color:isSelected?"var(--gold2)":"var(--text)"}}>{username}</span>
+        )}
+        {convUsers.map(username=>{
+          const unread = unreadFrom(username);
+          const last = lastMsg(username);
+          const isSelected = selectedUser===username;
+          return (
+            <div key={username} onClick={()=>openChat(username)}
+              style={{padding:"12px 14px",cursor:"pointer",borderBottom:"1px solid var(--border)",
+                background:isSelected?"var(--bg4)":"transparent",
+                borderLeft:isSelected?"3px solid var(--gold2)":"3px solid transparent",
+                minHeight:"var(--tap-size)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                <span style={{fontWeight:600,fontSize:13,color:isSelected?"var(--gold2)":"var(--text)"}}>{username}</span>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  {last && <span style={{fontSize:10,color:"var(--text3)"}}>{new Date(last.createdAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}</span>}
                   {unread>0 && <span style={{background:"var(--gold2)",color:"#000",borderRadius:10,fontSize:10,padding:"1px 6px",fontWeight:700}}>{unread}</span>}
                 </div>
-                {last && <div style={{fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                  {last.from===currentUser.username?"Du: ":""}{last.text}
-                </div>}
+              </div>
+              {last && <div style={{fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {last.from===currentUser.username?"Du: ":""}{last.text}
+              </div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // ── Chat-Fenster ─────────────────────────────────────────
+  const ChatWindow = (
+    <div className="card" style={{padding:0,overflow:"hidden",display:"flex",flexDirection:"column",height:"100%"}}>
+      {!selectedUser ? (
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"var(--text3)"}}>
+          <div style={{fontSize:40}}>💬</div>
+          <div style={{fontSize:14}}>Wähle einen Spieler aus</div>
+        </div>
+      ) : (<>
+        {/* Header */}
+        <div style={{padding:"10px 14px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
+          {/* Zurück-Button nur auf Mobile */}
+          <button className="btn btn-ghost btn-sm msg-back-btn"
+            onClick={()=>setMobileView("liste")}
+            style={{flexShrink:0,padding:"4px 8px"}}>← Zurück</button>
+          <div style={{width:32,height:32,borderRadius:"50%",background:"var(--bg4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
+            {RANK_ICONS[accountList.find(a=>a.username===selectedUser)?.role]||"⚒️"}
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:600,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{selectedUser}</div>
+            <div style={{fontSize:11,color:"var(--text3)"}}>{accountList.find(a=>a.username===selectedUser)?.role||""}</div>
+          </div>
+        </div>
+
+        {/* Nachrichten */}
+        <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+          {currentMsgs.length===0 && (
+            <div style={{textAlign:"center",color:"var(--text3)",fontSize:13,marginTop:20}}>
+              Noch keine Nachrichten. Schreib etwas!
+            </div>
+          )}
+          {currentMsgs.map(m=>{
+            const isMe = m.from===currentUser.username;
+            return (
+              <div key={m.id} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start"}}>
+                <div style={{
+                  maxWidth:"78%",padding:"8px 12px",
+                  borderRadius:isMe?"14px 14px 4px 14px":"14px 14px 14px 4px",
+                  background:isMe?"linear-gradient(135deg,var(--gold),#8a5c00)":"var(--bg4)",
+                  color:isMe?"#000":"var(--text)",
+                  fontSize:14,lineHeight:1.5,
+                  border:isMe?"none":"1px solid var(--border)"
+                }}>
+                  <div style={{wordBreak:"break-word"}}>{m.text}</div>
+                  <div style={{fontSize:10,marginTop:4,opacity:.6,textAlign:"right"}}>
+                    {new Date(m.createdAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}
+                    {isMe && <span style={{marginLeft:4}}>{m.read?"✓✓":"✓"}</span>}
+                  </div>
+                </div>
               </div>
             );
           })}
+          <div ref={chatEndRef}/>
         </div>
-      </div>
 
-      {/* Chat Bereich */}
-      <div className="card" style={{padding:0,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-        {!selectedUser ? (
-          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"var(--text3)"}}>
-            <div style={{fontSize:40}}>💬</div>
-            <div style={{fontSize:14}}>Wähle einen Spieler aus um eine Nachricht zu schreiben</div>
-          </div>
-        ) : (<>
-          {/* Header */}
-          <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:32,height:32,borderRadius:"50%",background:"var(--bg4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>
-              {RANK_ICONS[accountList.find(a=>a.username===selectedUser)?.role]||"⚒️"}
-            </div>
-            <div>
-              <div style={{fontWeight:600,fontSize:14}}>{selectedUser}</div>
-              <div style={{fontSize:11,color:"var(--text3)"}}>
-                {accountList.find(a=>a.username===selectedUser)?.role||""}
-              </div>
-            </div>
-          </div>
-
-          {/* Nachrichten */}
-          <div style={{flex:1,overflowY:"auto",padding:"16px",display:"flex",flexDirection:"column",gap:8}}>
-            {currentMsgs.length===0 && (
-              <div style={{textAlign:"center",color:"var(--text3)",fontSize:13,marginTop:20}}>
-                Noch keine Nachrichten. Schreib etwas!
-              </div>
-            )}
-            {currentMsgs.map(m=>{
-              const isMe = m.from===currentUser.username;
-              return (
-                <div key={m.id} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start"}}>
-                  <div style={{
-                    maxWidth:"75%",padding:"8px 12px",borderRadius:isMe?"12px 12px 4px 12px":"12px 12px 12px 4px",
-                    background:isMe?"linear-gradient(135deg,var(--gold),#8a5c00)":"var(--bg4)",
-                    color:isMe?"#000":"var(--text)",
-                    fontSize:14,lineHeight:1.5,
-                    border:isMe?"none":"1px solid var(--border)"
-                  }}>
-                    <div>{m.text}</div>
-                    <div style={{fontSize:10,marginTop:4,opacity:.6,textAlign:"right"}}>
-                      {new Date(m.createdAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}
-                      {isMe && <span style={{marginLeft:4}}>{m.read?"✓✓":"✓"}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Input */}
-          <div style={{padding:"12px 16px",borderTop:"1px solid var(--border)",display:"flex",gap:8}}>
-            <input className="inp" placeholder="Nachricht schreiben…" value={text}
-              onChange={e=>setText(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMsg()}
-              style={{flex:1}}/>
-            <button className="btn btn-gold" onClick={sendMsg} disabled={!text.trim()} style={{flexShrink:0}}>
-              Senden
-            </button>
-          </div>
-        </>)}
-      </div>
+        {/* Input */}
+        <div style={{padding:"10px 12px",borderTop:"1px solid var(--border)",display:"flex",gap:8}}>
+          <input className="inp" placeholder="Nachricht…" value={text}
+            onChange={e=>setText(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMsg()}
+            style={{flex:1,fontSize:15}}/>
+          <button className="btn btn-gold" onClick={sendMsg} disabled={!text.trim()} style={{flexShrink:0,padding:"8px 14px"}}>
+            ➤
+          </button>
+        </div>
+      </>)}
     </div>
+  );
+
+  return (
+    <>
+      {/* Desktop: Sidebar + Chat nebeneinander */}
+      <div className="msg-desktop" style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16,height:"calc(100vh - 200px)",minHeight:400}}>
+        {Sidebar}
+        {ChatWindow}
+      </div>
+
+      {/* Mobile: entweder Liste ODER Chat, nie beides */}
+      <div className="msg-mobile" style={{height:"calc(100vh - 180px)",minHeight:500}}>
+        {mobileView==="liste" ? Sidebar : ChatWindow}
+      </div>
+    </>
   );
 }
 
