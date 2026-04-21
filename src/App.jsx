@@ -4226,9 +4226,19 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       {(() => {
         const MIN_PUNKTE = 150000;
         const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
+
+        // Namen-Set aller aktiven Clan-Mitglieder (username + ingameName)
+        const clanNamen = new Set();
+        (mergedClanMembers||[]).forEach(m => {
+          if (m.username) clanNamen.add(m.username.toLowerCase());
+          if (m.ingameName && m.ingameName.trim()) clanNamen.add(m.ingameName.trim().toLowerCase());
+        });
+
         const verfehlungen = {};
         gewerteteWars.forEach(w => {
           Object.entries(w.memberPoints).forEach(([name, pts]) => {
+            // Nur aktive Clan-Mitglieder
+            if (!clanNamen.has(name.toLowerCase())) return;
             const punkte = Number(pts)||0;
             if (punkte > 0 && punkte < MIN_PUNKTE) {
               const key = name.toLowerCase();
