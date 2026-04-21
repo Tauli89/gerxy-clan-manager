@@ -4234,10 +4234,9 @@ function Messages({ messages, currentUser, accountList, db }) {
           </div>
         </div>
 
-        {/* Nachrichten */}
+        {/* Nachrichten — column-reverse: neueste unten, scrollen nach oben möglich */}
         <div style={{flex:1,overflowY:"auto",padding:"12px 14px",display:"flex",flexDirection:"column-reverse",gap:8}}>
-          <div ref={chatEndRef}/>
-          {[...currentMsgs].reverse().map(m=>{
+          {[...currentMsgs].sort((a,b)=>b.createdAt-a.createdAt).map(m=>{
             const isMe = m.from===currentUser.username;
             return (
               <div key={m.id} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start"}}>
