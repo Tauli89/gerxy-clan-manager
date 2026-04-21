@@ -3996,6 +3996,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
   }
 
   // Ränge R1–R5 automatisch anhand gewerteter Wars vergeben
+  const [aufgeklappt, setAufgeklappt] = useState(null);
   const [rangeSaved, setRangeSaved] = useState(false);
   async function rangeAktualisieren() {
     // Punkte aus nur gewerteten Wars berechnen
@@ -4224,12 +4225,8 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       {/* Mindestpunkte-Übersicht */}
       {(() => {
         const MIN_PUNKTE = 150000;
-        // Nur gewertete Wars
         const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
-
-        // Pro Mitglied: wie oft unter Minimum (nur wenn Punkte > 0 eingetragen)
-        const verfehlungen = {}; // { nameKey: { displayName, anzahl, wars: [{warId, opponent, dateFrom, punkte}] } }
-
+        const verfehlungen = {};
         gewerteteWars.forEach(w => {
           Object.entries(w.memberPoints).forEach(([name, pts]) => {
             const punkte = Number(pts)||0;
@@ -4241,35 +4238,26 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
             }
           });
         });
-
         const liste = Object.values(verfehlungen).sort((a,b) => b.anzahl - a.anzahl);
-        const [aufgeklappt, setAufgeklappt] = React.useState(null);
-
-        if (liste.length === 0) return (
+        return liste.length === 0 ? (
           <div className="card mt-20" style={{borderColor:"#22c55e30"}}>
-            <div className="card-title">📋 Mindestpunkte-Übersicht (Admin)</div>
-            <div style={{fontSize:13,color:"#22c55e",padding:"12px 0"}}>✅ Alle Mitglieder haben in allen gewerteten Wars die 150.000 Punkte erreicht!</div>
+            <div className="card-title">📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#9ca3af",fontWeight:400}}>(nur Admins)</span></div>
+            <div style={{fontSize:13,color:"#22c55e",padding:"8px 0"}}>✅ Alle Mitglieder haben in allen gewerteten Wars die 150.000 Punkte erreicht!</div>
           </div>
-        );
-
-        return (
+        ) : (
           <div className="card mt-20" style={{borderColor:"#ef444430"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
-              <div className="card-title" style={{marginBottom:0}}>📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#ef4444",fontWeight:400}}>(nur für Admins)</span></div>
+              <div className="card-title" style={{marginBottom:0}}>📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#ef4444",fontWeight:400}}>(nur Admins)</span></div>
               <div style={{fontSize:12,color:"var(--text3)"}}>Minimum: <strong style={{color:"#ef4444"}}>150.000 Pkt</strong> · {gewerteteWars.length} gewertete Wars</div>
             </div>
-
             <div style={{display:"grid",gap:6}}>
               {liste.map(eintrag => {
                 const istOffen = aufgeklappt === eintrag.displayName;
                 const schwereGrad = eintrag.anzahl >= 5 ? "#ef4444" : eintrag.anzahl >= 3 ? "#f97316" : "#f59e0b";
                 return (
                   <div key={eintrag.displayName} style={{borderRadius:10,border:`1px solid ${schwereGrad}30`,overflow:"hidden"}}>
-                    {/* Kopfzeile — klickbar zum Aufklappen */}
-                    <div
-                      onClick={()=>setAufgeklappt(istOffen ? null : eintrag.displayName)}
-                      style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:`${schwereGrad}10`,cursor:"pointer",userSelect:"none"}}
-                    >
+                    <div onClick={()=>setAufgeklappt(istOffen ? null : eintrag.displayName)}
+                      style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:`${schwereGrad}10`,cursor:"pointer",userSelect:"none"}}>
                       <div style={{flex:1,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                         <span style={{fontWeight:600,fontSize:14}}>{eintrag.displayName}</span>
                         <span style={{padding:"2px 8px",borderRadius:12,fontSize:12,fontWeight:700,
@@ -4287,8 +4275,6 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                         <span style={{color:"var(--text3)",fontSize:14}}>{istOffen?"▲":"▼"}</span>
                       </div>
                     </div>
-
-                    {/* Ausgeklappte Detail-Liste */}
                     {istOffen && (
                       <div style={{padding:"8px 14px 12px",background:"var(--bg2)",borderTop:`1px solid ${schwereGrad}20`}}>
                         <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>War-Details</div>
@@ -4301,7 +4287,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                               </div>
                               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                                 <span style={{color:"#ef4444",fontWeight:600}}>{fmt(w.punkte)}</span>
-                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmt(MIN_PUNKTE - w.punkte)}</span>
+                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmt(150000 - w.punkte)}</span>
                               </div>
                             </div>
                           ))}
@@ -4312,9 +4298,8 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                 );
               })}
             </div>
-
-            <div style={{marginTop:12,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text3)",lineHeight:1.6}}>
-              💡 Farbcode: <span style={{color:"#f59e0b"}}>●</span> 1–2× · <span style={{color:"#f97316"}}>●</span> 3–4× · <span style={{color:"#ef4444"}}>●</span> 5×+ — Klick auf einen Eintrag zeigt Details
+            <div style={{marginTop:12,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text3)"}}>
+              💡 Farbcode: <span style={{color:"#f59e0b"}}>●</span> 1–2× · <span style={{color:"#f97316"}}>●</span> 3–4× · <span style={{color:"#ef4444"}}>●</span> 5×+ — Klick auf Eintrag zeigt Details
             </div>
           </div>
         );
