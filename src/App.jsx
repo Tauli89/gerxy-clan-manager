@@ -1672,6 +1672,14 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
             </div>
           )}
 
+          {/* Mindestpunkte-Hinweis nur bei gewerteten Wars */}
+          {war.gewertet!==false && !editingPoints && (
+            <div style={{marginBottom:12,padding:"8px 12px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:8,fontSize:12,color:"#fca5a5",display:"flex",alignItems:"center",gap:8}}>
+              <span>⚠️</span>
+              <span>Mindestpunkte pro Clanwar: <strong style={{color:"#ef4444"}}>150.000 Pkt</strong> — Mitglieder darunter sind rot markiert</span>
+            </div>
+          )}
+
           <div style={{overflowX:"auto"}}>
             <table className="member-table" style={{width:"100%"}}>
               <thead>
@@ -1686,15 +1694,25 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
                 {sorted.map((name,i)=>{
                   const role = findAccountByName(accountList, name)?.role;
                   const p = editingPoints?(editingPoints[name]??""):(Number(pts[name])||0);
+                  const punkte = Number(p)||0;
+                  const MIN_PUNKTE = 150000;
+                  // Rot markieren: nur bei gewerteten Wars, nur wenn Punkte eingetragen (>0) und unter Minimum
+                  const zuWenig = war.gewertet!==false && !editingPoints && punkte > 0 && punkte < MIN_PUNKTE;
                   return (
-                    <tr key={name}>
+                    <tr key={name} style={{
+                      background: zuWenig ? "#ef444412" : "transparent",
+                      borderLeft: zuWenig ? "3px solid #ef4444" : "3px solid transparent",
+                    }}>
                       <td style={{color:i<3?"var(--gold2)":"var(--text3)",fontFamily:"'Cinzel',serif",fontSize:12}}>{i+1}</td>
                       <td>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
                           <span style={{fontSize:16}}>{RANK_ICONS[role]||"⚒️"}</span>
                           <div>
-                            <div style={{fontWeight:600,fontSize:14}}>{name}</div>
-                            {role&&<span style={{fontSize:11,color:RANK_COLORS[role]||"var(--text3)"}}>{role}</span>}
+                            <div style={{fontWeight:600,fontSize:14,color:zuWenig?"#fca5a5":"inherit"}}>
+                              {name}
+                              {zuWenig && <span style={{marginLeft:6,fontSize:10,padding:"1px 5px",borderRadius:6,background:"#ef444430",color:"#ef4444",border:"1px solid #ef444450"}}>unter Minimum</span>}
+                            </div>
+                            {role&&<span style={{fontSize:11,color:zuWenig?"#ef444490":RANK_COLORS[role]||"var(--text3)"}}>{role}</span>}
                           </div>
                         </div>
                       </td>
@@ -1704,13 +1722,16 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
                             onChange={e=>setEditingPoints(prev=>({...prev,[name]:e.target.value}))}
                             style={{maxWidth:120,padding:"4px 8px",fontSize:13}}/>
                         ):(
-                          <span style={{color:"var(--gold2)",fontWeight:600,fontSize:15}}>{fmt(Number(p)||0)}</span>
+                          <span style={{color:zuWenig?"#ef4444":"var(--gold2)",fontWeight:600,fontSize:15}}>
+                            {fmt(punkte)}
+                            {zuWenig && <span style={{fontSize:11,color:"#ef444490",marginLeft:4}}>(-{fmt(MIN_PUNKTE-punkte)})</span>}
+                          </span>
                         )}
                       </td>
                       <td className="hide-mobile">
                         {!editingPoints&&(
                           <div className="pbar" style={{minWidth:80}}>
-                            <div className="pfill" style={{width:`${(Number(p)||0)/maxP*100}%`}}/>
+                            <div className="pfill" style={{width:`${punkte/maxP*100}%`,background:zuWenig?"linear-gradient(90deg,#dc2626,#ef4444)":undefined}}/>
                           </div>
                         )}
                       </td>
@@ -4199,6 +4220,105 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
           </div>
         </div>
       )}
+
+      {/* Mindestpunkte-Übersicht */}
+      {(() => {
+        const MIN_PUNKTE = 150000;
+        // Nur gewertete Wars
+        const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
+
+        // Pro Mitglied: wie oft unter Minimum (nur wenn Punkte > 0 eingetragen)
+        const verfehlungen = {}; // { nameKey: { displayName, anzahl, wars: [{warId, opponent, dateFrom, punkte}] } }
+
+        gewerteteWars.forEach(w => {
+          Object.entries(w.memberPoints).forEach(([name, pts]) => {
+            const punkte = Number(pts)||0;
+            if (punkte > 0 && punkte < MIN_PUNKTE) {
+              const key = name.toLowerCase();
+              if (!verfehlungen[key]) verfehlungen[key] = { displayName: name, anzahl: 0, wars: [] };
+              verfehlungen[key].anzahl++;
+              verfehlungen[key].wars.push({ opponent: w.opponent, dateFrom: w.dateFrom, punkte });
+            }
+          });
+        });
+
+        const liste = Object.values(verfehlungen).sort((a,b) => b.anzahl - a.anzahl);
+        const [aufgeklappt, setAufgeklappt] = React.useState(null);
+
+        if (liste.length === 0) return (
+          <div className="card mt-20" style={{borderColor:"#22c55e30"}}>
+            <div className="card-title">📋 Mindestpunkte-Übersicht (Admin)</div>
+            <div style={{fontSize:13,color:"#22c55e",padding:"12px 0"}}>✅ Alle Mitglieder haben in allen gewerteten Wars die 150.000 Punkte erreicht!</div>
+          </div>
+        );
+
+        return (
+          <div className="card mt-20" style={{borderColor:"#ef444430"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+              <div className="card-title" style={{marginBottom:0}}>📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#ef4444",fontWeight:400}}>(nur für Admins)</span></div>
+              <div style={{fontSize:12,color:"var(--text3)"}}>Minimum: <strong style={{color:"#ef4444"}}>150.000 Pkt</strong> · {gewerteteWars.length} gewertete Wars</div>
+            </div>
+
+            <div style={{display:"grid",gap:6}}>
+              {liste.map(eintrag => {
+                const istOffen = aufgeklappt === eintrag.displayName;
+                const schwereGrad = eintrag.anzahl >= 5 ? "#ef4444" : eintrag.anzahl >= 3 ? "#f97316" : "#f59e0b";
+                return (
+                  <div key={eintrag.displayName} style={{borderRadius:10,border:`1px solid ${schwereGrad}30`,overflow:"hidden"}}>
+                    {/* Kopfzeile — klickbar zum Aufklappen */}
+                    <div
+                      onClick={()=>setAufgeklappt(istOffen ? null : eintrag.displayName)}
+                      style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:`${schwereGrad}10`,cursor:"pointer",userSelect:"none"}}
+                    >
+                      <div style={{flex:1,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                        <span style={{fontWeight:600,fontSize:14}}>{eintrag.displayName}</span>
+                        <span style={{padding:"2px 8px",borderRadius:12,fontSize:12,fontWeight:700,
+                          background:`${schwereGrad}25`,color:schwereGrad,border:`1px solid ${schwereGrad}50`}}>
+                          {eintrag.anzahl}× verfehlt
+                        </span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{display:"flex",gap:3}}>
+                          {Array.from({length:Math.min(eintrag.anzahl,10)}).map((_,i)=>(
+                            <div key={i} style={{width:8,height:8,borderRadius:"50%",background:schwereGrad,opacity:0.8}}/>
+                          ))}
+                          {eintrag.anzahl>10&&<span style={{fontSize:10,color:schwereGrad}}>+{eintrag.anzahl-10}</span>}
+                        </div>
+                        <span style={{color:"var(--text3)",fontSize:14}}>{istOffen?"▲":"▼"}</span>
+                      </div>
+                    </div>
+
+                    {/* Ausgeklappte Detail-Liste */}
+                    {istOffen && (
+                      <div style={{padding:"8px 14px 12px",background:"var(--bg2)",borderTop:`1px solid ${schwereGrad}20`}}>
+                        <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>War-Details</div>
+                        <div style={{display:"grid",gap:4}}>
+                          {eintrag.wars.sort((a,b)=>a.dateFrom?.localeCompare(b.dateFrom)).map((w,i)=>(
+                            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"var(--bg3)",borderRadius:6,fontSize:13}}>
+                              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                                <span style={{color:"var(--text3)",fontSize:11,minWidth:80}}>{w.dateFrom}</span>
+                                <span style={{color:"var(--text2)"}}>vs. {w.opponent}</span>
+                              </div>
+                              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                                <span style={{color:"#ef4444",fontWeight:600}}>{fmt(w.punkte)}</span>
+                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmt(MIN_PUNKTE - w.punkte)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{marginTop:12,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:12,color:"var(--text3)",lineHeight:1.6}}>
+              💡 Farbcode: <span style={{color:"#f59e0b"}}>●</span> 1–2× · <span style={{color:"#f97316"}}>●</span> 3–4× · <span style={{color:"#ef4444"}}>●</span> 5×+ — Klick auf einen Eintrag zeigt Details
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Role Overview */}
       <div className="card mt-20">
