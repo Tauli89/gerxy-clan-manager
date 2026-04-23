@@ -442,12 +442,18 @@ export default function GerxyApp() {
   }
 
   async function register(username, password) {
+    // Doppelt prüfen — auch serverseitig, falls accList beim Login noch nicht geladen war
+    const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
+    if (accList.find(a => a.username.toLowerCase() === username.toLowerCase())) {
+      return { error: "Benutzername bereits vergeben." };
+    }
     const hashed = await hashPw(password);
     await push(ref(db,"accounts"), {
       username,
       passwordHash: hashed,
       role: "R5"
     });
+    return { success: true };
   }
 
   function logout() { setUser(null); sessionStorage.removeItem("gerxy_user"); setTab("dashboard"); }
@@ -570,11 +576,13 @@ function LoginScreen({ onLogin, onRegister, onGuest, accounts, loading }) {
     if (!user || !pass) { setErr("Bitte alle Felder ausfüllen."); return; }
     if (pass !== pass2) { setErr("Passwörter stimmen nicht überein."); return; }
     if (pass.length < 4) { setErr("Passwort muss mindestens 4 Zeichen lang sein."); return; }
-    // Duplikat-Check ignoriert Groß/Kleinschreibung
+    // Duplikat-Check im Client (schnell)
     if (accList.find(a => a.username.toLowerCase() === user.toLowerCase())) {
       setErr("Dieser Benutzername ist bereits vergeben (auch mit anderer Schreibweise)."); return;
     }
-    await onRegister(user, pass);
+    // Duplikat-Check auch im Server (absicherung falls accList noch nicht geladen)
+    const result = await onRegister(user, pass);
+    if (result?.error) { setErr(result.error); return; }
     setSuccess("Account erstellt! Du kannst dich jetzt einloggen.");
     setMode("login");
     setPass(""); setPass2("");
