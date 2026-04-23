@@ -2777,7 +2777,7 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
   // Layout-Definitionen: "pair" = 2 nebeneinander, "single" = 1 Mitte
   const LAYOUTS = {
     schmiede:     ["pair","single","pair","single","pair"],
-    macht:        ["pair","pair","pair","pair","pair","pair","pair","pair","pair","pair"],
+    macht:        ["pair","pair","pair","pair","pair","pair","pair","pair","single","single"],
     faehigkeiten: ["pair","pair","single","pair","single","pair","pair","pair","single"],
   };
 
