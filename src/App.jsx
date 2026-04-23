@@ -2753,10 +2753,13 @@ function MyPage({ user, memberList, warList, accountList, db }) {
 // ── TECH TREE PANEL ──────────────────────────────────────────
 function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTotalBonus, getTechLvl, techFreeForgeBonus, offlineTechLevel, EGG_NODE_IDS, schmiedeTimerBonus, schmiedeKostenBonus, techTimerBonus, techKostenBonus, reittierChanceBonus, reittierKostenBonus, skillKostenBonus, eiChanceBonus }) {
   const [activeTree, setActiveTree] = useState("schmiede");
+  const [activeTier, setActiveTier] = useState("Tier I");
   const TIERS = ["Tier I","Tier II","Tier III","Tier IV","Tier V"];
   const TIER_COLORS = {"Tier I":"#22c55e","Tier II":"#3b82f6","Tier III":"#a855f7","Tier IV":"#f59e0b","Tier V":"#ef4444"};
+  const TIER_LABELS = {"Tier I":"I","Tier II":"II","Tier III":"III","Tier IV":"IV","Tier V":"V"};
 
   const currentTree = TECH_TREE_DATA[activeTree];
+  const tierCol = TIER_COLORS[activeTier];
 
   const totalMaxPoints = Object.values(TECH_TREE_DATA).reduce((s,tree) =>
     s + tree.nodes.reduce((ns,node) => ns + node.maxLevel * TIERS.length, 0), 0);
@@ -2764,132 +2767,484 @@ function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTota
     s + tree.nodes.reduce((ns,node) =>
       ns + TIERS.reduce((ts,tier) => ts + getTechLvl(node.id, tier), 0), 0), 0);
 
+  const treeProgress = (key) => {
+    const tree = TECH_TREE_DATA[key];
+    const cur = tree.nodes.reduce((ns,node) => ns + TIERS.reduce((ts,tier) => ts + getTechLvl(node.id, tier), 0), 0);
+    const max = tree.nodes.reduce((ns,node) => ns + node.maxLevel * TIERS.length, 0);
+    return { cur, max, pct: max>0?(cur/max)*100:0 };
+  };
+
+  // Layout-Definitionen: "pair" = 2 nebeneinander, "single" = 1 Mitte
+  const LAYOUTS = {
+    schmiede:     ["pair","single","pair","single","pair"],
+    macht:        ["pair","pair","pair","pair","pair","pair","pair","pair","pair","pair"],
+    faehigkeiten: ["pair","pair","single","pair","single","pair","pair","pair","single"],
+  };
+
+  // Nodes in Reihen aufteilen basierend auf Layout
+  function buildRows(nodes, layout) {
+    const rows = [];
+    let idx = 0;
+    for (const type of layout) {
+      if (type === "pair") {
+        rows.push({ type:"pair", nodes: nodes.slice(idx, idx+2) });
+        idx += 2;
+      } else {
+        rows.push({ type:"single", nodes: nodes.slice(idx, idx+1) });
+        idx += 1;
+      }
+      if (idx >= nodes.length) break;
+    }
+    // Restliche Nodes als pairs
+    while (idx < nodes.length) {
+      rows.push({ type:"pair", nodes: nodes.slice(idx, idx+2) });
+      idx += 2;
+    }
+    return rows;
+  }
+
+  const rows = buildRows(currentTree.nodes, LAYOUTS[activeTree]||[]);
+
+  // Node-Kachel Komponente
+  function NodeCard({ node }) {
+    const lvl = getTechLvl(node.id, activeTier);
+    const totalLvl = getTechTotalLevels(node.id);
+    const maxTotal = node.maxLevel * TIERS.length;
+    const isMaxed = lvl >= node.maxLevel;
+    const hasAny = lvl > 0;
+    const isLinked = node.calc !== null;
+
+    const cardBg = isMaxed
+      ? `${tierCol}18`
+      : "var(--bg3)";
+    const cardBorder = isMaxed
+      ? `2px solid ${tierCol}70`
+      : hasAny
+        ? `1.5px solid ${tierCol}40`
+        : "1px solid var(--border)";
+
+    const bonusVal = node.effekt < 1
+      ? `${hasAny ? "+" : ""}${(lvl*node.effekt*100).toFixed(0)}%`
+      : `+${lvl*node.effekt}`;
+
+    return (
+      <div style={{
+        background: cardBg,
+        border: cardBorder,
+        borderRadius:12, padding:"10px 8px",
+        textAlign:"center", position:"relative",
+        opacity: !hasAny && totalLvl===0 ? 0.6 : 1,
+        transition:"all .2s",
+        flex:1, minWidth:0,
+      }}>
+        {isLinked && (
+          <div style={{position:"absolute",top:4,right:4,fontSize:8,padding:"1px 3px",
+            borderRadius:3,background:"#22c55e20",color:"#22c55e",border:"1px solid #22c55e40"}}>🔗</div>
+        )}
+        <div style={{fontSize:18,marginBottom:2}}>{node.icon}</div>
+        <div style={{fontSize:9,fontWeight:600,color:isMaxed?tierCol:"var(--text2)",
+          lineHeight:1.3,minHeight:24,marginBottom:5,padding:"0 4px"}}>
+          {node.name}
+        </div>
+        {/* Punkte */}
+        <div style={{display:"flex",justifyContent:"center",gap:3,marginBottom:5}}>
+          {Array.from({length:node.maxLevel}).map((_,i)=>(
+            <div key={i} style={{
+              width:10,height:10,borderRadius:"50%",
+              background: i<lvl ? tierCol : "var(--bg2)",
+              border: `1.5px solid ${i<lvl ? tierCol : "var(--border)"}`,
+              boxShadow: i<lvl ? `0 0 4px ${tierCol}60` : "none",
+              transition:"all .2s",
+            }}/>
+          ))}
+        </div>
+        {/* Bonus */}
+        <div style={{fontSize:10,fontWeight:700,
+          color:hasAny?tierCol:"var(--text3)",marginBottom:5}}>
+          {hasAny ? bonusVal : node.effekt<1?`+0% / ${(node.effekt*100).toFixed(0)}%/Lvl`:"+0"}
+        </div>
+        {/* Steuerung */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+          <button onClick={()=>lvl>0&&saveTechNode(node.id,activeTier,lvl-1)} disabled={lvl===0}
+            style={{width:22,height:22,borderRadius:5,border:`1px solid ${lvl>0?tierCol+"60":"var(--border)"}`,
+              background:"var(--bg2)",color:lvl>0?tierCol:"var(--text3)",cursor:lvl>0?"pointer":"default",
+              fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+          <span style={{fontSize:10,fontWeight:700,minWidth:26,textAlign:"center",
+            color:isMaxed?tierCol:hasAny?"var(--text)":"var(--text3)"}}>
+            {lvl}/{node.maxLevel}
+          </span>
+          <button onClick={()=>!isMaxed&&saveTechNode(node.id,activeTier,lvl+1)} disabled={isMaxed}
+            style={{width:22,height:22,borderRadius:5,
+              border:`1px solid ${!isMaxed?tierCol+"60":"var(--border)"}`,
+              background:!isMaxed?`${tierCol}18`:"var(--bg2)",
+              color:!isMaxed?tierCol:"var(--text3)",cursor:!isMaxed?"pointer":"default",
+              fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+        </div>
+        {/* Gesamtfortschritt */}
+        <div style={{marginTop:5,height:2,background:"var(--bg)",borderRadius:1,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${maxTotal>0?(totalLvl/maxTotal)*100:0}%`,
+            background:currentTree.color,transition:"width .4s"}}/>
+        </div>
+        <div style={{fontSize:8,color:"var(--text3)",marginTop:2}}>{totalLvl}/{maxTotal}</div>
+      </div>
+    );
+  }
+
+  // Verbindungslinie
+  function Connector({ fromType, toType }) {
+    return (
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",height:28,position:"relative"}}>
+        {fromType==="pair" && toType==="single" ? (
+          <>
+            <div style={{display:"flex",width:"50%",alignItems:"flex-start",height:"100%"}}>
+              <div style={{flex:1,height:"50%",borderRight:`2px solid ${tierCol}40`,borderBottom:`2px solid ${tierCol}40`,borderRadius:"0 0 6px 0"}}/>
+              <div style={{flex:1,height:"50%",borderLeft:`2px solid ${tierCol}40`,borderBottom:`2px solid ${tierCol}40`,borderRadius:"0 0 0 6px"}}/>
+            </div>
+            <div style={{width:2,flex:1,background:`${tierCol}40`}}/>
+          </>
+        ) : fromType==="single" && toType==="pair" ? (
+          <>
+            <div style={{width:2,flex:1,background:`${tierCol}40`}}/>
+            <div style={{display:"flex",width:"50%",alignItems:"flex-end",height:"50%"}}>
+              <div style={{flex:1,height:"100%",borderRight:`2px solid ${tierCol}40`,borderTop:`2px solid ${tierCol}40`,borderRadius:"0 6px 0 0"}}/>
+              <div style={{flex:1,height:"100%",borderLeft:`2px solid ${tierCol}40`,borderTop:`2px solid ${tierCol}40`,borderRadius:"6px 0 0 0"}}/>
+            </div>
+          </>
+        ) : (
+          <div style={{width:2,height:"100%",background:`${tierCol}40`}}/>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
-      {/* Aktive Kalkulator-Boni */}
-      <div style={{padding:"12px 16px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:10,marginBottom:16}}>
-        <div style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>🔗 Aktive Kalkulator-Verknüpfungen</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:6}}>
+      {/* Gesamtfortschritt */}
+      <div style={{padding:"10px 14px",background:"var(--bg3)",border:"1px solid var(--border)",borderRadius:10,marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+        <span style={{fontSize:11,color:"var(--text3)",flexShrink:0}}>⚗️ Gesamt</span>
+        <div style={{flex:1,height:5,background:"var(--bg)",borderRadius:3,overflow:"hidden"}}>
+          <div style={{width:`${totalMaxPoints>0?(currentPoints/totalMaxPoints)*100:0}%`,height:"100%",background:"linear-gradient(90deg,var(--gold),var(--gold2))",transition:"width .4s"}}/>
+        </div>
+        <span style={{fontSize:12,color:"var(--gold2)",fontWeight:700,flexShrink:0}}>{currentPoints}/{totalMaxPoints}</span>
+      </div>
+
+      {/* Baum-Auswahl */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
+        {Object.entries(TECH_TREE_DATA).map(([key,tree])=>{
+          const {cur,max,pct} = treeProgress(key);
+          const isActive = activeTree===key;
+          return (
+            <button key={key} onClick={()=>setActiveTree(key)} style={{
+              padding:"8px 6px",borderRadius:10,cursor:"pointer",transition:"all .2s",textAlign:"center",
+              border: isActive ? `2px solid ${tree.color}80` : "1px solid var(--border)",
+              background: isActive ? `${tree.color}15` : "var(--bg3)",
+            }}>
+              <div style={{fontSize:14,marginBottom:1}}>{tree.label.split(" ")[0]}</div>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:9,color:isActive?tree.color:"var(--text3)",marginBottom:4}}>
+                {tree.label.split(" ").slice(1).join(" ")}
+              </div>
+              <div style={{fontSize:9,color:"var(--text3)",marginBottom:3}}>{cur}/{max}</div>
+              <div style={{height:2,background:"var(--bg)",borderRadius:1,overflow:"hidden"}}>
+                <div style={{width:`${pct}%`,height:"100%",background:tree.color,transition:"width .4s"}}/>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tier-Auswahl */}
+      <div style={{display:"flex",gap:3,background:"var(--bg2)",borderRadius:10,padding:4,marginBottom:16}}>
+        {TIERS.map(tier=>{
+          const col = TIER_COLORS[tier];
+          const isActive = activeTier===tier;
+          const tierDone = currentTree.nodes.reduce((s,n)=>s+getTechLvl(n.id,tier),0);
+          const tierMax = currentTree.nodes.reduce((s,n)=>s+n.maxLevel,0);
+          return (
+            <button key={tier} onClick={()=>setActiveTier(tier)} style={{
+              flex:1,padding:"7px 4px",borderRadius:7,border:"none",cursor:"pointer",textAlign:"center",
+              background: isActive ? `${col}20` : "transparent",
+              boxShadow: isActive ? `0 0 0 1.5px ${col}60` : "none",
+              transition:"all .15s",
+            }}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,color:isActive?col:"var(--text3)"}}>{TIER_LABELS[tier]}</div>
+              <div style={{fontSize:8,color:isActive?col+"90":"var(--text3)",marginBottom:2}}>{tierDone}/{tierMax}</div>
+              <div style={{height:2,background:"var(--bg)",borderRadius:1,overflow:"hidden",margin:"0 2px"}}>
+                <div style={{height:"100%",width:`${tierMax>0?(tierDone/tierMax)*100:0}%`,background:col,transition:"width .4s"}}/>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Linearer Baum */}
+      <div style={{maxWidth:420,margin:"0 auto"}}>
+        {rows.map((row, rowIdx) => (
+          <div key={rowIdx}>
+            {/* Verbindung von vorheriger Reihe */}
+            {rowIdx > 0 && (
+              <Connector fromType={rows[rowIdx-1].type} toType={row.type}/>
+            )}
+            {/* Node-Reihe */}
+            {row.type === "pair" ? (
+              <div style={{display:"flex",gap:8}}>
+                {row.nodes.map(n => <NodeCard key={n.id} node={n}/>)}
+                {row.nodes.length === 1 && <div style={{flex:1}}/>}
+              </div>
+            ) : (
+              <div style={{display:"flex",padding:"0 20%"}}>
+                <NodeCard node={row.nodes[0]}/>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Kalkulator-Boni */}
+      <details style={{marginTop:16}}>
+        <summary style={{cursor:"pointer",padding:"10px 14px",background:"#c8850a15",border:"1px solid #c8850a30",
+          borderRadius:10,fontSize:12,color:"var(--gold2)",userSelect:"none",
+          display:"flex",justifyContent:"space-between",alignItems:"center",listStyle:"none"}}>
+          <span>🔗 Aktive Kalkulator-Verknüpfungen</span><span style={{fontSize:10,color:"var(--text3)"}}>▼</span>
+        </summary>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:5,padding:"6px 2px"}}>
+          {[
+            {icon:"🍀", label:"Gratis-Schmiede",   val:techFreeForgeBonus>0?`+${techFreeForgeBonus}%`:"—",    active:techFreeForgeBonus>0},
+            {icon:"⏰", label:"Schmiede-Zeit −",    val:schmiedeTimerBonus>0?`−${schmiedeTimerBonus}%`:"—",   active:schmiedeTimerBonus>0},
+            {icon:"🏷️", label:"Schmiede-Kosten −",  val:schmiedeKostenBonus>0?`−${schmiedeKostenBonus}%`:"—",active:schmiedeKostenBonus>0},
+            {icon:"💤", label:"Offline-Zeit",        val:`Lvl ${offlineTechLevel}/25`,                         active:offlineTechLevel>0},
+            {icon:"⏰", label:"Tech-Zeit −",         val:techTimerBonus>0?`−${techTimerBonus}%`:"—",           active:techTimerBonus>0},
+            {icon:"🏷️", label:"Tech-Kosten −",       val:techKostenBonus>0?`−${techKostenBonus}%`:"—",        active:techKostenBonus>0},
+            {icon:"🍀🐴",label:"Reittier-Chance +",  val:reittierChanceBonus>0?`+${reittierChanceBonus}%`:"—",active:reittierChanceBonus>0},
+            {icon:"🐴⭐",label:"Reittier-Kosten −",  val:reittierKostenBonus>0?`−${reittierKostenBonus}%`:"—",active:reittierKostenBonus>0},
+            {icon:"🟢⭐",label:"Skill-Kosten −",     val:skillKostenBonus>0?`−${skillKostenBonus}%`:"—",       active:skillKostenBonus>0},
+            {icon:"🐾🍀",label:"Ei-Chance +",        val:eiChanceBonus>0?`+${eiChanceBonus}%`:"—",             active:eiChanceBonus>0},
+            ...EGG_NODE_IDS.map((nid,i)=>{
+              const lvl=getTechTotalLevels(nid);
+              const names=["Gew.Ei","Selt.Ei","Ep.Ei","Leg.Ei","Ult.Ei","Myth.Ei"];
+              return {icon:"🥚",label:`${names[i]} −`,val:lvl>0?`−${lvl*10}% (${lvl})`:"—",active:lvl>0};
+            }),
+          ].map(({icon,label,val,active})=>(
+            <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+              padding:"5px 8px",background:active?"#22c55e08":"var(--bg2)",
+              borderRadius:6,border:`1px solid ${active?"#22c55e25":"var(--border)"}`}}>
+              <span style={{fontSize:11,color:active?"var(--text2)":"var(--text3)"}}>{icon} {label}</span>
+              <span style={{fontSize:11,color:active?"#22c55e":"var(--text3)",fontWeight:active?700:400}}>{val}</span>
+            </div>
+          ))}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+  const currentTree = TECH_TREE_DATA[activeTree];
+  const tierColor = TIER_COLORS[activeTier];
+
+  const totalMaxPoints = Object.values(TECH_TREE_DATA).reduce((s,tree) =>
+    s + tree.nodes.reduce((ns,node) => ns + node.maxLevel * TIERS.length, 0), 0);
+  const currentPoints = Object.values(TECH_TREE_DATA).reduce((s,tree) =>
+    s + tree.nodes.reduce((ns,node) =>
+      ns + TIERS.reduce((ts,tier) => ts + getTechLvl(node.id, tier), 0), 0), 0);
+
+  // Gesamtfortschritt pro Baum
+  const treeProgress = (key) => {
+    const tree = TECH_TREE_DATA[key];
+    const cur = tree.nodes.reduce((ns,node) => ns + TIERS.reduce((ts,tier) => ts + getTechLvl(node.id, tier), 0), 0);
+    const max = tree.nodes.reduce((ns,node) => ns + node.maxLevel * TIERS.length, 0);
+    return { cur, max, pct: max > 0 ? (cur/max)*100 : 0 };
+  };
+
+  return (
+    <div>
+      {/* Gesamtfortschritt */}
+      <div style={{padding:"10px 14px",background:"linear-gradient(135deg,#c8850a15,#1e1200)",border:"1px solid #c8850a30",borderRadius:10,marginBottom:14,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{flex:1}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <span style={{fontSize:11,color:"var(--text3)",letterSpacing:1,textTransform:"uppercase"}}>⚗️ Gesamtfortschritt</span>
+            <span style={{fontSize:12,color:"var(--gold2)",fontWeight:700}}>{currentPoints} / {totalMaxPoints} Punkte</span>
+          </div>
+          <div className="pbar" style={{height:6}}>
+            <div className="pfill" style={{width:`${totalMaxPoints>0?(currentPoints/totalMaxPoints)*100:0}%`}}/>
+          </div>
+        </div>
+      </div>
+
+      {/* Baum-Auswahl mit Fortschritt */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:14}}>
+        {Object.entries(TECH_TREE_DATA).map(([key,tree])=>{
+          const {cur,max,pct} = treeProgress(key);
+          const isActive = activeTree===key;
+          return (
+            <button key={key} onClick={()=>setActiveTree(key)} style={{
+              padding:"10px 8px", borderRadius:10, border:`2px solid ${isActive?tree.color+"80":"var(--border)"}`,
+              background: isActive ? `linear-gradient(135deg,${tree.color}20,var(--bg3))` : "var(--bg3)",
+              cursor:"pointer", transition:"all .2s", textAlign:"center",
+            }}>
+              <div style={{fontSize:15,marginBottom:2}}>{tree.label.split(" ")[0]}</div>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:10,color:isActive?tree.color:"var(--text3)",marginBottom:5}}>
+                {tree.label.split(" ").slice(1).join(" ")}
+              </div>
+              <div style={{fontSize:10,color:"var(--text3)",marginBottom:3}}>{cur}/{max}</div>
+              <div style={{height:3,background:"var(--bg)",borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:tree.color,borderRadius:2,transition:"width .4s"}}/>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tier-Auswahl */}
+      <div style={{display:"flex",gap:4,marginBottom:14,background:"var(--bg2)",borderRadius:10,padding:4}}>
+        {TIERS.map(tier=>{
+          const col = TIER_COLORS[tier];
+          const isActive = activeTier===tier;
+          // Fortschritt dieses Tiers im aktuellen Baum
+          const tierDone = currentTree.nodes.reduce((s,n)=>s+getTechLvl(n.id,tier),0);
+          const tierMax = currentTree.nodes.reduce((s,n)=>s+n.maxLevel,0);
+          const tierPct = tierMax>0?(tierDone/tierMax)*100:0;
+          return (
+            <button key={tier} onClick={()=>setActiveTier(tier)} style={{
+              flex:1, padding:"8px 4px", borderRadius:7, border:"none", cursor:"pointer",
+              background: isActive ? `linear-gradient(135deg,${col}30,${col}10)` : "transparent",
+              transition:"all .2s", textAlign:"center",
+              boxShadow: isActive ? `0 0 0 1.5px ${col}60` : "none",
+            }}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:13,fontWeight:700,color:isActive?col:"var(--text3)"}}>
+                {TIER_LABELS[tier]}
+              </div>
+              <div style={{fontSize:9,color:isActive?col+"90":"var(--text3)",marginBottom:3}}>{tierDone}/{tierMax}</div>
+              <div style={{height:2,background:"var(--bg)",borderRadius:1,overflow:"hidden",margin:"0 2px"}}>
+                <div style={{height:"100%",width:`${tierPct}%`,background:col,transition:"width .4s"}}/>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Node-Grid — wie im Spiel */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:8}}>
+        {currentTree.nodes.map(node => {
+          const lvl = getTechLvl(node.id, activeTier);
+          const totalLvl = getTechTotalLevels(node.id);
+          const maxTotal = node.maxLevel * TIERS.length;
+          const isLinked = node.calc !== null;
+          const isMaxed = lvl >= node.maxLevel;
+          const pct = node.maxLevel > 0 ? (lvl/node.maxLevel)*100 : 0;
+
+          return (
+            <div key={node.id} style={{
+              background: isMaxed
+                ? `linear-gradient(135deg,${tierColor}20,${tierColor}08)`
+                : "var(--bg3)",
+              border: `1.5px solid ${isMaxed ? tierColor+"60" : isLinked ? "#22c55e30" : "var(--border)"}`,
+              borderRadius:12, padding:"12px 10px",
+              transition:"all .2s", position:"relative",
+              opacity: lvl===0 && totalLvl===0 ? 0.7 : 1,
+            }}>
+              {/* Kalkulator-Badge */}
+              {isLinked && (
+                <div style={{position:"absolute",top:6,right:6,fontSize:8,padding:"1px 4px",borderRadius:4,background:"#22c55e25",color:"#22c55e",border:"1px solid #22c55e30"}}>🔗</div>
+              )}
+
+              {/* Icon + Name */}
+              <div style={{textAlign:"center",marginBottom:8}}>
+                <div style={{fontSize:22,marginBottom:3}}>{node.icon}</div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:10,color:isMaxed?tierColor:"var(--text2)",fontWeight:600,lineHeight:1.3,minHeight:26}}>
+                  {node.name}
+                </div>
+              </div>
+
+              {/* 5 Sterne / Punkte für Level */}
+              <div style={{display:"flex",justifyContent:"center",gap:4,marginBottom:8}}>
+                {Array.from({length:node.maxLevel}).map((_,i)=>(
+                  <div key={i} style={{
+                    width:16, height:16, borderRadius:"50%",
+                    background: i<lvl ? `linear-gradient(135deg,${tierColor},${tierColor}90)` : "var(--bg2)",
+                    border: `1.5px solid ${i<lvl ? tierColor : "var(--border)"}`,
+                    boxShadow: i<lvl ? `0 0 6px ${tierColor}50` : "none",
+                    transition:"all .2s",
+                  }}/>
+                ))}
+              </div>
+
+              {/* Bonus-Anzeige */}
+              <div style={{textAlign:"center",fontSize:11,color:lvl>0?tierColor:"var(--text3)",fontWeight:lvl>0?700:400,marginBottom:8}}>
+                {lvl>0
+                  ? (node.effekt<1 ? `+${(lvl*node.effekt*100).toFixed(0)}%` : `+${lvl*node.effekt}`)
+                  : node.effekt<1 ? `0% / ${(node.effekt*100).toFixed(0)}% je Lvl` : `+0`
+                }
+              </div>
+
+              {/* +/− Buttons */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                <button
+                  onClick={()=>lvl>0&&saveTechNode(node.id,activeTier,lvl-1)}
+                  disabled={lvl===0}
+                  style={{width:28,height:28,borderRadius:6,border:`1px solid ${lvl>0?tierColor+"60":"var(--border)"}`,
+                    background:"var(--bg2)",color:lvl>0?tierColor:"var(--text3)",
+                    cursor:lvl>0?"pointer":"default",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",
+                    transition:"all .15s"}}>−</button>
+                <div style={{
+                  minWidth:36,textAlign:"center",
+                  fontFamily:"'Cinzel',serif",fontSize:12,fontWeight:700,
+                  color:isMaxed?tierColor:lvl>0?"var(--text)":"var(--text3)",
+                }}>
+                  {lvl}/{node.maxLevel}
+                </div>
+                <button
+                  onClick={()=>!isMaxed&&saveTechNode(node.id,activeTier,lvl+1)}
+                  disabled={isMaxed}
+                  style={{width:28,height:28,borderRadius:6,border:`1px solid ${!isMaxed?tierColor+"60":"var(--border)"}`,
+                    background:!isMaxed?`${tierColor}15`:"var(--bg2)",
+                    color:!isMaxed?tierColor:"var(--text3)",
+                    cursor:!isMaxed?"pointer":"default",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",
+                    transition:"all .15s"}}>+</button>
+              </div>
+
+              {/* Gesamtfortschritt über alle Tiers */}
+              <div style={{marginTop:8}}>
+                <div style={{fontSize:9,color:"var(--text3)",textAlign:"center",marginBottom:2}}>{totalLvl}/{maxTotal} gesamt</div>
+                <div style={{height:2,background:"var(--bg)",borderRadius:1,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${maxTotal>0?(totalLvl/maxTotal)*100:0}%`,
+                    background:`linear-gradient(90deg,${currentTree.color},${tierColor})`,transition:"width .4s"}}/>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Kalkulator-Boni (zusammengeklappt) */}
+      <details style={{marginTop:16}}>
+        <summary style={{cursor:"pointer",padding:"10px 14px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:10,fontSize:12,color:"var(--gold2)",userSelect:"none",listStyle:"none",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span>🔗 Aktive Kalkulator-Verknüpfungen</span>
+          <span style={{fontSize:10,color:"var(--text3)"}}>▼</span>
+        </summary>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:5,padding:"10px 2px"}}>
           {[
             {icon:"🍀", label:"Gratis-Schmiede",    val:techFreeForgeBonus>0?`+${techFreeForgeBonus}%`:"—",     active:techFreeForgeBonus>0},
             {icon:"⏰", label:"Schmiede-Zeit −",     val:schmiedeTimerBonus>0?`−${schmiedeTimerBonus}%`:"—",    active:schmiedeTimerBonus>0},
             {icon:"🏷️", label:"Schmiede-Kosten −",   val:schmiedeKostenBonus>0?`−${schmiedeKostenBonus}%`:"—", active:schmiedeKostenBonus>0},
             {icon:"💤", label:"Offline-Zeit",         val:`Lvl ${offlineTechLevel}/25`,                          active:offlineTechLevel>0},
-            {icon:"⏰", label:"Tech-Forschungszeit −",val:techTimerBonus>0?`−${techTimerBonus}%`:"—",            active:techTimerBonus>0},
+            {icon:"⏰", label:"Tech-Zeit −",          val:techTimerBonus>0?`−${techTimerBonus}%`:"—",            active:techTimerBonus>0},
             {icon:"🏷️", label:"Tech-Kosten −",        val:techKostenBonus>0?`−${techKostenBonus}%`:"—",         active:techKostenBonus>0},
             {icon:"🍀🐴",label:"Reittier-Chance +",   val:reittierChanceBonus>0?`+${reittierChanceBonus}%`:"—", active:reittierChanceBonus>0},
             {icon:"🐴⭐",label:"Reittier-Kosten −",   val:reittierKostenBonus>0?`−${reittierKostenBonus}%`:"—", active:reittierKostenBonus>0},
             {icon:"🟢⭐",label:"Skill-Kosten −",      val:skillKostenBonus>0?`−${skillKostenBonus}%`:"—",        active:skillKostenBonus>0},
-            {icon:"🐾🍀",label:"Invasion Ei-Chance +",val:eiChanceBonus>0?`+${eiChanceBonus}%`:"—",              active:eiChanceBonus>0},
+            {icon:"🐾🍀",label:"Ei-Chance +",         val:eiChanceBonus>0?`+${eiChanceBonus}%`:"—",              active:eiChanceBonus>0},
             ...EGG_NODE_IDS.map((nid,i)=>{
               const lvl=getTechTotalLevels(nid);
               const names=["Gew.Ei","Selt.Ei","Ep.Ei","Leg.Ei","Ult.Ei","Myth.Ei"];
-              return {icon:"🥚",label:`${names[i]} Timer −`,val:lvl>0?`${lvl*10}% (Lvl ${lvl}/25)`:"—",active:lvl>0};
+              return {icon:"🥚",label:`${names[i]} −`,val:lvl>0?`−${lvl*10}% (Lvl ${lvl})`:"—",active:lvl>0};
             }),
           ].map(({icon,label,val,active})=>(
-            <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:active?"#22c55e0a":"var(--bg2)",borderRadius:6,border:`1px solid ${active?"#22c55e25":"var(--border)"}`}}>
-              <span style={{fontSize:12,color:active?"var(--text2)":"var(--text3)"}}>{icon} {label}</span>
-              <span style={{fontSize:12,color:active?"#22c55e":"var(--text3)",fontWeight:active?700:400}}>{val}</span>
+            <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:active?"#22c55e08":"var(--bg2)",borderRadius:6,border:`1px solid ${active?"#22c55e25":"var(--border)"}`}}>
+              <span style={{fontSize:11,color:active?"var(--text2)":"var(--text3)"}}>{icon} {label}</span>
+              <span style={{fontSize:11,color:active?"#22c55e":"var(--text3)",fontWeight:active?700:400}}>{val}</span>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Gesamtfortschritt */}
-      <div className="card mb-16" style={{padding:"12px 16px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:11,color:"var(--gold2)",letterSpacing:1}}>GESAMTFORTSCHRITT</div>
-          <div style={{fontSize:13,color:"var(--gold2)",fontWeight:600}}>{currentPoints} / {totalMaxPoints}</div>
-        </div>
-        <div className="pbar" style={{height:8}}>
-          <div className="pfill" style={{width:`${totalMaxPoints>0?(currentPoints/totalMaxPoints)*100:0}%`}}/>
-        </div>
-      </div>
-
-      {/* Baum-Auswahl */}
-      <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
-        {Object.entries(TECH_TREE_DATA).map(([key,tree])=>(
-          <button key={key} className={`btn ${activeTree===key?"btn-gold":"btn-ghost"}`}
-            style={{fontSize:12}} onClick={()=>setActiveTree(key)}>
-            {tree.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Node-Liste */}
-      <div style={{display:"grid",gap:8}}>
-        {currentTree.nodes.map(node => {
-          const totalLvl = getTechTotalLevels(node.id);
-          const maxTotal = node.maxLevel * TIERS.length;
-          const totalBonus = getTechTotalBonus(node.id, node.effekt);
-          const isLinked = node.calc !== null;
-
-          return (
-            <div key={node.id} style={{
-              background: isLinked ? "linear-gradient(135deg,#22c55e0a,var(--bg3))" : "var(--bg3)",
-              border: `1px solid ${isLinked?"#22c55e30":"var(--border)"}`,
-              borderRadius:10, padding:"12px 14px",
-            }}>
-              {/* Header */}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:6}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:16}}>{node.icon}</span>
-                  <div>
-                    <div style={{fontWeight:600,fontSize:13}}>{node.name}
-                      {isLinked&&<span style={{color:"#22c55e",fontSize:10,marginLeft:6,fontWeight:400}}>🔗 Kalkulator</span>}
-                    </div>
-                    <div style={{fontSize:11,color:"var(--text3)"}}>
-                      {node.desc || (node.effekt<1?`+${(node.effekt*100).toFixed(0)}% / Level`:`+${node.effekt} / Level`)}
-                    </div>
-                  </div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{color:"var(--gold2)",fontWeight:700,fontSize:14}}>
-                    {node.effekt<1?`+${(totalBonus*100).toFixed(0)}%`:`+${totalBonus.toFixed(0)}`}
-                  </div>
-                  <div style={{fontSize:11,color:"var(--text3)"}}>{totalLvl}/{maxTotal}</div>
-                </div>
-              </div>
-
-              {/* Tier Buttons */}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:4}}>
-                {TIERS.map(tier=>{
-                  const lvl = getTechLvl(node.id, tier);
-                  const col = TIER_COLORS[tier];
-                  return (
-                    <div key={tier} style={{textAlign:"center"}}>
-                      <div style={{fontSize:9,color:"var(--text3)",marginBottom:2}}>{tier.replace("Tier ","T")}</div>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2}}>
-                        <button onClick={()=>lvl>0&&saveTechNode(node.id,tier,lvl-1)}
-                          disabled={lvl===0}
-                          style={{width:18,height:18,borderRadius:3,border:`1px solid ${col}40`,background:"var(--bg2)",color:lvl>0?col:"var(--text3)",cursor:lvl>0?"pointer":"default",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
-                        <div style={{
-                          width:32,height:22,borderRadius:5,
-                          background:lvl>0?`${col}25`:"var(--bg2)",
-                          border:`1px solid ${col}${lvl>0?"50":"20"}`,
-                          display:"flex",alignItems:"center",justifyContent:"center",
-                          fontFamily:"'Cinzel',serif",fontSize:11,
-                          color:lvl>0?col:"var(--text3)",fontWeight:lvl>0?700:400,
-                        }}>{lvl}/{node.maxLevel}</div>
-                        <button onClick={()=>lvl<node.maxLevel&&saveTechNode(node.id,tier,lvl+1)}
-                          disabled={lvl===node.maxLevel}
-                          style={{width:18,height:18,borderRadius:3,border:`1px solid ${col}40`,background:"var(--bg2)",color:lvl<node.maxLevel?col:"var(--text3)",cursor:lvl<node.maxLevel?"pointer":"default",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Progress bar */}
-              {maxTotal>1&&(
-                <div className="pbar" style={{marginTop:6,height:3}}>
-                  <div className="pfill" style={{width:`${(totalLvl/maxTotal)*100}%`,background:currentTree.color}}/>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      </details>
     </div>
   );
 }
