@@ -4598,7 +4598,6 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       const normalized = {};
       let changed = false;
       Object.entries(war.memberPoints).forEach(([name, val]) => {
-        // Suche zuerst nach ingameName, dann username (beide case-insensitive)
         const matchedAccount = accList.find(a =>
           (a.ingameName||"").toLowerCase()===name.toLowerCase() ||
           a.username.toLowerCase()===name.toLowerCase()
@@ -4614,6 +4613,46 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       }
     }
     alert(`Bereinigung abgeschlossen! ${fixed} War(s) wurden korrigiert.`);
+  }
+
+  // Spieler in allen Wars umbenennen
+  const [renameAlt, setRenameAlt] = useState("");
+  const [renameNeu, setRenameNeu] = useState("");
+  const [renameMsg, setRenameMsg] = useState("");
+
+  async function renameInWars() {
+    setRenameMsg("");
+    const alt = renameAlt.trim();
+    const neu = renameNeu.trim();
+    if (!alt || !neu) { setRenameMsg("⚠️ Beide Felder ausfüllen."); return; }
+    if (alt.toLowerCase() === neu.toLowerCase()) { setRenameMsg("⚠️ Alter und neuer Name sind identisch."); return; }
+    const warSnap = Object.entries(wars).map(([id,w])=>({id,...w}));
+    let fixed = 0;
+    for (const war of warSnap) {
+      if (!war.memberPoints) continue;
+      const newPoints = {};
+      let changed = false;
+      Object.entries(war.memberPoints).forEach(([name, pts]) => {
+        if (name.toLowerCase() === alt.toLowerCase()) {
+          // Zusammenführen falls neuer Name bereits existiert
+          newPoints[neu] = (newPoints[neu]||0) + (Number(pts)||0);
+          changed = true;
+        } else {
+          newPoints[name] = (newPoints[name]||0) + (Number(pts)||0);
+        }
+      });
+      if (changed) {
+        const ourTotal = Object.values(newPoints).reduce((s,v)=>s+Number(v),0);
+        await update(ref(db,`wars/${war.id}`), {memberPoints:newPoints, ourPoints:ourTotal});
+        fixed++;
+      }
+    }
+    if (fixed === 0) {
+      setRenameMsg(`⚠️ "${alt}" wurde in keinem War gefunden.`);
+    } else {
+      setRenameMsg(`✅ "${alt}" → "${neu}" in ${fixed} War(s) aktualisiert!`);
+      setRenameAlt(""); setRenameNeu("");
+    }
   }
 
   const PERMS = {
@@ -4669,6 +4708,39 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               Führt doppelte Namen in allen Wars zusammen (z.B. friskydogbreath + Friskydogbreath → Friskydogbreath). Einmalig ausführen um alte Daten zu korrigieren.
             </div>
             <button className="btn btn-ghost" style={{borderColor:"#f59e0b40",color:"#f59e0b"}} onClick={cleanupNames}>🔧 Namen bereinigen</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:4}}>✏️ Spieler in Wars umbenennen</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Ersetzt einen alten Namen in allen War-Einträgen durch einen neuen Namen — z.B. wenn sich jemand umbenannt hat. Punkte werden zusammengeführt falls der neue Name bereits existiert.
+            </div>
+            <div style={{display:"grid",gap:8,marginBottom:8}}>
+              <div>
+                <label className="lbl">Alter Name (wie in den Wars)</label>
+                <input className="inp" placeholder="z.B. PalmSheep1527" value={renameAlt}
+                  onChange={e=>{setRenameAlt(e.target.value);setRenameMsg("");}}/>
+              </div>
+              <div>
+                <label className="lbl">Neuer Name</label>
+                <input className="inp" placeholder="z.B. AlphA15518" value={renameNeu}
+                  onChange={e=>{setRenameNeu(e.target.value);setRenameMsg("");}}/>
+              </div>
+            </div>
+            {renameMsg && (
+              <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,
+                background:renameMsg.startsWith("✅")?"#22c55e15":"#f59e0b15",
+                color:renameMsg.startsWith("✅")?"#22c55e":"#f59e0b",
+                border:`1px solid ${renameMsg.startsWith("✅")?"#22c55e30":"#f59e0b30"}`}}>
+                {renameMsg}
+              </div>
+            )}
+            <button className="btn btn-ghost btn-sm"
+              style={{borderColor:"#3b82f640",color:"#3b82f6"}}
+              onClick={renameInWars}
+              disabled={!renameAlt.trim()||!renameNeu.trim()}>
+              ✏️ In allen Wars umbenennen
+            </button>
           </div>
         </div>
       </div>
