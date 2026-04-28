@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Analytics } from '@vercel/analytics/react';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, push, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
@@ -4968,8 +4969,9 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               <button className="btn btn-red" onClick={resetWeeklyPoints}>✅ Ja, zurücksetzen</button>
             </div>
           </div>
-        </div>
+    </div>
       )}
+      <Analytics />
     </div>
   );
 }
