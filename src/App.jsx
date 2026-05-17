@@ -5274,3 +5274,5 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
     </div>
   );
 }
+
+}
