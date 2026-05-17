@@ -448,11 +448,24 @@ export default function GerxyApp() {
       return { error: "Benutzername bereits vergeben." };
     }
     const hashed = await hashPw(password);
+
+    // Prüfen ob ein manueller clanMembers-Eintrag mit diesem Namen existiert → Rolle übernehmen + Eintrag löschen
+    const usernameLow = username.toLowerCase();
+    const clanMemberEntries = Object.entries(clanMembers);
+    const matchingEntry = clanMemberEntries.find(([,cm]) => (cm.name||"").toLowerCase() === usernameLow);
+    const role = matchingEntry ? (matchingEntry[1].role || "R5") : "R5";
+
     await push(ref(db,"accounts"), {
       username,
       passwordHash: hashed,
-      role: "R5"
+      role,
     });
+
+    // Doppelten manuellen Eintrag entfernen
+    if (matchingEntry) {
+      await remove(ref(db,`clanMembers/${matchingEntry[0]}`));
+    }
+
     return { success: true };
   }
 
@@ -1195,13 +1208,23 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
     setNewMemberName(""); setShowAddManual(false);
   }
 
-  // Gewertete War-Punkte pro Mitglied (nur für Rang-Vorschau)
+  // Gewertete War-Punkte pro Mitglied (für Rang-Vorschau und Anzeige)
+  // Mitglieder-zentrierter Ansatz: für jedes Mitglied alle möglichen Namen prüfen
+  const gewerteteWarsFuerPts = (warList||[]).filter(w => w.gewertet !== false && w.memberPoints);
   const gewertetePtsPerMember = {};
-  (warList||[]).filter(w=>w.gewertet!==false).forEach(w => {
-    if (w.memberPoints) Object.entries(w.memberPoints).forEach(([name,pts]) => {
-      const key = name.toLowerCase();
-      gewertetePtsPerMember[key] = (gewertetePtsPerMember[key]||0) + (Number(pts)||0);
+  (mergedClanMembers||[]).forEach(m => {
+    const primaryKey = (m.ingameName?.trim() || m.username || "").toLowerCase();
+    if (!primaryKey) return;
+    const namen = new Set();
+    if (m.username) namen.add(m.username.toLowerCase());
+    if (m.ingameName && m.ingameName.trim()) namen.add(m.ingameName.trim().toLowerCase());
+    let pts = 0;
+    gewerteteWarsFuerPts.forEach(w => {
+      Object.entries(w.memberPoints).forEach(([name, p]) => {
+        if (namen.has(name.toLowerCase())) pts += Number(p)||0;
+      });
     });
+    gewertetePtsPerMember[primaryKey] = pts;
   });
 
   return (
@@ -4532,31 +4555,24 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
   const [aufgeklappt, setAufgeklappt] = useState(null);
   const [rangeSaved, setRangeSaved] = useState(false);
   async function rangeAktualisieren() {
-    // Punkte aus nur gewerteten Wars berechnen
-    const gewertetPts = {};
-    (warList||[]).filter(w=>w.gewertet!==false).forEach(w => {
-      if (w.memberPoints) Object.entries(w.memberPoints).forEach(([name,pts]) => {
-        const key = name.toLowerCase();
-        gewertetPts[key] = (gewertetPts[key]||0) + (Number(pts)||0);
-      });
-    });
+    const gewerteteWarsListe = (warList||[]).filter(w => w.gewertet !== false && w.memberPoints);
 
-    // Nur Mitglieder die im Clan sind (mergedClanMembers) und R1–R5 haben
-    // Admins (Anführer/Kommandant/Hauptmann) werden übersprungen
-    // Map auf username UND ingameName (beide lowercase) damit War-Namen matchen
-    const clanMemberMap = {};
-    (mergedClanMembers||[]).forEach(m => {
-      if (m.username) clanMemberMap[m.username.toLowerCase()] = m;
-      if (m.ingameName && m.ingameName.trim()) clanMemberMap[m.ingameName.trim().toLowerCase()] = m;
-    });
-
-    // Ranking nur der Clan-Mitglieder (keine Admins)
-    const ranking = Object.entries(gewertetPts)
-      .filter(([nameKey]) => {
-        const member = clanMemberMap[nameKey];
-        return member && !ADMIN_ROLES.includes(member.role);
+    // Für jedes Clan-Mitglied alle möglichen Namen sammeln (username + ingameName)
+    // Dann Punkte über alle möglichen Namen addieren → kein Mitglied geht verloren
+    const ranking = (mergedClanMembers||[])
+      .filter(m => !ADMIN_ROLES.includes(m.role))
+      .map(m => {
+        const namen = new Set();
+        if (m.username) namen.add(m.username.toLowerCase());
+        if (m.ingameName && m.ingameName.trim()) namen.add(m.ingameName.trim().toLowerCase());
+        let pts = 0;
+        gewerteteWarsListe.forEach(w => {
+          Object.entries(w.memberPoints).forEach(([name, p]) => {
+            if (namen.has(name.toLowerCase())) pts += Number(p)||0;
+          });
+        });
+        return { member: m, pts };
       })
-      .map(([nameKey, pts]) => ({ nameKey, member: clanMemberMap[nameKey], pts }))
       .sort((a,b) => b.pts - a.pts);
 
     // Rang-Grenzen: R1=Platz 1–3, R2=4–8, R3=9–15, R4=16–25, R5=Rest
@@ -4833,50 +4849,26 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
         const anzahlWars = gewerteteWars.length;
         if (anzahlWars === 0) return null;
 
-        // Namen-Set aller aktiven Clan-Mitglieder
-        const clanNamen = new Set();
-        const nameToDisplay = {};
-        const nameToRole = {};
-        (mergedClanMembers||[]).forEach(m => {
-          const displayName = m.ingameName?.trim() || m.username;
-          if (m.username) {
-            clanNamen.add(m.username.toLowerCase());
-            nameToDisplay[m.username.toLowerCase()] = displayName;
-            nameToRole[m.username.toLowerCase()] = m.role;
-          }
-          if (m.ingameName && m.ingameName.trim()) {
-            clanNamen.add(m.ingameName.trim().toLowerCase());
-            nameToDisplay[m.ingameName.trim().toLowerCase()] = displayName;
-            nameToRole[m.ingameName.trim().toLowerCase()] = m.role;
-          }
-        });
-
-        // Punkte & Teilnahmen pro Mitglied sammeln
-        const memberStats = {};
-        gewerteteWars.forEach(w => {
-          Object.entries(w.memberPoints).forEach(([name, pts]) => {
-            const key = name.toLowerCase();
-            if (!clanNamen.has(key)) return;
-            const punkte = Number(pts) || 0;
-            if (!memberStats[key]) memberStats[key] = { gesamtPunkte: 0, teilnahmen: 0, displayName: nameToDisplay[key] || name, role: nameToRole[key] || "R5" };
-            memberStats[key].gesamtPunkte += punkte;
-            if (punkte > 0) memberStats[key].teilnahmen += 1;
-          });
-        });
-
-        // Alle Clan-Mitglieder die gar nicht vorkommen auch aufnehmen (0 Punkte)
-        (mergedClanMembers||[]).forEach(m => {
-          const key = (m.ingameName?.trim() || m.username || "").toLowerCase();
-          if (!memberStats[key] && key) {
-            memberStats[key] = { gesamtPunkte: 0, teilnahmen: 0, displayName: m.ingameName?.trim() || m.username, role: m.role };
-          }
-        });
-
         const fmt = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
 
-        const liste = Object.values(memberStats)
-          .map(m => ({ ...m, durchschnitt: m.teilnahmen > 0 ? Math.round(m.gesamtPunkte / anzahlWars) : 0 }))
-          .sort((a, b) => b.durchschnitt - a.durchschnitt);
+        // Mitglieder-zentriert: für jedes Mitglied alle möglichen Namen prüfen
+        const liste = (mergedClanMembers||[]).map(m => {
+          const displayName = m.ingameName?.trim() || m.username || "";
+          const namen = new Set();
+          if (m.username) namen.add(m.username.toLowerCase());
+          if (m.ingameName && m.ingameName.trim()) namen.add(m.ingameName.trim().toLowerCase());
+          let gesamtPunkte = 0, teilnahmen = 0;
+          gewerteteWars.forEach(w => {
+            Object.entries(w.memberPoints).forEach(([name, pts]) => {
+              if (namen.has(name.toLowerCase())) {
+                gesamtPunkte += Number(pts)||0;
+                if ((Number(pts)||0) > 0) teilnahmen++;
+              }
+            });
+          });
+          const durchschnitt = Math.round(gesamtPunkte / anzahlWars);
+          return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt };
+        }).sort((a, b) => b.durchschnitt - a.durchschnitt);
 
         const maxDurchschnitt = liste[0]?.durchschnitt || 1;
         return (
@@ -4927,26 +4919,25 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
         const fmt = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
         const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
 
-        // Namen-Set aller aktiven Clan-Mitglieder (username + ingameName)
-        const clanNamen = new Set();
-        (mergedClanMembers||[]).forEach(m => {
-          if (m.username) clanNamen.add(m.username.toLowerCase());
-          if (m.ingameName && m.ingameName.trim()) clanNamen.add(m.ingameName.trim().toLowerCase());
-        });
-
+        // Mitglieder-zentriert: für jedes Mitglied alle möglichen Namen prüfen
         const verfehlungen = {};
-        gewerteteWars.forEach(w => {
-          const minFuerDiesesWar = (w.dateFrom >= STICHTAG) ? MIN_NEU : MIN_ALT;
-          Object.entries(w.memberPoints).forEach(([name, pts]) => {
-            // Nur aktive Clan-Mitglieder
-            if (!clanNamen.has(name.toLowerCase())) return;
-            const punkte = Number(pts)||0;
-            if (punkte > 0 && punkte < minFuerDiesesWar) {
-              const key = name.toLowerCase();
-              if (!verfehlungen[key]) verfehlungen[key] = { displayName: name, anzahl: 0, wars: [] };
-              verfehlungen[key].anzahl++;
-              verfehlungen[key].wars.push({ opponent: w.opponent, dateFrom: w.dateFrom, punkte, minPunkte: minFuerDiesesWar });
-            }
+        (mergedClanMembers||[]).forEach(m => {
+          const displayName = m.ingameName?.trim() || m.username || "";
+          if (!displayName) return;
+          const namen = new Set();
+          if (m.username) namen.add(m.username.toLowerCase());
+          if (m.ingameName && m.ingameName.trim()) namen.add(m.ingameName.trim().toLowerCase());
+          gewerteteWars.forEach(w => {
+            const minFuerDiesesWar = (w.dateFrom >= STICHTAG) ? MIN_NEU : MIN_ALT;
+            Object.entries(w.memberPoints).forEach(([name, pts]) => {
+              if (!namen.has(name.toLowerCase())) return;
+              const punkte = Number(pts)||0;
+              if (punkte > 0 && punkte < minFuerDiesesWar) {
+                if (!verfehlungen[displayName]) verfehlungen[displayName] = { displayName, anzahl: 0, wars: [] };
+                verfehlungen[displayName].anzahl++;
+                verfehlungen[displayName].wars.push({ opponent: w.opponent, dateFrom: w.dateFrom, punkte, minPunkte: minFuerDiesesWar });
+              }
+            });
           });
         });
         const liste = Object.values(verfehlungen).sort((a,b) => b.anzahl - a.anzahl);
