@@ -4631,6 +4631,37 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
     alert(`Bereinigung abgeschlossen! ${fixed} War(s) wurden korrigiert.`);
   }
 
+  // Doppelte Accounts (gleicher username) bereinigen
+  const [duplikatMsg, setDuplikatMsg] = useState("");
+  async function duplikateEntfernen() {
+    setDuplikatMsg("");
+    const alle = Object.entries(accounts).map(([id,a]) => ({id,...a}));
+    // Gruppieren nach username (lowercase)
+    const gruppen = {};
+    alle.forEach(a => {
+      const key = a.username.toLowerCase();
+      if (!gruppen[key]) gruppen[key] = [];
+      gruppen[key].push(a);
+    });
+    const doppelte = Object.values(gruppen).filter(g => g.length > 1);
+    if (doppelte.length === 0) { setDuplikatMsg("✅ Keine doppelten Accounts gefunden."); return; }
+    let geloescht = 0;
+    for (const gruppe of doppelte) {
+      // Behalte den mit dem höchsten Rang (oder ersten), lösche den Rest
+      const rangOrder = ["Anführer","Kommandant","Hauptmann","R1","R2","R3","R4","R5"];
+      gruppe.sort((a,b) => rangOrder.indexOf(a.role) - rangOrder.indexOf(b.role));
+      const behalten = gruppe[0];
+      for (let i = 1; i < gruppe.length; i++) {
+        const loeschen = gruppe[i];
+        if (loeschen.id === currentUser.id) continue; // nie eigenen Account löschen
+        await remove(ref(db,`accounts/${loeschen.id}`));
+        geloescht++;
+      }
+      setDuplikatMsg(`✅ ${geloescht} Duplikat(e) entfernt. Behalten: "${behalten.username}" (${behalten.role})`);
+    }
+    if (geloescht === 0) setDuplikatMsg("⚠️ Duplikate gefunden aber nicht gelöscht (eigener Account betroffen).");
+  }
+
   // Spieler in allen Wars umbenennen
   const [renameAlt, setRenameAlt] = useState("");
   const [renameNeu, setRenameNeu] = useState("");
@@ -4724,6 +4755,22 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               Führt doppelte Namen in allen Wars zusammen (z.B. friskydogbreath + Friskydogbreath → Friskydogbreath). Einmalig ausführen um alte Daten zu korrigieren.
             </div>
             <button className="btn btn-ghost" style={{borderColor:"#f59e0b40",color:"#f59e0b"}} onClick={cleanupNames}>🔧 Namen bereinigen</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>👥 Doppelte Accounts entfernen</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Sucht nach Accounts mit identischem Benutzernamen und löscht den Duplikat-Eintrag. Der Account mit dem höheren Rang wird behalten.
+            </div>
+            {duplikatMsg && (
+              <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,
+                background:duplikatMsg.startsWith("✅")?"#22c55e15":"#f59e0b15",
+                color:duplikatMsg.startsWith("✅")?"#22c55e":"#f59e0b",
+                border:`1px solid ${duplikatMsg.startsWith("✅")?"#22c55e30":"#f59e0b30"}`}}>
+                {duplikatMsg}
+              </div>
+            )}
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#ef444440",color:"#ef4444"}} onClick={duplikateEntfernen}>🗑️ Duplikate prüfen & entfernen</button>
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
