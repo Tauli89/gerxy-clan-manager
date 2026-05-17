@@ -167,7 +167,7 @@ function getIngameName(acc) {
   return (acc?.ingameName && acc.ingameName.trim()) ? acc.ingameName.trim() : acc?.username || "";
 }
 
-// Normalisiert einen Namen für Vergleiche: trim + lowercase
+// Normalisiert Namen für Vergleiche: trim + lowercase (ignoriert Leerzeichen)
 function normName(name) {
   return (name||"").trim().toLowerCase();
 }
@@ -447,32 +447,17 @@ export default function GerxyApp() {
   }
 
   async function register(username, password) {
-    // Leerzeichen am Anfang/Ende entfernen
     username = username.trim();
-    // Doppelt prüfen — auch serverseitig, falls accList beim Login noch nicht geladen war
     const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
-    if (accList.find(a => normName(a.username)===normName(username))) {
+    if (accList.find(a => normName(a.username) === normName(username))) {
       return { error: "Benutzername bereits vergeben." };
     }
     const hashed = await hashPw(password);
-
-    // Prüfen ob ein manueller clanMembers-Eintrag mit diesem Namen existiert → Rolle übernehmen + Eintrag löschen
-    const usernameLow = normName(username);
     const clanMemberEntries = Object.entries(clanMembers);
-    const matchingEntry = clanMemberEntries.find(([,cm]) => normName(cm.name)===usernameLow);
+    const matchingEntry = clanMemberEntries.find(([,cm]) => normName(cm.name) === normName(username));
     const role = matchingEntry ? (matchingEntry[1].role || "R5") : "R5";
-
-    await push(ref(db,"accounts"), {
-      username,
-      passwordHash: hashed,
-      role,
-    });
-
-    // Doppelten manuellen Eintrag entfernen
-    if (matchingEntry) {
-      await remove(ref(db,`clanMembers/${matchingEntry[0]}`));
-    }
-
+    await push(ref(db,"accounts"), { username, passwordHash: hashed, role });
+    if (matchingEntry) await remove(ref(db,`clanMembers/${matchingEntry[0]}`));
     return { success: true };
   }
 
@@ -597,7 +582,7 @@ function LoginScreen({ onLogin, onRegister, onGuest, accounts, loading }) {
     if (pass !== pass2) { setErr("Passwörter stimmen nicht überein."); return; }
     if (pass.length < 4) { setErr("Passwort muss mindestens 4 Zeichen lang sein."); return; }
     // Duplikat-Check im Client (schnell)
-    if (accList.find(a => normName(a.username) === normName(user))) {
+    if (accList.find(a => normName(a.username)===normName(user))) {
       setErr("Dieser Benutzername ist bereits vergeben (auch mit anderer Schreibweise)."); return;
     }
     // Duplikat-Check auch im Server (absicherung falls accList noch nicht geladen)
@@ -1061,7 +1046,7 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, u
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
         if (!clanNamen.has(normName(name))) return;
-        const key = normName(name);
+        const key = name.toLowerCase();
         if (!totalPerMember[key]) totalPerMember[key] = { displayName: name, pts: 0 };
         totalPerMember[key].pts += Number(pts)||0;
       });
@@ -1205,7 +1190,7 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
     setAddErr("");
     const name = newMemberName.trim();
     if (!name) { setAddErr("Bitte einen Namen eingeben."); return; }
-    const nameLow = normName(name);
+    const nameLow = name.toLowerCase();
     const exists = mergedClanMembers.some(a =>
       normName(a.username)===nameLow ||
       normName(a.ingameName)===nameLow
@@ -1215,16 +1200,13 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
     setNewMemberName(""); setShowAddManual(false);
   }
 
-  // Gewertete War-Punkte pro Mitglied (für Rang-Vorschau und Anzeige)
-  // Mitglieder-zentrierter Ansatz: für jedes Mitglied alle möglichen Namen prüfen
+  // Gewertete War-Punkte pro Mitglied (mitglieder-zentriert — normName für Leerzeichen-Toleranz)
   const gewerteteWarsFuerPts = (warList||[]).filter(w => w.gewertet !== false && w.memberPoints);
   const gewertetePtsPerMember = {};
   (mergedClanMembers||[]).forEach(m => {
     const primaryKey = normName(m.ingameName || m.username || "");
     if (!primaryKey) return;
-    const namen = new Set();
-    if (m.username) namen.add(normName(m.username));
-    if (m.ingameName) namen.add(normName(m.ingameName));
+    const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
     let pts = 0;
     gewerteteWarsFuerPts.forEach(w => {
       Object.entries(w.memberPoints).forEach(([name, p]) => {
@@ -1426,7 +1408,7 @@ Falls keine Daten erkennbar sind, antworte mit: []`}
 
   async function applyResults(items) {
     for (const item of items) {
-      const existing = memberList.find(m => normName(m.name)===normName(item.name));
+      const existing = memberList.find(m => m.name?.toLowerCase()===item.name?.toLowerCase());
       if (existing) {
         await update(ref(db,`members/${existing.id}`), { weeklyPoints: Number(item.points)||0 });
       } else {
@@ -1995,15 +1977,15 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
 // ── MY PAGE ──────────────────────────────────────────────────
 function MyPage({ user, memberList, warList, accountList, db }) {
   // Rang aus Account-System holen (korrekt), nicht aus members
-  const myAccount = accountList?.find(a => normName(a.username)===normName(user.username)) || {};
+  const myAccount = accountList?.find(a => a.username?.toLowerCase()===user.username?.toLowerCase()) || {};
   const myRank = myAccount.role || user.role;
-  const myData = memberList.find(m => normName(m.name)===normName(user.username)) || {};
+  const myData = memberList.find(m => m.name?.toLowerCase()===user.username?.toLowerCase()) || {};
   // Gesamtpunkte aus allen Wars berechnen
   const myTotalWarPts = (warList||[]).reduce((sum, w) => {
     if (!w.memberPoints) return sum;
     const entry = Object.entries(w.memberPoints).find(([name]) => {
-      const myIngame = normName(accountList?.find(a=>normName(a.username)===normName(user.username))?.ingameName || user.username);
-      return normName(name)===myIngame;
+      const myIngame = (accountList?.find(a=>a.username?.toLowerCase()===user.username?.toLowerCase())?.ingameName||user.username).toLowerCase();
+      return name.toLowerCase()===myIngame;
     });
     return sum + (entry ? Number(entry[1])||0 : 0);
   }, 0);
@@ -4563,15 +4545,10 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
   const [rangeSaved, setRangeSaved] = useState(false);
   async function rangeAktualisieren() {
     const gewerteteWarsListe = (warList||[]).filter(w => w.gewertet !== false && w.memberPoints);
-
-    // Für jedes Clan-Mitglied alle möglichen Namen sammeln (username + ingameName)
-    // Dann Punkte über alle möglichen Namen addieren → kein Mitglied geht verloren
     const ranking = (mergedClanMembers||[])
       .filter(m => !ADMIN_ROLES.includes(m.role))
       .map(m => {
-        const namen = new Set();
-        if (m.username) namen.add(normName(m.username));
-        if (m.ingameName && m.ingameName.trim()) namen.add(normName(m.ingameName));
+        const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
         let pts = 0;
         gewerteteWarsListe.forEach(w => {
           Object.entries(w.memberPoints).forEach(([name, p]) => {
@@ -4582,15 +4559,12 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       })
       .sort((a,b) => b.pts - a.pts);
 
-    // Rang-Grenzen: R1=Platz 1–3, R2=4–8, R3=9–15, R4=16–25, R5=Rest
-    // Basiert auf RANK_LIMITS: {R1:3, R2:5, R3:7, R4:10}
     const rangGrenzen = [
       { rang:"R1", bis: RANK_LIMITS.R1 },
       { rang:"R2", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 },
       { rang:"R3", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 + RANK_LIMITS.R3 },
       { rang:"R4", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 + RANK_LIMITS.R3 + RANK_LIMITS.R4 },
     ];
-
     let updated = 0;
     for (let i = 0; i < ranking.length; i++) {
       const { member } = ranking[i];
@@ -4622,8 +4596,8 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       let changed = false;
       Object.entries(war.memberPoints).forEach(([name, val]) => {
         const matchedAccount = accList.find(a =>
-          normName(a.ingameName)===normName(name) ||
-          normName(a.username)===normName(name)
+          (a.ingameName||"").toLowerCase()===name.toLowerCase() ||
+          a.username.toLowerCase()===name.toLowerCase()
         );
         const finalName = matchedAccount ? (matchedAccount.ingameName||matchedAccount.username) : name;
         if (finalName !== name) changed = true;
@@ -4638,64 +4612,48 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
     alert(`Bereinigung abgeschlossen! ${fixed} War(s) wurden korrigiert.`);
   }
 
-  // Leerzeichen in Usernamen bereinigen
+  // Spieler in allen Wars umbenennen
+  const [renameAlt, setRenameAlt] = useState("");
+  const [renameNeu, setRenameNeu] = useState("");
+  const [renameMsg, setRenameMsg] = useState("");
   const [leerzeichenMsg, setLeerzeichenMsg] = useState("");
+  const [duplikatMsg, setDuplikatMsg] = useState("");
+  const [diagnoseName, setDiagnoseName] = useState("");
+  const [diagnoseResult, setDiagnoseResult] = useState(null);
+
   async function leerzeichenBereinigen() {
     setLeerzeichenMsg("");
     const alle = Object.entries(accounts).map(([id,a]) => ({id,...a}));
     let fixed = 0;
     for (const a of alle) {
-      const trimmed = (a.username||"").trim();
-      if (trimmed !== a.username) {
-        await update(ref(db,`accounts/${a.id}`), { username: trimmed });
-        fixed++;
-      }
-      if (a.ingameName && a.ingameName.trim() !== a.ingameName) {
-        await update(ref(db,`accounts/${a.id}`), { ingameName: a.ingameName.trim() });
-        fixed++;
-      }
+      const trimmedUser = (a.username||"").trim();
+      const trimmedIngame = (a.ingameName||"").trim();
+      if (trimmedUser !== a.username) { await update(ref(db,`accounts/${a.id}`), { username: trimmedUser }); fixed++; }
+      if (a.ingameName && trimmedIngame !== a.ingameName) { await update(ref(db,`accounts/${a.id}`), { ingameName: trimmedIngame }); fixed++; }
     }
     setLeerzeichenMsg(fixed > 0 ? `✅ ${fixed} Name(n) bereinigt.` : "✅ Keine Leerzeichen gefunden.");
   }
 
-  // Doppelte Accounts (gleicher username) bereinigen
-  const [duplikatMsg, setDuplikatMsg] = useState("");
-  async function duplikateEntfernen() {
   async function duplikateEntfernen() {
     setDuplikatMsg("");
     const alle = Object.entries(accounts).map(([id,a]) => ({id,...a}));
-    // Gruppieren nach username (lowercase)
     const gruppen = {};
-    alle.forEach(a => {
-      const key = normName(a.username);
-      if (!gruppen[key]) gruppen[key] = [];
-      gruppen[key].push(a);
-    });
+    alle.forEach(a => { const k = normName(a.username); if(!gruppen[k]) gruppen[k]=[]; gruppen[k].push(a); });
     const doppelte = Object.values(gruppen).filter(g => g.length > 1);
-    if (doppelte.length === 0) { setDuplikatMsg("✅ Keine doppelten Accounts gefunden."); return; }
+    if (doppelte.length === 0) { setDuplikatMsg("✅ Keine Duplikate gefunden."); return; }
+    const rangOrder = ["Anführer","Kommandant","Hauptmann","R1","R2","R3","R4","R5"];
     let geloescht = 0;
     for (const gruppe of doppelte) {
-      // Behalte den mit dem höchsten Rang (oder ersten), lösche den Rest
-      const rangOrder = ["Anführer","Kommandant","Hauptmann","R1","R2","R3","R4","R5"];
       gruppe.sort((a,b) => rangOrder.indexOf(a.role) - rangOrder.indexOf(b.role));
-      const behalten = gruppe[0];
       for (let i = 1; i < gruppe.length; i++) {
-        const loeschen = gruppe[i];
-        if (loeschen.id === currentUser.id) continue; // nie eigenen Account löschen
-        await remove(ref(db,`accounts/${loeschen.id}`));
+        if (gruppe[i].id === currentUser.id) continue;
+        await remove(ref(db,`accounts/${gruppe[i].id}`));
         geloescht++;
       }
-      setDuplikatMsg(`✅ ${geloescht} Duplikat(e) entfernt. Behalten: "${behalten.username}" (${behalten.role})`);
     }
-    if (geloescht === 0) setDuplikatMsg("⚠️ Duplikate gefunden aber nicht gelöscht (eigener Account betroffen).");
+    setDuplikatMsg(geloescht > 0 ? `✅ ${geloescht} Duplikat(e) entfernt.` : "⚠️ Duplikate gefunden aber eigener Account betroffen.");
   }
 
-  // Spieler in allen Wars umbenennen
-  const [renameAlt, setRenameAlt] = useState("");
-  const [renameNeu, setRenameNeu] = useState("");
-  const [renameMsg, setRenameMsg] = useState("");
-  const [diagnoseName, setDiagnoseName] = useState("");
-  const [diagnoseResult, setDiagnoseResult] = useState(null);
 
   async function renameInWars() {
     setRenameMsg("");
@@ -4710,7 +4668,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       const newPoints = {};
       let changed = false;
       Object.entries(war.memberPoints).forEach(([name, pts]) => {
-        if (normName(name) === alt.toLowerCase()) {
+        if (name.toLowerCase() === alt.toLowerCase()) {
           // Zusammenführen falls neuer Name bereits existiert
           newPoints[neu] = (newPoints[neu]||0) + (Number(pts)||0);
           changed = true;
@@ -4788,149 +4746,69 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
-            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>👥 Doppelte Accounts entfernen</div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>✂️ Leerzeichen in Namen bereinigen</div>
             <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
-              Sucht nach Accounts mit identischem Benutzernamen und löscht den Duplikat-Eintrag. Der Account mit dem höheren Rang wird behalten.
+              Entfernt unsichtbare Leerzeichen am Anfang/Ende aller Benutzernamen in Firebase. Behebt Matching-Probleme wie beim Kalani-Fall.
             </div>
-            {duplikatMsg && (
-              <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,
-                background:duplikatMsg.startsWith("✅")?"#22c55e15":"#f59e0b15",
-                color:duplikatMsg.startsWith("✅")?"#22c55e":"#f59e0b",
-                border:`1px solid ${duplikatMsg.startsWith("✅")?"#22c55e30":"#f59e0b30"}`}}>
-                {duplikatMsg}
-              </div>
-            )}
-            <button className="btn btn-ghost btn-sm" style={{borderColor:"#ef444440",color:"#ef4444"}} onClick={duplikateEntfernen}>🗑️ Duplikate prüfen & entfernen</button>
+            {leerzeichenMsg && <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,background:"#22c55e15",color:"#22c55e",border:"1px solid #22c55e30"}}>{leerzeichenMsg}</div>}
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#22c55e40",color:"#22c55e"}} onClick={leerzeichenBereinigen}>✂️ Leerzeichen entfernen</button>
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
-            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>✂️ Leerzeichen in Namen bereinigen</div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>👥 Doppelte Accounts entfernen</div>
             <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
-              Entfernt unsichtbare Leerzeichen am Anfang/Ende aller Benutzernamen und Ingame-Namen in Firebase. Behebt das Kalani-Problem und ähnliche Fälle.
+              Sucht Accounts mit identischem Benutzernamen und löscht den Duplikat-Eintrag. Der Account mit dem höheren Rang wird behalten.
             </div>
-            {leerzeichenMsg && (
-              <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,
-                background:"#22c55e15",color:"#22c55e",border:"1px solid #22c55e30"}}>
-                {leerzeichenMsg}
-              </div>
-            )}
-            <button className="btn btn-ghost btn-sm" style={{borderColor:"#22c55e40",color:"#22c55e"}} onClick={leerzeichenBereinigen}>✂️ Leerzeichen entfernen</button>
+            {duplikatMsg && <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,background:duplikatMsg.startsWith("✅")?"#22c55e15":"#f59e0b15",color:duplikatMsg.startsWith("✅")?"#22c55e":"#f59e0b",border:`1px solid ${duplikatMsg.startsWith("✅")?"#22c55e30":"#f59e0b30"}`}}>{duplikatMsg}</div>}
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#ef444440",color:"#ef4444"}} onClick={duplikateEntfernen}>🗑️ Duplikate prüfen & entfernen</button>
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
             <div style={{fontSize:13,color:"var(--text2)",marginBottom:4}}>🔬 Name-Diagnose</div>
             <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
-              Zeigt den exakten Zeichencode eines Namens — findet unsichtbare Zeichen, Leerzeichen oder Encoding-Fehler die ein Matching verhindern.
+              Zeigt Hex-Codes und Firebase-IDs — findet unsichtbare Zeichen die Matching verhindern.
             </div>
             <div style={{display:"grid",gap:8,marginBottom:8}}>
-              <div>
-                <label className="lbl">Name zum Prüfen</label>
-                <input className="inp" placeholder="z.B. Kalani" value={diagnoseName}
-                  onChange={e=>{setDiagnoseName(e.target.value);setDiagnoseResult(null);}}/>
-              </div>
+              <input className="inp" placeholder="z.B. Kalani" value={diagnoseName} onChange={e=>{setDiagnoseName(e.target.value);setDiagnoseResult(null);}}/>
             </div>
-            <button className="btn btn-ghost btn-sm" style={{borderColor:"#a855f740",color:"#a855f7",marginBottom:8}}
-              onClick={()=>{
-                const name = diagnoseName.trim();
-                if (!name) return;
-                const nameLow = normName(name);
-                // Hex-Codes aller Zeichen im eingegebenen Namen
-                const chars = [...name].map(c => ({
-                  zeichen: c === " " ? "·" : c,
-                  code: "U+" + c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0"),
-                  dec: c.charCodeAt(0)
-                }));
-                // Alle passenden Accounts aus Firebase (mit ID)
-                const firebaseAccounts = accList
-                  .filter(a => normName(a.username).includes(nameLow) || (a.ingameName||"").toLowerCase().includes(nameLow))
-                  .map(a => ({
-                    id: a.id,
-                    username: a.username,
-                    ingameName: a.ingameName || null,
-                    role: a.role,
-                    usernameChars: [...a.username].map(c => c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),
-                    exakt: normName(a.username) === nameLow
-                  }));
-                // In Wars suchen
-                const warTreffer = [];
-                (warList||[]).forEach(w => {
-                  if (!w.memberPoints) return;
-                  Object.keys(w.memberPoints).forEach(n => {
-                    if (n.toLowerCase().includes(nameLow) || nameLow.includes(n.toLowerCase())) {
-                      if (!warTreffer.find(t => t.name === n)) {
-                        warTreffer.push({
-                          name: n,
-                          chars: [...n].map(c => c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),
-                          exakt: n.toLowerCase() === nameLow
-                        });
-                      }
-                    }
-                  });
-                });
-                setDiagnoseResult({ chars, firebaseAccounts, warTreffer, name });
-              }}>
-              🔬 Analysieren
-            </button>
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#a855f740",color:"#a855f7",marginBottom:8}} onClick={()=>{
+              const name = diagnoseName.trim(); if (!name) return;
+              const nameLow = name.toLowerCase();
+              const chars = [...name].map(c => ({z:c===" "?"·":c, code:"U+"+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0"), dec:c.charCodeAt(0)}));
+              const firebaseAccounts = accList.filter(a => normName(a.username).includes(nameLow)||(a.ingameName&&normName(a.ingameName).includes(nameLow))).map(a => ({id:a.id,username:a.username,ingameName:a.ingameName||null,role:a.role,hex:[...a.username].map(c=>c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),exakt:normName(a.username)===nameLow}));
+              const warNamen = []; (warList||[]).forEach(w=>{ if(!w.memberPoints) return; Object.keys(w.memberPoints).forEach(n=>{ if((normName(n).includes(nameLow)||nameLow.includes(normName(n)))&&!warNamen.find(t=>t.name===n)) warNamen.push({name:n,hex:[...n].map(c=>c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),exakt:normName(n)===nameLow}); }); });
+              setDiagnoseResult({chars,firebaseAccounts,warNamen,name});
+            }}>🔬 Analysieren</button>
             {diagnoseResult && (
               <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,padding:12,fontSize:12}}>
-                {/* Eingabe-Zeichenanalyse */}
-                <div style={{marginBottom:8,color:"var(--text3)"}}>Eingabe: <strong style={{color:"var(--gold2)",fontFamily:"monospace"}}>"{diagnoseResult.name}"</strong></div>
-                <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:12}}>
-                  {diagnoseResult.chars.map((c,i) => (
-                    <div key={i} style={{textAlign:"center",padding:"3px 5px",background:"var(--bg2)",borderRadius:4,
-                      border:`1px solid ${c.dec > 127 || c.dec < 32 ? "#ef4444" : "var(--border)"}`,minWidth:32}}>
-                      <div style={{fontSize:13,fontFamily:"monospace",color:c.dec > 127 || c.dec === 32 ? "#ef4444":"var(--text)"}}>{c.dec===32?"·":c.zeichen}</div>
+                <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:10}}>
+                  {diagnoseResult.chars.map((c,i)=>(
+                    <div key={i} style={{textAlign:"center",padding:"3px 5px",background:"var(--bg2)",borderRadius:4,border:`1px solid ${c.dec>127||c.dec<32?"#ef4444":"var(--border)"}`,minWidth:32}}>
+                      <div style={{fontSize:13,fontFamily:"monospace",color:c.dec>127||c.dec===32?"#ef4444":"var(--text)"}}>{c.z}</div>
                       <div style={{fontSize:8,color:"var(--text3)",fontFamily:"monospace"}}>{c.code}</div>
                     </div>
                   ))}
                 </div>
-
-                {/* Firebase Accounts */}
                 <div style={{marginBottom:8}}>
                   <div style={{color:"var(--text3)",marginBottom:4,fontWeight:600}}>🔑 Firebase Accounts ({diagnoseResult.firebaseAccounts.length}):</div>
-                  {diagnoseResult.firebaseAccounts.length === 0
-                    ? <div style={{color:"#ef4444"}}>Kein Account gefunden</div>
-                    : diagnoseResult.firebaseAccounts.map((a,i) => (
-                      <div key={i} style={{padding:"6px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,
-                        border:`1px solid ${a.exakt?"#22c55e40":"#f59e0b40"}`}}>
-                        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                          <span style={{color:a.exakt?"#22c55e":"#f59e0b",fontWeight:600}}>{a.exakt?"✅":"⚠️"} "{a.username}"</span>
-                          {a.ingameName && <span style={{color:"#a855f7"}}>🎮 {a.ingameName}</span>}
-                          <span style={{color:RANK_COLORS[a.role]||"#9ca3af"}}>{a.role}</span>
-                        </div>
-                        <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)",marginTop:2}}>ID: {a.id}</div>
-                        <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)"}}>Hex: {a.usernameChars}</div>
-                      </div>
-                    ))
-                  }
+                  {diagnoseResult.firebaseAccounts.length===0?<div style={{color:"#ef4444"}}>Keiner gefunden</div>:diagnoseResult.firebaseAccounts.map((a,i)=>(
+                    <div key={i} style={{padding:"5px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,border:`1px solid ${a.exakt?"#22c55e40":"#f59e0b40"}`}}>
+                      <div><span style={{color:a.exakt?"#22c55e":"#f59e0b",fontWeight:600}}>{a.exakt?"✅":"⚠️"} "{a.username}"</span>{a.ingameName&&<span style={{color:"#a855f7",marginLeft:8}}>🎮 {a.ingameName}</span>}<span style={{color:RANK_COLORS[a.role]||"#9ca3af",marginLeft:8}}>{a.role}</span></div>
+                      <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)"}}>ID: {a.id} · Hex: {a.hex}</div>
+                    </div>
+                  ))}
                 </div>
-
-                {/* War-Einträge */}
                 <div>
-                  <div style={{color:"var(--text3)",marginBottom:4,fontWeight:600}}>⚔️ War-Einträge ({diagnoseResult.warTreffer.length} unique):</div>
-                  {diagnoseResult.warTreffer.length === 0
-                    ? <div style={{color:"#ef4444"}}>Kein Eintrag gefunden</div>
-                    : diagnoseResult.warTreffer.map((t,i) => (
-                      <div key={i} style={{padding:"6px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,
-                        border:`1px solid ${t.exakt?"#22c55e40":"#ef444440"}`}}>
-                        <span style={{color:t.exakt?"#22c55e":"#ef4444",fontWeight:600}}>{t.exakt?"✅":"❌"} "{t.name}"</span>
-                        <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)",marginTop:2}}>Hex: {t.chars}</div>
-                      </div>
-                    ))
-                  }
+                  <div style={{color:"var(--text3)",marginBottom:4,fontWeight:600}}>⚔️ War-Einträge ({diagnoseResult.warNamen.length}):</div>
+                  {diagnoseResult.warNamen.length===0?<div style={{color:"#ef4444"}}>Keine gefunden</div>:diagnoseResult.warNamen.map((t,i)=>(
+                    <div key={i} style={{padding:"5px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,border:`1px solid ${t.exakt?"#22c55e40":"#ef444440"}`}}>
+                      <span style={{color:t.exakt?"#22c55e":"#ef4444",fontWeight:600}}>{t.exakt?"✅":"❌"} "{t.name}"</span>
+                      <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)"}}>Hex: {t.hex}</div>
+                    </div>
+                  ))}
                 </div>
-
-                {/* Diagnose-Fazit */}
-                {diagnoseResult.warTreffer.length > 0 && !diagnoseResult.warTreffer.some(t=>t.exakt) && (
-                  <div style={{marginTop:8,padding:"6px 10px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:6,color:"#ef4444"}}>
-                    ❌ War-Name stimmt <strong>nicht exakt</strong> überein — vergleiche die Hex-Codes oben. Nutze "✏️ In allen Wars umbenennen" um zu korrigieren.
-                  </div>
-                )}
-                {diagnoseResult.warTreffer.some(t=>t.exakt) && diagnoseResult.firebaseAccounts.some(a=>a.exakt) && (
-                  <div style={{marginTop:8,padding:"6px 10px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:6,color:"#22c55e"}}>
-                    ✅ Name stimmt überein — falls Punkte trotzdem fehlen: evtl. doppelter Account (zwei Firebase-IDs oben sichtbar).
-                  </div>
-                )}
+                {diagnoseResult.warNamen.length>0&&!diagnoseResult.warNamen.some(t=>t.exakt)&&<div style={{marginTop:8,padding:"6px 10px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:6,color:"#ef4444"}}>❌ Kein exakter Match — Hex-Codes oben vergleichen. "✏️ In allen Wars umbenennen" zum Korrigieren nutzen.</div>}
+                {diagnoseResult.warNamen.some(t=>t.exakt)&&diagnoseResult.firebaseAccounts.some(a=>a.exakt)&&<div style={{marginTop:8,padding:"6px 10px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:6,color:"#22c55e"}}>✅ Match vorhanden — falls Punkte fehlen: evtl. zwei Firebase-IDs sichtbar (Duplikat-Account).</div>}
               </div>
             )}
           </div>
@@ -5057,29 +4935,15 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
         const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
         const anzahlWars = gewerteteWars.length;
         if (anzahlWars === 0) return null;
-
-        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
-
-        // Mitglieder-zentriert: für jedes Mitglied alle möglichen Namen prüfen
+        const fmtPts = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
         const liste = (mergedClanMembers||[]).map(m => {
           const displayName = m.ingameName?.trim() || m.username || "";
-          const namen = new Set();
-          if (m.username) namen.add(normName(m.username));
-          if (m.ingameName && m.ingameName.trim()) namen.add(normName(m.ingameName));
+          const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
           let gesamtPunkte = 0, teilnahmen = 0;
-          gewerteteWars.forEach(w => {
-            Object.entries(w.memberPoints).forEach(([name, pts]) => {
-              if (namen.has(normName(name))) {
-                gesamtPunkte += Number(pts)||0;
-                if ((Number(pts)||0) > 0) teilnahmen++;
-              }
-            });
-          });
-          const durchschnitt = Math.round(gesamtPunkte / anzahlWars);
-          return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt };
-        }).sort((a, b) => b.durchschnitt - a.durchschnitt);
-
-        const maxDurchschnitt = liste[0]?.durchschnitt || 1;
+          gewerteteWars.forEach(w => { Object.entries(w.memberPoints).forEach(([name, pts]) => { if (namen.has(normName(name))) { gesamtPunkte += Number(pts)||0; if ((Number(pts)||0)>0) teilnahmen++; } }); });
+          return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt: Math.round(gesamtPunkte / anzahlWars) };
+        }).sort((a,b) => b.durchschnitt - a.durchschnitt);
+        const maxD = liste[0]?.durchschnitt || 1;
         return (
           <div className="card mt-20" style={{borderColor:"#3b82f630"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
@@ -5087,26 +4951,21 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               <div style={{fontSize:12,color:"var(--text3)"}}>Basis: <strong style={{color:"#3b82f6"}}>{anzahlWars} gewertete Wars</strong></div>
             </div>
             <div style={{display:"grid",gap:4}}>
-              {liste.map((m, idx) => {
-                const balkenBreite = maxDurchschnitt > 0 ? (m.durchschnitt / maxDurchschnitt) * 100 : 0;
+              {liste.map((m,idx) => {
                 const farbe = m.durchschnitt >= 500000 ? "#22c55e" : m.durchschnitt >= 150000 ? "#f59e0b" : "#ef4444";
-                const roleColor = RANK_COLORS[m.role] || "#9ca3af";
+                const rc = RANK_COLORS[m.role]||"#9ca3af";
                 return (
                   <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--border)"}}>
-                    {/* Rang */}
                     <div style={{width:24,textAlign:"center",fontSize:11,color:"var(--text3)",flexShrink:0}}>#{idx+1}</div>
-                    {/* Name & Rang-Badge */}
                     <div style={{minWidth:120,flexShrink:0}}>
                       <div style={{fontWeight:600,fontSize:13}}>{m.displayName}</div>
-                      <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:`${roleColor}20`,border:`1px solid ${roleColor}40`,color:roleColor}}>{RANK_ICONS[m.role]} {m.role}</span>
+                      <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:`${rc}20`,border:`1px solid ${rc}40`,color:rc}}>{RANK_ICONS[m.role]} {m.role}</span>
                     </div>
-                    {/* Balken */}
                     <div style={{flex:1,height:8,background:"var(--bg)",borderRadius:4,overflow:"hidden",minWidth:40}}>
-                      <div style={{width:`${balkenBreite}%`,height:"100%",background:farbe,borderRadius:4,transition:"width .4s"}}/>
+                      <div style={{width:`${(m.durchschnitt/maxD)*100}%`,height:"100%",background:farbe,borderRadius:4,transition:"width .4s"}}/>
                     </div>
-                    {/* Wert */}
                     <div style={{minWidth:70,textAlign:"right",flexShrink:0}}>
-                      <span style={{fontWeight:700,fontSize:13,color:farbe}}>{fmt(m.durchschnitt)}</span>
+                      <span style={{fontWeight:700,fontSize:13,color:farbe}}>{fmtPts(m.durchschnitt)}</span>
                       <div style={{fontSize:10,color:"var(--text3)"}}>{m.teilnahmen}/{anzahlWars} Wars</div>
                     </div>
                   </div>
@@ -5114,7 +4973,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               })}
             </div>
             <div style={{marginTop:10,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
-              💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> ≥500k · <span style={{color:"#f59e0b"}}>●</span> 150k–499k · <span style={{color:"#ef4444"}}>●</span> &lt;150k — Durchschnitt über alle gewerteten Wars (fehlende Teilnahmen zählen als 0)
+              💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> ≥500k · <span style={{color:"#f59e0b"}}>●</span> 150k–499k · <span style={{color:"#ef4444"}}>●</span> &lt;150k — Ø über alle gewerteten Wars (fehlende Teilnahmen zählen als 0)
             </div>
           </div>
         );
@@ -5125,26 +4984,22 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
         const STICHTAG = "2026-05-11";
         const MIN_ALT = 150000;
         const MIN_NEU = 500000;
-        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
+        const fmtPts = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
         const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
-
-        // Mitglieder-zentriert: für jedes Mitglied alle möglichen Namen prüfen
         const verfehlungen = {};
         (mergedClanMembers||[]).forEach(m => {
           const displayName = m.ingameName?.trim() || m.username || "";
           if (!displayName) return;
-          const namen = new Set();
-          if (m.username) namen.add(normName(m.username));
-          if (m.ingameName && m.ingameName.trim()) namen.add(normName(m.ingameName));
+          const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
           gewerteteWars.forEach(w => {
-            const minFuerDiesesWar = (w.dateFrom >= STICHTAG) ? MIN_NEU : MIN_ALT;
+            const minPunkte = (w.dateFrom >= STICHTAG) ? MIN_NEU : MIN_ALT;
             Object.entries(w.memberPoints).forEach(([name, pts]) => {
               if (!namen.has(normName(name))) return;
               const punkte = Number(pts)||0;
-              if (punkte > 0 && punkte < minFuerDiesesWar) {
-                if (!verfehlungen[displayName]) verfehlungen[displayName] = { displayName, anzahl: 0, wars: [] };
+              if (punkte > 0 && punkte < minPunkte) {
+                if (!verfehlungen[displayName]) verfehlungen[displayName] = { displayName, anzahl:0, wars:[] };
                 verfehlungen[displayName].anzahl++;
-                verfehlungen[displayName].wars.push({ opponent: w.opponent, dateFrom: w.dateFrom, punkte, minPunkte: minFuerDiesesWar });
+                verfehlungen[displayName].wars.push({ opponent:w.opponent, dateFrom:w.dateFrom, punkte, minPunkte });
               }
             });
           });
@@ -5159,9 +5014,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
           <div className="card mt-20" style={{borderColor:"#ef444430"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
               <div className="card-title" style={{marginBottom:0}}>📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#ef4444",fontWeight:400}}>(nur Admins)</span></div>
-              <div style={{fontSize:12,color:"var(--text3)"}}>
-                Minimum: <strong style={{color:"#f59e0b"}}>150.000 Pkt</strong> (vor {STICHTAG}) · <strong style={{color:"#ef4444"}}>500.000 Pkt</strong> (ab {STICHTAG}) · {gewerteteWars.length} gewertete Wars
-              </div>
+              <div style={{fontSize:12,color:"var(--text3)"}}>Minimum: <strong style={{color:"#f59e0b"}}>150k</strong> (vor {STICHTAG}) · <strong style={{color:"#ef4444"}}>500k</strong> (ab {STICHTAG}) · {gewerteteWars.length} Wars</div>
             </div>
             <div style={{display:"grid",gap:6}}>
               {liste.map(eintrag => {
@@ -5173,16 +5026,11 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                       style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:`${schwereGrad}10`,cursor:"pointer",userSelect:"none"}}>
                       <div style={{flex:1,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                         <span style={{fontWeight:600,fontSize:14}}>{eintrag.displayName}</span>
-                        <span style={{padding:"2px 8px",borderRadius:12,fontSize:12,fontWeight:700,
-                          background:`${schwereGrad}25`,color:schwereGrad,border:`1px solid ${schwereGrad}50`}}>
-                          {eintrag.anzahl}× verfehlt
-                        </span>
+                        <span style={{padding:"2px 8px",borderRadius:12,fontSize:12,fontWeight:700,background:`${schwereGrad}25`,color:schwereGrad,border:`1px solid ${schwereGrad}50`}}>{eintrag.anzahl}× verfehlt</span>
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{display:"flex",gap:3}}>
-                          {Array.from({length:Math.min(eintrag.anzahl,10)}).map((_,i)=>(
-                            <div key={i} style={{width:8,height:8,borderRadius:"50%",background:schwereGrad,opacity:0.8}}/>
-                          ))}
+                          {Array.from({length:Math.min(eintrag.anzahl,10)}).map((_,i)=>(<div key={i} style={{width:8,height:8,borderRadius:"50%",background:schwereGrad,opacity:0.8}}/>))}
                           {eintrag.anzahl>10&&<span style={{fontSize:10,color:schwereGrad}}>+{eintrag.anzahl-10}</span>}
                         </div>
                         <span style={{color:"var(--text3)",fontSize:14}}>{istOffen?"▲":"▼"}</span>
@@ -5194,16 +5042,14 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                         <div style={{display:"grid",gap:4}}>
                           {eintrag.wars.sort((a,b)=>a.dateFrom?.localeCompare(b.dateFrom)).map((w,i)=>(
                             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"var(--bg3)",borderRadius:6,fontSize:13}}>
-                              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                                 <span style={{color:"var(--text3)",fontSize:11,minWidth:80}}>{w.dateFrom}</span>
                                 <span style={{color:"var(--text2)"}}>vs. {w.opponent}</span>
-                                <span style={{fontSize:10,padding:"1px 5px",borderRadius:4,background: w.dateFrom >= STICHTAG ? "#ef444420" : "#f59e0b20",color: w.dateFrom >= STICHTAG ? "#ef4444" : "#f59e0b",border:`1px solid ${w.dateFrom >= STICHTAG ? "#ef444440" : "#f59e0b40"}`}}>
-                                  Min: {w.dateFrom >= STICHTAG ? "500k" : "150k"}
-                                </span>
+                                <span style={{fontSize:10,padding:"1px 5px",borderRadius:4,background:w.dateFrom>=STICHTAG?"#ef444420":"#f59e0b20",color:w.dateFrom>=STICHTAG?"#ef4444":"#f59e0b",border:`1px solid ${w.dateFrom>=STICHTAG?"#ef444440":"#f59e0b40"}`}}>Min: {w.dateFrom>=STICHTAG?"500k":"150k"}</span>
                               </div>
                               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                                <span style={{color:"#ef4444",fontWeight:600}}>{fmt(w.punkte)}</span>
-                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmt(w.minPunkte - w.punkte)}</span>
+                                <span style={{color:"#ef4444",fontWeight:600}}>{fmtPts(w.punkte)}</span>
+                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmtPts(w.minPunkte-w.punkte)}</span>
                               </div>
                             </div>
                           ))}
@@ -5273,6 +5119,4 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
       )}
     </div>
   );
-}
-
 }
