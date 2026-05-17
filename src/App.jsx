@@ -4666,6 +4666,8 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
   const [renameAlt, setRenameAlt] = useState("");
   const [renameNeu, setRenameNeu] = useState("");
   const [renameMsg, setRenameMsg] = useState("");
+  const [diagnoseName, setDiagnoseName] = useState("");
+  const [diagnoseResult, setDiagnoseResult] = useState(null);
 
   async function renameInWars() {
     setRenameMsg("");
@@ -4771,6 +4773,124 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               </div>
             )}
             <button className="btn btn-ghost btn-sm" style={{borderColor:"#ef444440",color:"#ef4444"}} onClick={duplikateEntfernen}>🗑️ Duplikate prüfen & entfernen</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:4}}>🔬 Name-Diagnose</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Zeigt den exakten Zeichencode eines Namens — findet unsichtbare Zeichen, Leerzeichen oder Encoding-Fehler die ein Matching verhindern.
+            </div>
+            <div style={{display:"grid",gap:8,marginBottom:8}}>
+              <div>
+                <label className="lbl">Name zum Prüfen</label>
+                <input className="inp" placeholder="z.B. Kalani" value={diagnoseName}
+                  onChange={e=>{setDiagnoseName(e.target.value);setDiagnoseResult(null);}}/>
+              </div>
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#a855f740",color:"#a855f7",marginBottom:8}}
+              onClick={()=>{
+                const name = diagnoseName.trim();
+                if (!name) return;
+                const nameLow = name.toLowerCase();
+                // Hex-Codes aller Zeichen im eingegebenen Namen
+                const chars = [...name].map(c => ({
+                  zeichen: c === " " ? "·" : c,
+                  code: "U+" + c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0"),
+                  dec: c.charCodeAt(0)
+                }));
+                // Alle passenden Accounts aus Firebase (mit ID)
+                const firebaseAccounts = accList
+                  .filter(a => a.username.toLowerCase().includes(nameLow) || (a.ingameName||"").toLowerCase().includes(nameLow))
+                  .map(a => ({
+                    id: a.id,
+                    username: a.username,
+                    ingameName: a.ingameName || null,
+                    role: a.role,
+                    usernameChars: [...a.username].map(c => c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),
+                    exakt: a.username.toLowerCase() === nameLow
+                  }));
+                // In Wars suchen
+                const warTreffer = [];
+                (warList||[]).forEach(w => {
+                  if (!w.memberPoints) return;
+                  Object.keys(w.memberPoints).forEach(n => {
+                    if (n.toLowerCase().includes(nameLow) || nameLow.includes(n.toLowerCase())) {
+                      if (!warTreffer.find(t => t.name === n)) {
+                        warTreffer.push({
+                          name: n,
+                          chars: [...n].map(c => c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),
+                          exakt: n.toLowerCase() === nameLow
+                        });
+                      }
+                    }
+                  });
+                });
+                setDiagnoseResult({ chars, firebaseAccounts, warTreffer, name });
+              }}>
+              🔬 Analysieren
+            </button>
+            {diagnoseResult && (
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,padding:12,fontSize:12}}>
+                {/* Eingabe-Zeichenanalyse */}
+                <div style={{marginBottom:8,color:"var(--text3)"}}>Eingabe: <strong style={{color:"var(--gold2)",fontFamily:"monospace"}}>"{diagnoseResult.name}"</strong></div>
+                <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:12}}>
+                  {diagnoseResult.chars.map((c,i) => (
+                    <div key={i} style={{textAlign:"center",padding:"3px 5px",background:"var(--bg2)",borderRadius:4,
+                      border:`1px solid ${c.dec > 127 || c.dec < 32 ? "#ef4444" : "var(--border)"}`,minWidth:32}}>
+                      <div style={{fontSize:13,fontFamily:"monospace",color:c.dec > 127 || c.dec === 32 ? "#ef4444":"var(--text)"}}>{c.dec===32?"·":c.zeichen}</div>
+                      <div style={{fontSize:8,color:"var(--text3)",fontFamily:"monospace"}}>{c.code}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Firebase Accounts */}
+                <div style={{marginBottom:8}}>
+                  <div style={{color:"var(--text3)",marginBottom:4,fontWeight:600}}>🔑 Firebase Accounts ({diagnoseResult.firebaseAccounts.length}):</div>
+                  {diagnoseResult.firebaseAccounts.length === 0
+                    ? <div style={{color:"#ef4444"}}>Kein Account gefunden</div>
+                    : diagnoseResult.firebaseAccounts.map((a,i) => (
+                      <div key={i} style={{padding:"6px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,
+                        border:`1px solid ${a.exakt?"#22c55e40":"#f59e0b40"}`}}>
+                        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                          <span style={{color:a.exakt?"#22c55e":"#f59e0b",fontWeight:600}}>{a.exakt?"✅":"⚠️"} "{a.username}"</span>
+                          {a.ingameName && <span style={{color:"#a855f7"}}>🎮 {a.ingameName}</span>}
+                          <span style={{color:RANK_COLORS[a.role]||"#9ca3af"}}>{a.role}</span>
+                        </div>
+                        <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)",marginTop:2}}>ID: {a.id}</div>
+                        <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)"}}>Hex: {a.usernameChars}</div>
+                      </div>
+                    ))
+                  }
+                </div>
+
+                {/* War-Einträge */}
+                <div>
+                  <div style={{color:"var(--text3)",marginBottom:4,fontWeight:600}}>⚔️ War-Einträge ({diagnoseResult.warTreffer.length} unique):</div>
+                  {diagnoseResult.warTreffer.length === 0
+                    ? <div style={{color:"#ef4444"}}>Kein Eintrag gefunden</div>
+                    : diagnoseResult.warTreffer.map((t,i) => (
+                      <div key={i} style={{padding:"6px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,
+                        border:`1px solid ${t.exakt?"#22c55e40":"#ef444440"}`}}>
+                        <span style={{color:t.exakt?"#22c55e":"#ef4444",fontWeight:600}}>{t.exakt?"✅":"❌"} "{t.name}"</span>
+                        <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)",marginTop:2}}>Hex: {t.chars}</div>
+                      </div>
+                    ))
+                  }
+                </div>
+
+                {/* Diagnose-Fazit */}
+                {diagnoseResult.warTreffer.length > 0 && !diagnoseResult.warTreffer.some(t=>t.exakt) && (
+                  <div style={{marginTop:8,padding:"6px 10px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:6,color:"#ef4444"}}>
+                    ❌ War-Name stimmt <strong>nicht exakt</strong> überein — vergleiche die Hex-Codes oben. Nutze "✏️ In allen Wars umbenennen" um zu korrigieren.
+                  </div>
+                )}
+                {diagnoseResult.warTreffer.some(t=>t.exakt) && diagnoseResult.firebaseAccounts.some(a=>a.exakt) && (
+                  <div style={{marginTop:8,padding:"6px 10px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:6,color:"#22c55e"}}>
+                    ✅ Name stimmt überein — falls Punkte trotzdem fehlen: evtl. doppelter Account (zwei Firebase-IDs oben sichtbar).
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
