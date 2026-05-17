@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Analytics } from '@vercel/analytics/react';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, onValue, set, push, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
@@ -1734,7 +1733,7 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
           {war.gewertet!==false && !editingPoints && (
             <div style={{marginBottom:12,padding:"8px 12px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:8,fontSize:12,color:"#fca5a5",display:"flex",alignItems:"center",gap:8}}>
               <span>⚠️</span>
-              <span>Mindestpunkte pro Clanwar: <strong style={{color:"#ef4444"}}>150.000 Pkt</strong> — Mitglieder darunter sind rot markiert</span>
+              <span>Mindestpunkte pro Clanwar: <strong style={{color:"#ef4444"}}>{war.dateFrom >= "2026-05-11" ? "500.000" : "150.000"} Pkt</strong> — Mitglieder darunter sind rot markiert</span>
             </div>
           )}
 
@@ -1753,7 +1752,7 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
                   const role = findAccountByName(accountList, name)?.role;
                   const p = editingPoints?(editingPoints[name]??""):(Number(pts[name])||0);
                   const punkte = Number(p)||0;
-                  const MIN_PUNKTE = 150000;
+                  const MIN_PUNKTE = (war.dateFrom >= "2026-05-11") ? 500000 : 150000;
                   // Rot markieren: nur bei gewerteten Wars, nur wenn Punkte eingetragen (>0) und unter Minimum
                   const zuWenig = war.gewertet!==false && !editingPoints && punkte > 0 && punkte < MIN_PUNKTE;
                   return (
@@ -4828,9 +4827,104 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
         </div>
       )}
 
+      {/* Durchschnittspunkte-Übersicht */}
+      {(() => {
+        const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
+        const anzahlWars = gewerteteWars.length;
+        if (anzahlWars === 0) return null;
+
+        // Namen-Set aller aktiven Clan-Mitglieder
+        const clanNamen = new Set();
+        const nameToDisplay = {};
+        const nameToRole = {};
+        (mergedClanMembers||[]).forEach(m => {
+          const displayName = m.ingameName?.trim() || m.username;
+          if (m.username) {
+            clanNamen.add(m.username.toLowerCase());
+            nameToDisplay[m.username.toLowerCase()] = displayName;
+            nameToRole[m.username.toLowerCase()] = m.role;
+          }
+          if (m.ingameName && m.ingameName.trim()) {
+            clanNamen.add(m.ingameName.trim().toLowerCase());
+            nameToDisplay[m.ingameName.trim().toLowerCase()] = displayName;
+            nameToRole[m.ingameName.trim().toLowerCase()] = m.role;
+          }
+        });
+
+        // Punkte & Teilnahmen pro Mitglied sammeln
+        const memberStats = {};
+        gewerteteWars.forEach(w => {
+          Object.entries(w.memberPoints).forEach(([name, pts]) => {
+            const key = name.toLowerCase();
+            if (!clanNamen.has(key)) return;
+            const punkte = Number(pts) || 0;
+            if (!memberStats[key]) memberStats[key] = { gesamtPunkte: 0, teilnahmen: 0, displayName: nameToDisplay[key] || name, role: nameToRole[key] || "R5" };
+            memberStats[key].gesamtPunkte += punkte;
+            if (punkte > 0) memberStats[key].teilnahmen += 1;
+          });
+        });
+
+        // Alle Clan-Mitglieder die gar nicht vorkommen auch aufnehmen (0 Punkte)
+        (mergedClanMembers||[]).forEach(m => {
+          const key = (m.ingameName?.trim() || m.username || "").toLowerCase();
+          if (!memberStats[key] && key) {
+            memberStats[key] = { gesamtPunkte: 0, teilnahmen: 0, displayName: m.ingameName?.trim() || m.username, role: m.role };
+          }
+        });
+
+        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
+
+        const liste = Object.values(memberStats)
+          .map(m => ({ ...m, durchschnitt: m.teilnahmen > 0 ? Math.round(m.gesamtPunkte / anzahlWars) : 0 }))
+          .sort((a, b) => b.durchschnitt - a.durchschnitt);
+
+        const maxDurchschnitt = liste[0]?.durchschnitt || 1;
+        return (
+          <div className="card mt-20" style={{borderColor:"#3b82f630"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+              <div className="card-title" style={{marginBottom:0}}>📊 Durchschnittspunkte pro Mitglied <span style={{fontSize:11,color:"#9ca3af",fontWeight:400}}>(nur Admins)</span></div>
+              <div style={{fontSize:12,color:"var(--text3)"}}>Basis: <strong style={{color:"#3b82f6"}}>{anzahlWars} gewertete Wars</strong></div>
+            </div>
+            <div style={{display:"grid",gap:4}}>
+              {liste.map((m, idx) => {
+                const balkenBreite = maxDurchschnitt > 0 ? (m.durchschnitt / maxDurchschnitt) * 100 : 0;
+                const farbe = m.durchschnitt >= 500000 ? "#22c55e" : m.durchschnitt >= 150000 ? "#f59e0b" : "#ef4444";
+                const roleColor = RANK_COLORS[m.role] || "#9ca3af";
+                return (
+                  <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+                    {/* Rang */}
+                    <div style={{width:24,textAlign:"center",fontSize:11,color:"var(--text3)",flexShrink:0}}>#{idx+1}</div>
+                    {/* Name & Rang-Badge */}
+                    <div style={{minWidth:120,flexShrink:0}}>
+                      <div style={{fontWeight:600,fontSize:13}}>{m.displayName}</div>
+                      <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:`${roleColor}20`,border:`1px solid ${roleColor}40`,color:roleColor}}>{RANK_ICONS[m.role]} {m.role}</span>
+                    </div>
+                    {/* Balken */}
+                    <div style={{flex:1,height:8,background:"var(--bg)",borderRadius:4,overflow:"hidden",minWidth:40}}>
+                      <div style={{width:`${balkenBreite}%`,height:"100%",background:farbe,borderRadius:4,transition:"width .4s"}}/>
+                    </div>
+                    {/* Wert */}
+                    <div style={{minWidth:70,textAlign:"right",flexShrink:0}}>
+                      <span style={{fontWeight:700,fontSize:13,color:farbe}}>{fmt(m.durchschnitt)}</span>
+                      <div style={{fontSize:10,color:"var(--text3)"}}>{m.teilnahmen}/{anzahlWars} Wars</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{marginTop:10,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
+              💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> ≥500k · <span style={{color:"#f59e0b"}}>●</span> 150k–499k · <span style={{color:"#ef4444"}}>●</span> &lt;150k — Durchschnitt über alle gewerteten Wars (fehlende Teilnahmen zählen als 0)
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Mindestpunkte-Übersicht */}
       {(() => {
-        const MIN_PUNKTE = 150000;
+        const STICHTAG = "2026-05-11";
+        const MIN_ALT = 150000;
+        const MIN_NEU = 500000;
+        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
         const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
 
         // Namen-Set aller aktiven Clan-Mitglieder (username + ingameName)
@@ -4842,15 +4936,16 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
 
         const verfehlungen = {};
         gewerteteWars.forEach(w => {
+          const minFuerDiesesWar = (w.dateFrom >= STICHTAG) ? MIN_NEU : MIN_ALT;
           Object.entries(w.memberPoints).forEach(([name, pts]) => {
             // Nur aktive Clan-Mitglieder
             if (!clanNamen.has(name.toLowerCase())) return;
             const punkte = Number(pts)||0;
-            if (punkte > 0 && punkte < MIN_PUNKTE) {
+            if (punkte > 0 && punkte < minFuerDiesesWar) {
               const key = name.toLowerCase();
               if (!verfehlungen[key]) verfehlungen[key] = { displayName: name, anzahl: 0, wars: [] };
               verfehlungen[key].anzahl++;
-              verfehlungen[key].wars.push({ opponent: w.opponent, dateFrom: w.dateFrom, punkte });
+              verfehlungen[key].wars.push({ opponent: w.opponent, dateFrom: w.dateFrom, punkte, minPunkte: minFuerDiesesWar });
             }
           });
         });
@@ -4858,13 +4953,15 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
         return liste.length === 0 ? (
           <div className="card mt-20" style={{borderColor:"#22c55e30"}}>
             <div className="card-title">📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#9ca3af",fontWeight:400}}>(nur Admins)</span></div>
-            <div style={{fontSize:13,color:"#22c55e",padding:"8px 0"}}>✅ Alle Mitglieder haben in allen gewerteten Wars die 150.000 Punkte erreicht!</div>
+            <div style={{fontSize:13,color:"#22c55e",padding:"8px 0"}}>✅ Alle Mitglieder haben in allen gewerteten Wars die Mindestpunkte erreicht!</div>
           </div>
         ) : (
           <div className="card mt-20" style={{borderColor:"#ef444430"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
               <div className="card-title" style={{marginBottom:0}}>📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#ef4444",fontWeight:400}}>(nur Admins)</span></div>
-              <div style={{fontSize:12,color:"var(--text3)"}}>Minimum: <strong style={{color:"#ef4444"}}>150.000 Pkt</strong> · {gewerteteWars.length} gewertete Wars</div>
+              <div style={{fontSize:12,color:"var(--text3)"}}>
+                Minimum: <strong style={{color:"#f59e0b"}}>150.000 Pkt</strong> (vor {STICHTAG}) · <strong style={{color:"#ef4444"}}>500.000 Pkt</strong> (ab {STICHTAG}) · {gewerteteWars.length} gewertete Wars
+              </div>
             </div>
             <div style={{display:"grid",gap:6}}>
               {liste.map(eintrag => {
@@ -4900,10 +4997,13 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                                 <span style={{color:"var(--text3)",fontSize:11,minWidth:80}}>{w.dateFrom}</span>
                                 <span style={{color:"var(--text2)"}}>vs. {w.opponent}</span>
+                                <span style={{fontSize:10,padding:"1px 5px",borderRadius:4,background: w.dateFrom >= STICHTAG ? "#ef444420" : "#f59e0b20",color: w.dateFrom >= STICHTAG ? "#ef4444" : "#f59e0b",border:`1px solid ${w.dateFrom >= STICHTAG ? "#ef444440" : "#f59e0b40"}`}}>
+                                  Min: {w.dateFrom >= STICHTAG ? "500k" : "150k"}
+                                </span>
                               </div>
                               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                                 <span style={{color:"#ef4444",fontWeight:600}}>{fmt(w.punkte)}</span>
-                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmt(150000 - w.punkte)}</span>
+                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmt(w.minPunkte - w.punkte)}</span>
                               </div>
                             </div>
                           ))}
@@ -4969,9 +5069,8 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               <button className="btn btn-red" onClick={resetWeeklyPoints}>✅ Ja, zurücksetzen</button>
             </div>
           </div>
-    </div>
+        </div>
       )}
-      <Analytics />
     </div>
   );
 }
