@@ -442,6 +442,8 @@ export default function GerxyApp() {
   }
 
   async function register(username, password) {
+    // Leerzeichen am Anfang/Ende entfernen
+    username = username.trim();
     // Doppelt prüfen — auch serverseitig, falls accList beim Login noch nicht geladen war
     const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
     if (accList.find(a => a.username.toLowerCase() === username.toLowerCase())) {
@@ -4631,8 +4633,29 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
     alert(`Bereinigung abgeschlossen! ${fixed} War(s) wurden korrigiert.`);
   }
 
+  // Leerzeichen in Usernamen bereinigen
+  const [leerzeichenMsg, setLeerzeichenMsg] = useState("");
+  async function leerzeichenBereinigen() {
+    setLeerzeichenMsg("");
+    const alle = Object.entries(accounts).map(([id,a]) => ({id,...a}));
+    let fixed = 0;
+    for (const a of alle) {
+      const trimmed = (a.username||"").trim();
+      if (trimmed !== a.username) {
+        await update(ref(db,`accounts/${a.id}`), { username: trimmed });
+        fixed++;
+      }
+      if (a.ingameName && a.ingameName.trim() !== a.ingameName) {
+        await update(ref(db,`accounts/${a.id}`), { ingameName: a.ingameName.trim() });
+        fixed++;
+      }
+    }
+    setLeerzeichenMsg(fixed > 0 ? `✅ ${fixed} Name(n) bereinigt.` : "✅ Keine Leerzeichen gefunden.");
+  }
+
   // Doppelte Accounts (gleicher username) bereinigen
   const [duplikatMsg, setDuplikatMsg] = useState("");
+  async function duplikateEntfernen() {
   async function duplikateEntfernen() {
     setDuplikatMsg("");
     const alle = Object.entries(accounts).map(([id,a]) => ({id,...a}));
@@ -4773,6 +4796,20 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               </div>
             )}
             <button className="btn btn-ghost btn-sm" style={{borderColor:"#ef444440",color:"#ef4444"}} onClick={duplikateEntfernen}>🗑️ Duplikate prüfen & entfernen</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>✂️ Leerzeichen in Namen bereinigen</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Entfernt unsichtbare Leerzeichen am Anfang/Ende aller Benutzernamen und Ingame-Namen in Firebase. Behebt das Kalani-Problem und ähnliche Fälle.
+            </div>
+            {leerzeichenMsg && (
+              <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,
+                background:"#22c55e15",color:"#22c55e",border:"1px solid #22c55e30"}}>
+                {leerzeichenMsg}
+              </div>
+            )}
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#22c55e40",color:"#22c55e"}} onClick={leerzeichenBereinigen}>✂️ Leerzeichen entfernen</button>
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
