@@ -4941,7 +4941,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
           const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
           let gesamtPunkte = 0, teilnahmen = 0;
           gewerteteWars.forEach(w => { Object.entries(w.memberPoints).forEach(([name, pts]) => { if (namen.has(normName(name))) { gesamtPunkte += Number(pts)||0; if ((Number(pts)||0)>0) teilnahmen++; } }); });
-          return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt: Math.round(gesamtPunkte / anzahlWars) };
+          return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt: teilnahmen > 0 ? Math.round(gesamtPunkte / teilnahmen) : 0 };
         }).sort((a,b) => b.durchschnitt - a.durchschnitt);
         const maxD = liste[0]?.durchschnitt || 1;
         return (
