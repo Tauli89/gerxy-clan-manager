@@ -2772,19 +2772,40 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
   const [petZiel,    setPetZiel]    = useState("Legendaer");
   const [mountZiel,  setMountZiel]  = useState("Episch");
 
-  // Ressourcen aus Guide
+  // Seltenheits-Farben (konsistent mit Beschwörungs-Tab)
+  const RARITY_COL = {
+    "Gewoehnlich":"#9ca3af","Selten":"#3b82f6","Episch":"#22c55e",
+    "Legendaer":"#f59e0b","Ultimate":"#ec4899","Mythisch":"#a855f7",
+  };
+  const RARITY_LABEL = {
+    "Gewoehnlich":"Gewöhnlich","Selten":"Selten","Episch":"Episch",
+    "Legendaer":"Legendär","Ultimate":"Ultimate","Mythisch":"Mythisch",
+  };
+
+  // Ressourcen aus Guide — alle Seltenheiten
   const SKILL_ZIELE = {
-    "Episch":    { level: 15, basis: 30000,  label: "Episch (Lvl 15, 4%)",    hinweis: "Epische Skills sind nach Aufstieg schwächer als Mythisch-Base." },
-    "Legendaer": { level: 24, basis: 62200,  label: "Legendär (Lvl 24, 2%)",  hinweis: "Empfohlen — gleichwertig zu Base-Mythisch. 2% Chance reicht für alle Legendarys." },
-    "Ultimate":  { level: 44, basis: 130000, label: "Ultimate (Lvl 44, 1%)",  hinweis: "Sehr teuer, aber deutlich stärker als Base-Mythisch." },
+    "Gewoehnlich":{ level:1,  basis:500,    hinweis:"Gewöhnliche Skills nach Aufstieg — sehr schwach, nur als Übergangslösung." },
+    "Selten":     { level:8,  basis:8000,   hinweis:"Seltene Skills — deutlich schwächer als Base-Mythisch. Nur kurzzeitig sinnvoll." },
+    "Episch":     { level:15, basis:30000,  hinweis:"Epische Skills — nach Aufstieg schwächer als Mythisch-Base. Günstiger Einstieg." },
+    "Legendaer":  { level:24, basis:62200,  hinweis:"Empfohlen — gleichwertig zu Base-Mythisch. 2% Chance reicht für alle Legendarys." },
+    "Ultimate":   { level:44, basis:130000, hinweis:"Sehr teuer, aber deutlich stärker als Base-Mythisch." },
+    "Mythisch":   { level:82, basis:350000, hinweis:"Endgame — extrem teuer. Nur sinnvoll mit maximalen Tech-Boni." },
   };
   const PET_ZIELE = {
-    "Episch":    { level: 15, basis: 7100,  label: "Episch (Lvl 15, 20%)",    hinweis: "Äquivalent zu Base-Ultimate. Günstig — gut bei schlechten Mythisch-Stats." },
-    "Legendaer": { level: 37, basis: 48600, label: "Legendär (Lvl 37, 7.2%)", hinweis: "Gleichwertig zu Base-Mythisch. Empfohlen wenn du gute Mythisch-Stats hattest." },
+    "Gewoehnlich":{ level:1,  basis:200,   hinweis:"Gewöhnliche Pets — sehr schwach. Nur als temporäre Lösung direkt nach Aufstieg." },
+    "Selten":     { level:7,  basis:2000,  hinweis:"Seltene Pets — schwächer als Base-Mythisch. Kurze Übergangsphase." },
+    "Episch":     { level:15, basis:7100,  hinweis:"Äquivalent zu Base-Ultimate. Günstig — gut bei schlechten Mythisch-Stats." },
+    "Legendaer":  { level:37, basis:48600, hinweis:"Gleichwertig zu Base-Mythisch. Empfohlen wenn du gute Mythisch-Stats hattest." },
+    "Ultimate":   { level:46, basis:90000, hinweis:"Stärker als Base-Mythisch. Sehr teuer — nur mit guten Extra-Drop-Boni sinnvoll." },
+    "Mythisch":   { level:82, basis:280000,hinweis:"Endgame — extrem teuer. Nur mit maximalen Ei-Drop-Boni anstreben." },
   };
   const MOUNT_ZIELE = {
-    "Episch":    { level: 31, basis: 30000, label: "Episch (Lvl 31, 7.2%)",  hinweis: "Gleichwertig zu Base-Mythisch. Empfohlen — gutes Preis-Leistungs-Verhältnis." },
-    "Legendaer": { level: 50, basis: 70000, label: "Legendär (Lvl 50, ~5%)", hinweis: "Deutlich stärker als Base-Mythisch." },
+    "Gewoehnlich":{ level:1,  basis:1000,  hinweis:"Gewöhnliche Reittiere — sehr schwach. Nur direkt nach Aufstieg als Überbrückung." },
+    "Selten":     { level:24, basis:12000, hinweis:"Seltene Reittiere — schwächer als Base-Mythisch. Günstig zum Einstieg." },
+    "Episch":     { level:31, basis:30000, hinweis:"Gleichwertig zu Base-Mythisch. Empfohlen — gutes Preis-Leistungs-Verhältnis." },
+    "Legendaer":  { level:50, basis:70000, hinweis:"Deutlich stärker als Base-Mythisch. Gut mit Reittier-Tech-Boni." },
+    "Ultimate":   { level:67, basis:150000,hinweis:"Sehr stark — teuer aber lohnenswert mit maximalen Reittier-Tech-Boni." },
+    "Mythisch":   { level:82, basis:350000,hinweis:"Endgame — extrem teuer. Nur mit allen Reittier-Rabatten und Extra-Drop sinnvoll." },
   };
 
   // Tech-Tree Werte direkt verwenden
@@ -2821,12 +2842,12 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
   ) : null;
 
   // Kosten-Anzeige für einen Pfeiler
-  const KostenBlock = ({label, icon, data, suffix, rabattPct, dropPct, zielLevel}) => (
-    <div style={{padding:"12px 14px",background:"var(--bg2)",borderRadius:10,border:"1px solid var(--border)"}}>
+  const KostenBlock = ({label, icon, data, suffix, rabattPct, dropPct, zielLevel, rarityColor="#c8850a"}) => (
+    <div style={{padding:"12px 14px",background:"var(--bg2)",borderRadius:10,border:`1px solid ${rarityColor}30`}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
         <span style={{fontSize:18}}>{icon}</span>
-        <span style={{fontWeight:700,fontSize:14,color:"var(--gold2)"}}>{label}</span>
-        <span style={{fontSize:11,color:"var(--text3)"}}>Ziel: A1 Level {zielLevel}</span>
+        <span style={{fontWeight:700,fontSize:14,color:rarityColor}}>{label}</span>
+        <span style={{fontSize:11,padding:"1px 8px",borderRadius:10,background:`${rarityColor}20`,color:rarityColor,border:`1px solid ${rarityColor}40`}}>Ziel: A1 Level {zielLevel}</span>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:6}}>
         {/* Basis immer zeigen */}
@@ -2959,14 +2980,23 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
               {skillRabattPct === 0 && <span style={{fontSize:10,color:"var(--text3)"}}>Kein Skill-Kosten-Tech aktiv</span>}
             </div>
             <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-              {Object.entries(SKILL_ZIELE).map(([k,v])=>(
-                <button key={k} className={`btn btn-sm ${skillZiel===k?"btn-gold":"btn-ghost"}`} onClick={()=>setSkillZiel(k)}>{v.label}</button>
-              ))}
+              {Object.entries(SKILL_ZIELE).map(([k])=>{
+                const col = RARITY_COL[k]||"#9ca3af";
+                const aktiv = skillZiel===k;
+                return (
+                  <button key={k} onClick={()=>setSkillZiel(k)} style={{
+                    padding:"4px 12px",borderRadius:16,fontSize:12,fontWeight:aktiv?700:500,cursor:"pointer",
+                    border:`1px solid ${col}${aktiv?"":"50"}`,
+                    background:aktiv?col+"25":"var(--bg2)",
+                    color:aktiv?col:"var(--text3)",transition:"all .15s"
+                  }}>{RARITY_LABEL[k]}</button>
+                );
+              })}
             </div>
-            <div style={{fontSize:12,color:"#f59e0b",marginBottom:12,padding:"6px 10px",background:"#f59e0b10",borderRadius:6}}>
+            <div style={{fontSize:12,marginBottom:12,padding:"6px 10px",borderRadius:6,color:"var(--gold2)",background:"var(--bg2)"}}>
               💡 {SKILL_ZIELE[skillZiel]?.hinweis}
             </div>
-            <KostenBlock label="Benötigte Skill-Tickets" icon="🎫" data={skillK} suffix="Tickets" rabattPct={skillRabattPct} dropPct={0} zielLevel={SKILL_ZIELE[skillZiel]?.level}/>
+            <KostenBlock label="Benötigte Skill-Tickets" icon="🎫" data={skillK} suffix="Tickets" rabattPct={skillRabattPct} dropPct={0} zielLevel={SKILL_ZIELE[skillZiel]?.level} rarityColor={RARITY_COL[skillZiel]}/>
           </div>
 
           {/* Pets */}
@@ -2977,14 +3007,23 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
               {petDropPct === 0 && <span style={{fontSize:10,color:"var(--text3)"}}>Kein Ei-Drop-Tech aktiv</span>}
             </div>
             <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-              {Object.entries(PET_ZIELE).map(([k,v])=>(
-                <button key={k} className={`btn btn-sm ${petZiel===k?"btn-gold":"btn-ghost"}`} onClick={()=>setPetZiel(k)}>{v.label}</button>
-              ))}
+              {Object.entries(PET_ZIELE).map(([k])=>{
+                const col = RARITY_COL[k]||"#9ca3af";
+                const aktiv = petZiel===k;
+                return (
+                  <button key={k} onClick={()=>setPetZiel(k)} style={{
+                    padding:"4px 12px",borderRadius:16,fontSize:12,fontWeight:aktiv?700:500,cursor:"pointer",
+                    border:`1px solid ${col}${aktiv?"":"50"}`,
+                    background:aktiv?col+"25":"var(--bg2)",
+                    color:aktiv?col:"var(--text3)",transition:"all .15s"
+                  }}>{RARITY_LABEL[k]}</button>
+                );
+              })}
             </div>
-            <div style={{fontSize:12,color:"#f59e0b",marginBottom:12,padding:"6px 10px",background:"#f59e0b10",borderRadius:6}}>
+            <div style={{fontSize:12,marginBottom:12,padding:"6px 10px",borderRadius:6,color:"var(--gold2)",background:"var(--bg2)"}}>
               💡 {PET_ZIELE[petZiel]?.hinweis}
             </div>
-            <KostenBlock label="Benötigte Eggshells" icon="🥚" data={petK} suffix="Eggshells" rabattPct={0} dropPct={petDropPct} zielLevel={PET_ZIELE[petZiel]?.level}/>
+            <KostenBlock label="Benötigte Eggshells" icon="🥚" data={petK} suffix="Eggshells" rabattPct={0} dropPct={petDropPct} zielLevel={PET_ZIELE[petZiel]?.level} rarityColor={RARITY_COL[petZiel]}/>
           </div>
 
           {/* Mounts */}
@@ -2996,14 +3035,23 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
               {mountRabattPct === 0 && mountDropPct === 0 && <span style={{fontSize:10,color:"var(--text3)"}}>Kein Reittier-Tech aktiv</span>}
             </div>
             <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-              {Object.entries(MOUNT_ZIELE).map(([k,v])=>(
-                <button key={k} className={`btn btn-sm ${mountZiel===k?"btn-gold":"btn-ghost"}`} onClick={()=>setMountZiel(k)}>{v.label}</button>
-              ))}
+              {Object.entries(MOUNT_ZIELE).map(([k])=>{
+                const col = RARITY_COL[k]||"#9ca3af";
+                const aktiv = mountZiel===k;
+                return (
+                  <button key={k} onClick={()=>setMountZiel(k)} style={{
+                    padding:"4px 12px",borderRadius:16,fontSize:12,fontWeight:aktiv?700:500,cursor:"pointer",
+                    border:`1px solid ${col}${aktiv?"":"50"}`,
+                    background:aktiv?col+"25":"var(--bg2)",
+                    color:aktiv?col:"var(--text3)",transition:"all .15s"
+                  }}>{RARITY_LABEL[k]}</button>
+                );
+              })}
             </div>
-            <div style={{fontSize:12,color:"#f59e0b",marginBottom:12,padding:"6px 10px",background:"#f59e0b10",borderRadius:6}}>
+            <div style={{fontSize:12,marginBottom:12,padding:"6px 10px",borderRadius:6,color:"var(--gold2)",background:"var(--bg2)"}}>
               💡 {MOUNT_ZIELE[mountZiel]?.hinweis}
             </div>
-            <KostenBlock label="Benötigte Clockwinder" icon="⚙️" data={mountK} suffix="Clockwinder" rabattPct={mountRabattPct} dropPct={mountDropPct} zielLevel={MOUNT_ZIELE[mountZiel]?.level}/>
+            <KostenBlock label="Benötigte Clockwinder" icon="⚙️" data={mountK} suffix="Clockwinder" rabattPct={mountRabattPct} dropPct={mountDropPct} zielLevel={MOUNT_ZIELE[mountZiel]?.level} rarityColor={RARITY_COL[mountZiel]}/>
           </div>
 
           {/* Zusammenfassung */}
