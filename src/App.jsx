@@ -2750,7 +2750,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
 
       {activeCalc==="planer" && <WarPlaner techTree={techTree} getTechTotalLevels={getTechTotalLevels} EGG_NODE_IDS={EGG_NODE_IDS} techTimerBonus={techTimerBonus} EGG_TIMES={EGG_TIMES}/>}
 
-      {activeCalc==="aufstieg" && <AufstiegPlaner warList={warList} techTree={techTree} getTechTotalBonus={getTechTotalBonus} reittierKostenBonus={reittierKostenBonus} eiChanceBonus={eiChanceBonus} skillKostenBonus={skillKostenBonus}/>}
+      {activeCalc==="aufstieg" && <AufstiegPlaner warList={warList} techTree={techTree} getTechTotalBonus={getTechTotalBonus} reittierKostenBonus={reittierKostenBonus} reittierChanceBonus={reittierChanceBonus} eiChanceBonus={eiChanceBonus} skillKostenBonus={skillKostenBonus}/>}
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
@@ -2764,160 +2764,176 @@ function MyPage({ user, memberList, warList, accountList, db }) {
 }
 
 // ── AUFSTIEG PLANER ──────────────────────────────────────────
-function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBonus, eiChanceBonus, skillKostenBonus }) {
+function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBonus, reittierChanceBonus, eiChanceBonus, skillKostenBonus }) {
   const [subTab, setSubTab] = useState("ressourcen");
 
   // ── Ascension Ressourcen-Planer ─────────────────────────────
-  const [skillZiel,    setSkillZiel]    = useState("Legendaer");
-  const [petZiel,      setPetZiel]      = useState("Legendaer");
-  const [mountZiel,    setMountZiel]    = useState("Episch");
-  const [skillRabatt,  setSkillRabatt]  = useState(0);
-  const [petDropBonus, setPetDropBonus] = useState(0);
-  const [mountRabatt,  setMountRabatt]  = useState(0);
-  const [mountDropBonus, setMountDropBonus] = useState(0);
+  const [skillZiel,  setSkillZiel]  = useState("Legendaer");
+  const [petZiel,    setPetZiel]    = useState("Legendaer");
+  const [mountZiel,  setMountZiel]  = useState("Episch");
 
-  // Ressourcen aus Guide: [zielLevel, basisKosten, label]
+  // Ressourcen aus Guide
   const SKILL_ZIELE = {
-    "Episch":     { level: 15, basis: 30000, label: "Episch (Lvl 15, 4%)",     hinweis: "Epische Skills sind nach Aufstieg schwächer als Mythisch-Base." },
-    "Legendaer":  { level: 24, basis: 62200, label: "Legendär (Lvl 24, 2%)",   hinweis: "Empfohlen — gleichwertig zu Base-Mythisch. 2% Chance reicht für alle Legendarys." },
-    "Ultimate":   { level: 44, basis: 130000, label: "Ultimate (Lvl 44, 1%)",  hinweis: "Sehr teuer, aber deutlich stärker als Base-Mythisch." },
+    "Episch":    { level: 15, basis: 30000,  label: "Episch (Lvl 15, 4%)",    hinweis: "Epische Skills sind nach Aufstieg schwächer als Mythisch-Base." },
+    "Legendaer": { level: 24, basis: 62200,  label: "Legendär (Lvl 24, 2%)",  hinweis: "Empfohlen — gleichwertig zu Base-Mythisch. 2% Chance reicht für alle Legendarys." },
+    "Ultimate":  { level: 44, basis: 130000, label: "Ultimate (Lvl 44, 1%)",  hinweis: "Sehr teuer, aber deutlich stärker als Base-Mythisch." },
   };
   const PET_ZIELE = {
-    "Episch":     { level: 15, basis: 7100,  label: "Episch (Lvl 15, 20%)",    hinweis: "Äquivalent zu Base-Ultimate. Günstig und einfach — gut bei schlechten Mythisch-Stats." },
-    "Legendaer":  { level: 37, basis: 48600, label: "Legendär (Lvl 37, 7.2%)", hinweis: "Gleichwertig zu Base-Mythisch. Empfohlen wenn du gute Mythisch-Stats hattest." },
+    "Episch":    { level: 15, basis: 7100,  label: "Episch (Lvl 15, 20%)",    hinweis: "Äquivalent zu Base-Ultimate. Günstig — gut bei schlechten Mythisch-Stats." },
+    "Legendaer": { level: 37, basis: 48600, label: "Legendär (Lvl 37, 7.2%)", hinweis: "Gleichwertig zu Base-Mythisch. Empfohlen wenn du gute Mythisch-Stats hattest." },
   };
   const MOUNT_ZIELE = {
-    "Episch":     { level: 31, basis: 30000, label: "Episch (Lvl 31, 7.2%)",   hinweis: "Gleichwertig zu Base-Mythisch. Empfohlen — gutes Preis-Leistungs-Verhältnis." },
-    "Legendaer":  { level: 50, basis: 70000, label: "Legendär (Lvl 50, ~5%)",  hinweis: "Deutlich stärker als Base-Mythisch." },
+    "Episch":    { level: 31, basis: 30000, label: "Episch (Lvl 31, 7.2%)",  hinweis: "Gleichwertig zu Base-Mythisch. Empfohlen — gutes Preis-Leistungs-Verhältnis." },
+    "Legendaer": { level: 50, basis: 70000, label: "Legendär (Lvl 50, ~5%)", hinweis: "Deutlich stärker als Base-Mythisch." },
   };
 
-  function berechneKosten(basis, rabattPct, dropBonusPct) {
-    const mitRabatt = Math.round(basis * (1 - rabattPct / 100));
-    const mitDrop   = dropBonusPct > 0 ? Math.round(basis / (1 + dropBonusPct / 100)) : basis;
-    const beides    = (rabattPct > 0 && dropBonusPct > 0) ? Math.round(basis * (1 - rabattPct / 100) / (1 + dropBonusPct / 100)) : null;
-    return { basis, mitRabatt: rabattPct > 0 ? mitRabatt : null, mitDrop: dropBonusPct > 0 ? mitDrop : null, beides };
-  }
-  const skillData  = SKILL_ZIELE[skillZiel]  || SKILL_ZIELE["Legendaer"];
-  const petData    = PET_ZIELE[petZiel]      || PET_ZIELE["Legendaer"];
-  const mountData  = MOUNT_ZIELE[mountZiel]  || MOUNT_ZIELE["Episch"];
-  const skillK     = berechneKosten(skillData.basis, skillRabatt, 0);
-  const petK       = berechneKosten(petData.basis,   0,           petDropBonus);
-  const mountK     = berechneKosten(mountData.basis, mountRabatt, mountDropBonus);
+  // Tech-Tree Werte direkt verwenden
+  // Skills: Rabatt auf Beschwörungskosten
+  const skillRabattPct = Math.min(skillKostenBonus || 0, 50);
+  // Haustiere: Extra-Ei-Chance = effektiver Mengen-Bonus (mehr Drops)
+  const petDropPct = Math.min(eiChanceBonus || 0, 100);
+  // Reittiere: Kosten-Rabatt + Extra-Drop-Chance
+  const mountRabattPct = Math.min(reittierKostenBonus || 0, 25);
+  const mountDropPct   = Math.min(reittierChanceBonus || 0, 50);
 
-  const fmtNum = n => n >= 1000 ? Math.round(n/1000)+"k" : String(n);
-  const KostenZeile = ({label, icon, data, suffix}) => (
+  function berechneKosten(basis, rabattPct, dropBonusPct) {
+    const mitRabatt = rabattPct > 0 ? Math.round(basis * (1 - rabattPct / 100)) : null;
+    const mitDrop   = dropBonusPct > 0 ? Math.round(basis / (1 + dropBonusPct / 100)) : null;
+    const beides    = (rabattPct > 0 && dropBonusPct > 0) ? Math.round(basis * (1 - rabattPct / 100) / (1 + dropBonusPct / 100)) : null;
+    const effektiv  = beides ?? mitRabatt ?? mitDrop ?? basis;
+    return { basis, mitRabatt, mitDrop, beides, effektiv };
+  }
+
+  const skillData = SKILL_ZIELE[skillZiel]  || SKILL_ZIELE["Legendaer"];
+  const petData   = PET_ZIELE[petZiel]      || PET_ZIELE["Legendaer"];
+  const mountData = MOUNT_ZIELE[mountZiel]  || MOUNT_ZIELE["Episch"];
+  const skillK    = berechneKosten(skillData.basis, skillRabattPct, 0);
+  const petK      = berechneKosten(petData.basis,   0,              petDropPct);
+  const mountK    = berechneKosten(mountData.basis,  mountRabattPct, mountDropPct);
+
+  const fmtNum = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
+
+  // Tech-Badge für Hinweis
+  const TechBadge = ({label, wert, farbe="#22c55e"}) => wert > 0 ? (
+    <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,background:`${farbe}15`,border:`1px solid ${farbe}30`,color:farbe,marginLeft:6}}>
+      🔬 Tech: {label}
+    </span>
+  ) : null;
+
+  // Kosten-Anzeige für einen Pfeiler
+  const KostenBlock = ({label, icon, data, suffix, rabattPct, dropPct, zielLevel}) => (
     <div style={{padding:"12px 14px",background:"var(--bg2)",borderRadius:10,border:"1px solid var(--border)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
         <span style={{fontSize:18}}>{icon}</span>
         <span style={{fontWeight:700,fontSize:14,color:"var(--gold2)"}}>{label}</span>
+        <span style={{fontSize:11,color:"var(--text3)"}}>Ziel: A1 Level {zielLevel}</span>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:6,fontSize:12}}>
-        <div style={{padding:"6px 10px",background:"var(--bg)",borderRadius:6,textAlign:"center"}}>
-          <div style={{color:"var(--text3)",fontSize:10,marginBottom:2}}>Basis</div>
-          <div style={{fontWeight:700,color:"var(--text)",fontSize:14}}>{fmtNum(data.basis)}</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:6}}>
+        {/* Basis immer zeigen */}
+        <div style={{padding:"8px 10px",background:"var(--bg)",borderRadius:8,textAlign:"center"}}>
+          <div style={{fontSize:10,color:"var(--text3)",marginBottom:3}}>Basis</div>
+          <div style={{fontWeight:700,fontSize:16,color:"var(--text)"}}>{fmtNum(data.basis)}</div>
           <div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div>
         </div>
-        {data.mitRabatt && <div style={{padding:"6px 10px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:6,textAlign:"center"}}>
-          <div style={{color:"#22c55e",fontSize:10,marginBottom:2}}>Mit Rabatt</div>
-          <div style={{fontWeight:700,color:"#22c55e",fontSize:14}}>{fmtNum(data.mitRabatt)}</div>
-          <div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div>
-        </div>}
-        {data.mitDrop && <div style={{padding:"6px 10px",background:"#3b82f610",border:"1px solid #3b82f630",borderRadius:6,textAlign:"center"}}>
-          <div style={{color:"#3b82f6",fontSize:10,marginBottom:2}}>Mit Extra-Drop</div>
-          <div style={{fontWeight:700,color:"#3b82f6",fontSize:14}}>{fmtNum(data.mitDrop)}</div>
-          <div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div>
-        </div>}
-        {data.beides && <div style={{padding:"6px 10px",background:"#a855f710",border:"1px solid #a855f730",borderRadius:6,textAlign:"center"}}>
-          <div style={{color:"#a855f7",fontSize:10,marginBottom:2}}>Rabatt + Drop</div>
-          <div style={{fontWeight:700,color:"#a855f7",fontSize:14}}>{fmtNum(data.beides)}</div>
-          <div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div>
-        </div>}
+        {/* Mit Rabatt (nur wenn Tech > 0) */}
+        {data.mitRabatt && (
+          <div style={{padding:"8px 10px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,textAlign:"center"}}>
+            <div style={{fontSize:10,color:"#22c55e",marginBottom:3}}>−{rabattPct}% Rabatt</div>
+            <div style={{fontWeight:700,fontSize:16,color:"#22c55e"}}>{fmtNum(data.mitRabatt)}</div>
+            <div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div>
+          </div>
+        )}
+        {/* Mit Extra-Drop (nur wenn Tech > 0) */}
+        {data.mitDrop && (
+          <div style={{padding:"8px 10px",background:"#3b82f610",border:"1px solid #3b82f630",borderRadius:8,textAlign:"center"}}>
+            <div style={{fontSize:10,color:"#3b82f6",marginBottom:3}}>+{dropPct}% Drop</div>
+            <div style={{fontWeight:700,fontSize:16,color:"#3b82f6"}}>{fmtNum(data.mitDrop)}</div>
+            <div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div>
+          </div>
+        )}
+        {/* Beides (nur wenn beide Tech-Boni aktiv) */}
+        {data.beides && (
+          <div style={{padding:"8px 10px",background:"#a855f710",border:"1px solid #a855f730",borderRadius:8,textAlign:"center"}}>
+            <div style={{fontSize:10,color:"#a855f7",marginBottom:3}}>Rabatt + Drop</div>
+            <div style={{fontWeight:700,fontSize:16,color:"#a855f7"}}>{fmtNum(data.beides)}</div>
+            <div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div>
+          </div>
+        )}
+        {/* Kein Tech-Bonus vorhanden */}
+        {!data.mitRabatt && !data.mitDrop && (
+          <div style={{padding:"8px 10px",background:"#ef444410",border:"1px solid #ef444430",borderRadius:8,textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <div style={{fontSize:10,color:"#ef4444",lineHeight:1.4}}>Kein Tech-Bonus aktiv — Tech Tree ausbauen für Rabatt!</div>
+          </div>
+        )}
       </div>
+      {/* Ersparnis-Anzeige */}
+      {data.effektiv < data.basis && (
+        <div style={{marginTop:8,fontSize:11,color:"#22c55e"}}>
+          💰 Mit deinem Tech Tree sparst du <strong>{fmtNum(data.basis - data.effektiv)} {suffix}</strong> ({Math.round((1-data.effektiv/data.basis)*100)}% Ersparnis)
+        </div>
+      )}
     </div>
   );
 
   // ── Wochenpunkte-Rechner ─────────────────────────────────────
-  const [wEier,       setWEier]       = useState({Gewoehnlich:0,Selten:0,Episch:0,Legendaer:0,Ultimate:0,Mythisch:0});
-  const [wReittier,   setWReittier]   = useState({beschworen:0,gemergt:0});
-  const [wSkills,     setWSkills]     = useState({beschworen:0,upgrades:0});
-  const [wHaemmer,    setWHaemmer]    = useState(0);
-  const [wTechTier,   setWTechTier]   = useState("keiner");
-  const [wRival,      setWRival]      = useState(0);
+  const [wEier,     setWEier]     = useState({Gewoehnlich:0,Selten:0,Episch:0,Legendaer:0,Ultimate:0,Mythisch:0});
+  const [wReittier, setWReittier] = useState({beschworen:0,gemergt:0});
+  const [wSkills,   setWSkills]   = useState({beschworen:0,upgrades:0});
+  const [wHaemmer,  setWHaemmer]  = useState(0);
+  const [wTechTier, setWTechTier] = useState("keiner");
+  const [wRival,    setWRival]    = useState(0);
 
-  const EI_PUNKTE = {Gewoehnlich:0,Selten:0,Episch:3200,Legendaer:6400,Ultimate:12800,Mythisch:0};
   const EI_PUNKTE_TAG2 = {Gewoehnlich:400,Selten:1600,Episch:3200,Legendaer:6400,Ultimate:12800,Mythisch:0};
-  const REITTIER_BESCHWOREN_PTS = 1250;
-  const REITTIER_GEMEINSAM_BESCHWOREN = 600;
-  const REITTIER_GEMERGT_PTS = 600;
-  const SKILL_BESCHWOREN_PTS = 125;
-  const SKILL_UPGRADE_PTS = 125;
-  const HAMMER_PUNKTE_PRO = 1;
   const TECH_PUNKTE = {"keiner":0,"Tier I":1000,"Tier II":9000,"Tier III":30000,"Tier IV":47800,"Tier V":90700};
+  const MINDEST = 500000;
 
-  const eiPts   = Object.entries(wEier).reduce((s,[r,n]) => s + (EI_PUNKTE_TAG2[r]||0)*n, 0);
-  const reitPts = wReittier.beschworen * REITTIER_BESCHWOREN_PTS + wReittier.gemergt * REITTIER_GEMERGT_PTS;
-  const skillPts = wSkills.beschworen * SKILL_BESCHWOREN_PTS + wSkills.upgrades * SKILL_UPGRADE_PTS;
-  const hamPts  = wHaemmer * HAMMER_PUNKTE_PRO;
-  const techPts = TECH_PUNKTE[wTechTier] || 0;
+  const eiPts    = Object.entries(wEier).reduce((s,[r,n]) => s + (EI_PUNKTE_TAG2[r]||0)*n, 0);
+  const reitPts  = wReittier.beschworen * 1250 + wReittier.gemergt * 600;
+  const skillPts = wSkills.beschworen * 125 + wSkills.upgrades * 125;
+  const hamPts   = wHaemmer * 1;
+  const techPts  = TECH_PUNKTE[wTechTier] || 0;
   const rivalPts = wRival * 1000;
   const gesamtPts = eiPts + reitPts + skillPts + hamPts + techPts + rivalPts;
-  const MINDEST = 500000;
   const pctVonZiel = Math.min(100, Math.round(gesamtPts / MINDEST * 100));
   const balkenFarbe = pctVonZiel >= 100 ? "#22c55e" : pctVonZiel >= 70 ? "#f59e0b" : "#ef4444";
 
   // ── Beschwörungs-Kostenziel ─────────────────────────────────
-  const [bTyp,    setBTyp]    = useState("Haustier");
-  const [bZiel,   setBZiel]   = useState("Legendaer");
-  const [bLevel,  setBLevel]  = useState(37);
-  const BESCHWOERUNGS_KOSTEN = {
-    Haustier: { kosten: l => {
-      if (l<=1) return 200; if (l<=3) return 200+(l-1)*100; if (l<=6) return 300+(l-3)*100;
-      if (l<=20) return 600+(l-7)*100; return 2300;
-    }},
-    Reittier: { kosten: () => 1000 },
-    Skill:    { kosten: l => {
-      if (l<=1) return 200; if (l<=4) return 200+(l-1)*200; if (l<=5) return 1000;
-      if (l<=7) return 1200+(l-6)*200; if (l<=16) return 1600+(l-8)*200; return 4400;
-    }},
+  const [bTyp,  setBTyp]  = useState("Haustier");
+  const [bZiel, setBZiel] = useState("Legendaer");
+
+  const BESCHWOERUNGS_SUFFIX  = { Haustier: "Eggshells", Reittier: "Clockwinder", Skill: "Tickets" };
+  const BESCHWOERUNGS_ZIELE   = {
+    Haustier: ["Episch","Legendaer","Ultimate","Mythisch"],
+    Reittier: ["Selten","Episch","Legendaer","Ultimate"],
+    Skill:    ["Episch","Legendaer","Ultimate","Mythisch"],
   };
-  const BESCHWOERUNGS_SUFFIX = { Haustier: "Eggshells", Reittier: "Clockwinder", Skill: "Tickets" };
-  const BESCHWOERUNGS_ZIELE = {
-    Haustier: ["Selten","Episch","Legendaer","Ultimate","Mythisch"],
-    Reittier: ["Selten","Episch","Legendaer","Ultimate","Mythisch"],
-    Skill:    ["Selten","Episch","Legendaer","Ultimate","Mythisch"],
-  };
-  // Wahrscheinlichkeit aus PET/MOUNT/SKILL_PROBS — wir nehmen bekannte Schwellwerte aus dem Guide
   const CHANCE_HINWEISE = {
-    Haustier: { Episch: "Level 15 = 20%", Legendaer: "Level 37 = 7.2%", Ultimate: "Level 46 = 0.07%", Mythisch: "Level 82 = 20%" },
-    Reittier: { Selten: "Level 24 = 82%+", Episch: "Level 31 = 7.2%", Legendaer: "Level 50 = ~5%", Ultimate: "Level 67 = erste Chance" },
-    Skill:    { Episch: "Level 15 = 4%", Legendaer: "Level 40 = ~2%", Ultimate: "Level 68 = ~1%", Mythisch: "Level 82 = 16.5%" },
+    Haustier: { Episch:"Level 15 = 20%",Legendaer:"Level 37 = 7.2%",Ultimate:"Level 46 = 0.07%",Mythisch:"Level 82 = 20%" },
+    Reittier: { Selten:"Level 24 = 82%+",Episch:"Level 31 = 7.2%",Legendaer:"Level 50 = ~5%",Ultimate:"Level 67 = erste Chance" },
+    Skill:    { Episch:"Level 15 = 4%",Legendaer:"Level 40 = ~2%",Ultimate:"Level 68 = ~1%",Mythisch:"Level 82 = 16.5%" },
   };
-  // Kosten bis Level X berechnen (kumulativ)
-  function kumKosten(typ, bisLevel) {
-    let s = 0;
-    const fn = BESCHWOERUNGS_KOSTEN[typ]?.kosten;
-    if (!fn) return 0;
-    for (let i = 1; i < bisLevel; i++) s += fn(i) * 20; // 20 Beschwörungen pro Level-Aufstieg
-    return s;
-  }
-  const suffix = BESCHWOERUNGS_SUFFIX[bTyp] || "Tickets";
-  const EMPF_LEVEL = {
-    Haustier: { Episch: 15, Legendaer: 37, Ultimate: 46, Mythisch: 82 },
-    Reittier: { Selten: 24, Episch: 31,    Legendaer: 50, Ultimate: 67 },
-    Skill:    { Episch: 15, Legendaer: 40,  Ultimate: 68, Mythisch: 82 },
+  const EMPF_LEVEL   = {
+    Haustier: { Episch:15,Legendaer:37,Ultimate:46,Mythisch:82 },
+    Reittier: { Selten:24,Episch:31,Legendaer:50,Ultimate:67 },
+    Skill:    { Episch:15,Legendaer:40,Ultimate:68,Mythisch:82 },
   };
-  const empfLevel = EMPF_LEVEL[bTyp]?.[bZiel] || bLevel;
-  // Durchschnittliche Anzahl Beschwörungen bis zum Ziel bei gegebener Chance
-  const CHANCEN_PCT = {
-    Haustier: { Episch: 20, Legendaer: 7.2, Ultimate: 4.32, Mythisch: 20 },
-    Reittier: { Selten: 82, Episch: 7.2,    Legendaer: 5,   Ultimate: 2 },
-    Skill:    { Episch: 4,  Legendaer: 1,   Ultimate: 1,    Mythisch: 16.5 },
+  const CHANCEN_PCT  = {
+    Haustier: { Episch:20,Legendaer:7.2,Ultimate:4.32,Mythisch:20 },
+    Reittier: { Selten:82,Episch:7.2,Legendaer:5,Ultimate:2 },
+    Skill:    { Episch:4,Legendaer:1,Ultimate:1,Mythisch:16.5 },
   };
-  const chancePct = CHANCEN_PCT[bTyp]?.[bZiel];
+  // Kosten pro Beschwörung auf Ziel-Level (Reittier immer 1000)
+  const KOSTEN_PRO_BESCHW = {
+    Haustier: { Episch:1000,Legendaer:2300,Ultimate:2300,Mythisch:2300 },
+    Reittier: { Selten:1000,Episch:1000,Legendaer:1000,Ultimate:1000 },
+    Skill:    { Episch:4000,Legendaer:4400,Ultimate:4400,Mythisch:4400 },
+  };
+  const empfLevel       = EMPF_LEVEL[bTyp]?.[bZiel] || 1;
+  const chancePct       = CHANCEN_PCT[bTyp]?.[bZiel];
+  const kostenProBeschw = KOSTEN_PRO_BESCHW[bTyp]?.[bZiel] || 0;
   const durchschnBeschw = chancePct ? Math.round(100 / chancePct) : null;
-  // Kosten pro Beschwörung auf Ziel-Level (ca.)
-  const kostenProBeschw = BESCHWOERUNGS_KOSTEN[bTyp]?.kosten(empfLevel) || 0;
-  const gesamtKosten = durchschnBeschw ? durchschnBeschw * kostenProBeschw : null;
+  const gesamtKosten    = durchschnBeschw ? durchschnBeschw * kostenProBeschw : null;
+  const suffix          = BESCHWOERUNGS_SUFFIX[bTyp] || "Tickets";
 
   return (
     <div>
@@ -2932,13 +2948,17 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
       {subTab==="ressourcen" && (
         <div style={{display:"grid",gap:14}}>
           <div style={{padding:"10px 14px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a"}}>
-            💡 Diese Ressourcen musst du <strong>vor dem Aufstieg</strong> angespart haben — danach sind deine Pets, Reittiere und Skills verloren!
+            💡 Diese Ressourcen musst du <strong>vor dem Aufstieg</strong> angespart haben. Die Rabatte werden automatisch aus deinem Tech Tree übernommen.
           </div>
 
           {/* Skills */}
           <div className="card">
-            <div className="card-title">🧠 Skills</div>
-            <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+              <div className="card-title" style={{marginBottom:0}}>🧠 Skills</div>
+              <TechBadge label={`−${skillRabattPct}% Kosten`} wert={skillRabattPct}/>
+              {skillRabattPct === 0 && <span style={{fontSize:10,color:"var(--text3)"}}>Kein Skill-Kosten-Tech aktiv</span>}
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
               {Object.entries(SKILL_ZIELE).map(([k,v])=>(
                 <button key={k} className={`btn btn-sm ${skillZiel===k?"btn-gold":"btn-ghost"}`} onClick={()=>setSkillZiel(k)}>{v.label}</button>
               ))}
@@ -2946,20 +2966,17 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
             <div style={{fontSize:12,color:"#f59e0b",marginBottom:12,padding:"6px 10px",background:"#f59e0b10",borderRadius:6}}>
               💡 {SKILL_ZIELE[skillZiel]?.hinweis}
             </div>
-            <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
-              <label style={{fontSize:12,color:"var(--text3)"}}>Kosten-Rabatt (Tech Tree):</label>
-              {[0,10,20,25,30].map(v=>(
-                <button key={v} className={`btn btn-sm ${skillRabatt===v?"btn-gold":"btn-ghost"}`} onClick={()=>setSkillRabatt(v)}>{v===0?"Kein":v+"%"}</button>
-              ))}
-            </div>
-            <KostenZeile label="Benötigte Skill-Tickets" icon="🎫" data={skillK} suffix="Tickets"/>
-            <div style={{marginTop:8,fontSize:11,color:"var(--text3)"}}>Ziel: A1 Level {SKILL_ZIELE[skillZiel]?.level} · Basis aus Guide (2% Chance bei Lvl 24)</div>
+            <KostenBlock label="Benötigte Skill-Tickets" icon="🎫" data={skillK} suffix="Tickets" rabattPct={skillRabattPct} dropPct={0} zielLevel={SKILL_ZIELE[skillZiel]?.level}/>
           </div>
 
           {/* Pets */}
           <div className="card">
-            <div className="card-title">🐾 Haustiere</div>
-            <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+              <div className="card-title" style={{marginBottom:0}}>🐾 Haustiere</div>
+              <TechBadge label={`+${petDropPct}% Ei-Drop`} wert={petDropPct}/>
+              {petDropPct === 0 && <span style={{fontSize:10,color:"var(--text3)"}}>Kein Ei-Drop-Tech aktiv</span>}
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
               {Object.entries(PET_ZIELE).map(([k,v])=>(
                 <button key={k} className={`btn btn-sm ${petZiel===k?"btn-gold":"btn-ghost"}`} onClick={()=>setPetZiel(k)}>{v.label}</button>
               ))}
@@ -2967,20 +2984,18 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
             <div style={{fontSize:12,color:"#f59e0b",marginBottom:12,padding:"6px 10px",background:"#f59e0b10",borderRadius:6}}>
               💡 {PET_ZIELE[petZiel]?.hinweis}
             </div>
-            <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
-              <label style={{fontSize:12,color:"var(--text3)"}}>Extra-Drop-Bonus:</label>
-              {[0,25,50].map(v=>(
-                <button key={v} className={`btn btn-sm ${petDropBonus===v?"btn-gold":"btn-ghost"}`} onClick={()=>setPetDropBonus(v)}>{v===0?"Kein":"+"+v+"%"}</button>
-              ))}
-            </div>
-            <KostenZeile label="Benötigte Eggshells" icon="🥚" data={petK} suffix="Eggshells"/>
-            <div style={{marginTop:8,fontSize:11,color:"var(--text3)"}}>Ziel: A1 Level {PET_ZIELE[petZiel]?.level} · 50% Extra Drop = ~33% effektiver Rabatt</div>
+            <KostenBlock label="Benötigte Eggshells" icon="🥚" data={petK} suffix="Eggshells" rabattPct={0} dropPct={petDropPct} zielLevel={PET_ZIELE[petZiel]?.level}/>
           </div>
 
           {/* Mounts */}
           <div className="card">
-            <div className="card-title">🐎 Reittiere</div>
-            <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+              <div className="card-title" style={{marginBottom:0}}>🐎 Reittiere</div>
+              <TechBadge label={`−${mountRabattPct}% Kosten`} wert={mountRabattPct}/>
+              <TechBadge label={`+${mountDropPct}% Extra-Drop`} wert={mountDropPct} farbe="#3b82f6"/>
+              {mountRabattPct === 0 && mountDropPct === 0 && <span style={{fontSize:10,color:"var(--text3)"}}>Kein Reittier-Tech aktiv</span>}
+            </div>
+            <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
               {Object.entries(MOUNT_ZIELE).map(([k,v])=>(
                 <button key={k} className={`btn btn-sm ${mountZiel===k?"btn-gold":"btn-ghost"}`} onClick={()=>setMountZiel(k)}>{v.label}</button>
               ))}
@@ -2988,33 +3003,23 @@ function AufstiegPlaner({ warList, techTree, getTechTotalBonus, reittierKostenBo
             <div style={{fontSize:12,color:"#f59e0b",marginBottom:12,padding:"6px 10px",background:"#f59e0b10",borderRadius:6}}>
               💡 {MOUNT_ZIELE[mountZiel]?.hinweis}
             </div>
-            <div style={{display:"flex",gap:8,marginBottom:6,flexWrap:"wrap",alignItems:"center"}}>
-              <label style={{fontSize:12,color:"var(--text3)"}}>Kosten-Rabatt:</label>
-              {[0,10,24,25].map(v=>(
-                <button key={v} className={`btn btn-sm ${mountRabatt===v?"btn-gold":"btn-ghost"}`} onClick={()=>setMountRabatt(v)}>{v===0?"Kein":v+"%"}</button>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center"}}>
-              <label style={{fontSize:12,color:"var(--text3)"}}>Extra-Drop-Bonus:</label>
-              {[0,25,50].map(v=>(
-                <button key={v} className={`btn btn-sm ${mountDropBonus===v?"btn-gold":"btn-ghost"}`} onClick={()=>setMountDropBonus(v)}>{v===0?"Kein":"+"+v+"%"}</button>
-              ))}
-            </div>
-            <KostenZeile label="Benötigte Clockwinder" icon="⚙️" data={mountK} suffix="Clockwinder"/>
-            <div style={{marginTop:8,fontSize:11,color:"var(--text3)"}}>Ziel: A1 Level {MOUNT_ZIELE[mountZiel]?.level} · 24% Rabatt + 50% Drop = ~49% Gesamtrabatt laut Guide</div>
+            <KostenBlock label="Benötigte Clockwinder" icon="⚙️" data={mountK} suffix="Clockwinder" rabattPct={mountRabattPct} dropPct={mountDropPct} zielLevel={MOUNT_ZIELE[mountZiel]?.level}/>
           </div>
 
           {/* Zusammenfassung */}
           <div className="card" style={{borderColor:"#a855f730"}}>
-            <div className="card-title">📋 Dein Anspar-Ziel (Zusammenfassung)</div>
+            <div className="card-title">📋 Dein Anspar-Ziel (mit deinen Tech-Boni)</div>
             <div style={{display:"grid",gap:6}}>
               {[
-                ["🎫 Skill-Tickets",  skillK.beides??skillK.mitRabatt??skillK.basis, "Tickets"],
-                ["🥚 Eggshells",      petK.beides??petK.mitDrop??petK.basis,         "Eggshells"],
-                ["⚙️ Clockwinder",    mountK.beides??mountK.mitRabatt??mountK.basis, "Clockwinder"],
-              ].map(([label, wert, suf])=>(
-                <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
-                  <span style={{color:"var(--text2)"}}>{label}</span>
+                ["🎫 Skill-Tickets", skillK.effektiv, "Tickets",    skillRabattPct > 0 ? `−${skillRabattPct}% aus Tech` : null],
+                ["🥚 Eggshells",     petK.effektiv,   "Eggshells",  petDropPct > 0 ? `+${petDropPct}% Drop aus Tech` : null],
+                ["⚙️ Clockwinder",   mountK.effektiv, "Clockwinder",mountRabattPct > 0 || mountDropPct > 0 ? `Reittier-Tech aktiv` : null],
+              ].map(([label, wert, suf, techInfo])=>(
+                <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13,gap:8,flexWrap:"wrap"}}>
+                  <div>
+                    <span style={{color:"var(--text2)"}}>{label}</span>
+                    {techInfo && <span style={{fontSize:10,color:"#22c55e",marginLeft:8}}>🔬 {techInfo}</span>}
+                  </div>
                   <span style={{fontWeight:700,color:"var(--gold2)"}}>{fmtNum(wert)} <span style={{fontWeight:400,fontSize:11,color:"var(--text3)"}}>{suf}</span></span>
                 </div>
               ))}
