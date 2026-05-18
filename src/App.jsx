@@ -4955,7 +4955,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
 
         const liste = (() => {
           if (durchschnittModus === "gewertet")   return [...listeGew].sort((a,b) => b.durchschnitt - a.durchschnitt);
-          if (durchschnittModus === "ungewertet") return [...listeUngew].sort((a,b) => b.durchschnitt - a.durchschnitt);
+          if (durchschnittModus === "ungewertet") return [...listeUngew].filter(m => m.teilnahmen > 0).sort((a,b) => a.durchschnitt - b.durchschnitt);
           // Differenz: gewertet - ungewertet
           return listeGew.map((m, i) => ({
             ...m,
@@ -5002,6 +5002,8 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                 const val = m.durchschnitt;
                 const farbe = isDiff
                   ? (val >= 0 ? "#22c55e" : "#ef4444")
+                  : durchschnittModus === "ungewertet"
+                  ? (val >= 500000 ? "#ef4444" : val >= 200000 ? "#f59e0b" : "#22c55e")
                   : val >= 500000 ? "#22c55e" : val >= 150000 ? "#f59e0b" : "#ef4444";
                 const rc = RANK_COLORS[m.role]||"#9ca3af";
                 const balken = maxD > 0 ? (Math.abs(val) / maxD) * 100 : 0;
@@ -5029,6 +5031,8 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
             <div style={{marginTop:10,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
               {isDiff
                 ? "💡 Differenz: positiv = besser in gewerteten Wars · negativ = besser in ungewerteten Wars"
+                : durchschnittModus === "ungewertet"
+                ? <>💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> &lt;200k · <span style={{color:"#f59e0b"}}>●</span> 200k–499k · <span style={{color:"#ef4444"}}>●</span> ≥500k — weniger Punkte = besser (ungewertete Wars sind Trainings-Wars)</>
                 : <>💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> ≥500k · <span style={{color:"#f59e0b"}}>●</span> 150k–499k · <span style={{color:"#ef4444"}}>●</span> &lt;150k</>
               }
             </div>
