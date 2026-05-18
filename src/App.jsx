@@ -3076,19 +3076,19 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
   };
   const EI_IDS = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
 
-  // Exakte Tech-Zeiten in Sekunden pro Tier + Stufe (aus Guide-Tabelle)
+  // Exakte Tech-Zeiten in Sekunden pro Tier + Stufe (aktualisiert aus Bild Seite 18)
   const TECH_STUFEN = {
     "Tier I":   [5*60, 10*60, 20*60, 40*60, 80*60],
-    "Tier II":  [2*3600+40*60, 5*3600+20*60, 10*3600+40*60, 21*3600+20*60, 23*3600+28*60],
-    "Tier III": [1*86400+1*3600+48*60, 1*86400+4*3600+23*60, 1*86400+7*3600+14*60, 1*86400+10*3600+21*60, 1*86400+13*3600+47*60],
-    "Tier IV":  [1*86400+17*3600+34*60, 1*86400+21*3600+43*60, 2*86400+2*3600+18*60, 2*86400+7*3600+19*60, 2*86400+12*3600+51*60],
-    "Tier V":   [2*86400+18*3600+57*60, 3*86400+1*3600+38*60, 3*86400+9*3600+0*60, 3*86400+17*3600+6*60, 4*86400+2*3600+1*60],
+    "Tier II":  [2*3600+40*60, 5*3600+20*60, 10*3600+40*60, 21*3600+20*60, 23*3600+53*60],
+    "Tier III": [1*86400+1*3600+0*60, 1*86400+4*3600+0*60, 1*86400+7*3600+0*60, 1*86400+10*3600+0*60, 1*86400+13*3600+0*60],
+    "Tier IV":  [1*86400+17*3600+0*60, 1*86400+21*3600+0*60, 2*86400+2*3600+0*60, 2*86400+7*3600+0*60, 2*86400+12*3600+0*60],
+    "Tier V":   [2*86400+18*3600+0*60, 3*86400+1*3600+0*60, 3*86400+9*3600+0*60, 3*86400+17*3600+0*60, 4*86400+2*3600+0*60],
   };
   const TECH_TIER_FARBEN = {
     "Tier I":"#22c55e","Tier II":"#3b82f6","Tier III":"#a855f7","Tier IV":"#f59e0b","Tier V":"#ef4444"
   };
   const TECH_TIER_PUNKTE = {
-    "Tier I":1000,"Tier II":10000,"Tier III":30000,"Tier IV":50000,"Tier V":100000
+    "Tier I":1000,"Tier II":9000,"Tier III":30000,"Tier IV":47800,"Tier V":90700
   };
   const TECH_STUFEN_LABELS = ["1/5","2/5","3/5","4/5","5/5"];
 
@@ -3715,6 +3715,7 @@ function Spielinfo() {
     ["clankieg","🏆 Clan War"],
     ["reittiere","🐎 Reittiere"],
     ["tipps","💡 Tipps"],
+    ["updates","📢 Patch Notes"],
   ];
 
   return (
@@ -4021,7 +4022,7 @@ function Spielinfo() {
                 ["Tag 3 (Donnerstag)","Hammer, Skills, Reittiere beschwören/mergen","#a855f7"],
                 ["Tag 4 (Freitag)","Schmiede (Münzen/Edelsteine), Tech-Baum, Eier, Haustiere mergen","#f59e0b"],
                 ["Tag 5 (Samstag)","Hammer, Dungeon-Schlüssel ⭐, Reittiere beschwören/mergen, Skills","#ef4444"],
-                ["Tag 6 (Sonntag)","Kampftag — All-Out Brawl (5 Tickets, 1.000 Pkt/Sieg)","#ec4899"],
+                ["Tag 6 (Sonntag)","Kampftag — Defeat rival clan members (1.000 Pkt/Sieg)","#ec4899"],
                 ["Tag 7 (Montag)","Belohnungen abholen 🎁","#9ca3af"],
               ].map(([day,actions,col])=>(
                 <div key={day} style={{display:"flex",gap:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,marginBottom:6,alignItems:"flex-start"}}>
@@ -4045,20 +4046,167 @@ function Spielinfo() {
                 </div>
               </div>
               <div className="card">
-                <div className="card-title">📊 Punkte & Strafen</div>
+                <div className="card-title">📊 Tier-Punkte & Strafen</div>
                 <div style={{display:"grid",gap:6}}>
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}>
                     <span style={{color:"var(--text2)"}}>Sieg</span>
                     <span style={{color:"#22c55e",fontWeight:600}}>+5 Punkte</span>
                   </div>
-                  {[["Niederlage auf Tier S","-5 Punkte","#ef4444"],["Niederlage auf Tier A","-3 Punkte","#f59e0b"],["Niederlage auf Tier B","-1 Punkt","#9ca3af"]].map(([k,v,col])=>(
-                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
+                  {[
+                    ["Niederlage auf Tier-SSS / Tier-SS / Tier-S","-5 Punkte","#ef4444"],
+                    ["Niederlage auf Tier-A","-3 Punkte","#f59e0b"],
+                    ["Niederlage auf Tier-B","-1 Punkt","#9ca3af"],
+                  ].map(([k,v,col])=>(
+                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13,gap:8}}>
                       <span style={{color:"var(--text2)"}}>{k}</span>
-                      <span style={{color:col,fontWeight:600}}>{v}</span>
+                      <span style={{color:col,fontWeight:600,flexShrink:0}}>{v}</span>
                     </div>
                   ))}
                 </div>
               </div>
+              <div className="card">
+                <div className="card-title">🏅 Tier-System</div>
+                <div style={{display:"grid",gap:4}}>
+                  {[
+                    ["Tier-SSS","≥ 50 Punkte","#a855f7"],
+                    ["Tier-SS", "≥ 35 Punkte","#ef4444"],
+                    ["Tier-S",  "≥ 25 Punkte","#f59e0b"],
+                    ["Tier-A",  "≥ 20 Punkte","#22c55e"],
+                    ["Tier-B",  "≥ 15 Punkte","#06b6d4"],
+                    ["Tier-C",  "≥ 10 Punkte","#9ca3af"],
+                    ["Tier-D",  "≥ 5 Punkte", "#9ca3af"],
+                    ["Tier-E",  "≥ 0 Punkte", "#9ca3af"],
+                  ].map(([tier,req,col])=>(
+                    <div key={tier} style={{display:"flex",justifyContent:"space-between",padding:"6px 10px",background:`${col}15`,border:`1px solid ${col}30`,borderRadius:6,fontSize:12}}>
+                      <span style={{color:col,fontWeight:700}}>{tier}</span>
+                      <span style={{color:"var(--text2)"}}>{req}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Clan War Aktionen Punkte-Tabelle */}
+          <div className="card mt-20">
+            <div className="card-title">⚔️ Clan War Aktionen & Punkte</div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr style={{background:"var(--bg2)"}}>
+                    {["Aktion","Tag 1","Tag 2","Tag 3","Tag 4","Tag 5","Tag 6"].map(h=>(
+                      <th key={h} style={{padding:"6px 8px",textAlign:"left",color:"var(--text3)",fontWeight:600,borderBottom:"1px solid var(--border)"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["Primitive Ausrüstung schmieden",1,null,1,null,1,null],
+                    ["1000 Münzen ausgeben",null,1,null,1,null,null],
+                    ["1 Edelstein auf Schmiede",null,1,null,null,null,null],
+                    ["Mittelalterliche Ausrüstung",1,null,1,null,null,null],
+                    ["Frühneuzeitl. Ausrüstung",null,3000,null,3000,null,null],
+                    ["Weltraum-Ausrüstung",null,null,null,null,null,null],
+                    ["Dungeon-Schlüssel nutzen",null,2,null,null,2,null],
+                    ["Invasions-Dungeon-Schlüssel",null,2,null,null,null,null],
+                    ["Geisterst.-Dungeon-Schlüssel",null,null,null,null,null,null],
+                    ["Quantenausrüstung",null,null,null,null,null,null],
+                    ["Multiversum-Ausrüstung",null,null,null,null,null,null],
+                    ["Unterw.-Ausrüstung",null,null,null,null,null,null],
+                    ["Divine-Ausrüstung",null,null,null,null,null,null],
+                    ["Gemeinsames Ei schlüpfen",null,400,null,null,null,null],
+                    ["Seltenes Ei schlüpfen",null,1600,null,null,null,null],
+                    ["Episches Ei schlüpfen",null,null,null,3200,null,null],
+                    ["Legendäres Ei schlüpfen",null,6400,null,6400,null,null],
+                    ["Ultimate Ei schlüpfen",null,12800,null,12800,null,null],
+                    ["Mythisches Ei schlüpfen",null,null,null,null,null,null],
+                    ["Gemeinsames Reittier beschwören",null,null,600,null,600,null],
+                    ["Seltenes Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Episches Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Legendäres Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Ultimate Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Mythisches Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Gemeinsames Reittier mergen",null,null,600,null,600,null],
+                    ["Seltenes Reittier mergen",null,null,600,null,600,null],
+                    ["Episches Reittier mergen",null,null,600,null,600,null],
+                    ["Legendäres Reittier mergen",null,null,600,null,600,null],
+                    ["Ultimate Reittier mergen",null,null,600,null,600,null],
+                    ["Mythisches Reittier mergen",null,null,600,null,600,null],
+                    ["Gemeinsamen Skill beschwören",125,null,null,125,125,null],
+                    ["Seltenen Skill beschwören",null,null,null,null,null,null],
+                    ["Epischen Skill beschwören",null,null,null,null,null,null],
+                    ["Legendären Skill beschwören",null,null,null,null,null,null],
+                    ["Ultimate Skill beschwören",null,null,null,null,null,null],
+                    ["Mythischen Skill beschwören",null,null,null,null,null,null],
+                    ["Gemeinsamen Skill upgraden",125,null,125,125,125,null],
+                    ["Seltenen Skill upgraden",125,null,125,125,125,null],
+                    ["Epischen Skill upgraden",125,null,125,125,125,null],
+                    ["Ultimate Skill upgraden",125,null,125,125,125,null],
+                    ["Mythischen Skill upgraden",125,null,125,125,125,null],
+                    ["Tech Tier I abschließen",1000,null,null,null,null,null],
+                    ["Tech Tier II abschließen",9000,null,null,null,null,null],
+                    ["Tech Tier III abschließen",30000,null,null,null,null,null],
+                    ["Tech Tier IV abschließen",47800,null,null,null,null,null],
+                    ["Tech Tier V abschließen",90700,null,null,null,null,null],
+                    ["Rival besiegen (Kampftag)",null,null,null,null,null,1000],
+                  ].map(([aktion,...punkte])=>(
+                    <tr key={aktion} style={{borderBottom:"1px solid var(--border)20"}}>
+                      <td style={{padding:"4px 8px",color:"var(--text2)",fontSize:11}}>{aktion}</td>
+                      {punkte.map((p,i)=>(
+                        <td key={i} style={{padding:"4px 8px",textAlign:"center",color:p?`var(--gold2)`:"var(--text3)40",fontWeight:p?600:400,fontSize:11}}>
+                          {p ? p.toLocaleString("de-DE") : "—"}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Clan War Belohnungen */}
+          <div className="card mt-20">
+            <div className="card-title">🎁 Clan War Belohnungen</div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr style={{background:"var(--bg2)"}}>
+                    <th style={{padding:"6px 8px",textAlign:"left",color:"var(--text3)",fontWeight:600,borderBottom:"1px solid var(--border)"}}></th>
+                    {[
+                      ["Tier-SSS","≥50","#a855f7"],["Tier-SS","≥35","#ef4444"],
+                      ["Tier-S","≥25","#f59e0b"],["Tier-A","≥20","#22c55e"],
+                      ["Tier-B","≥15","#06b6d4"],["Tier-C","≥10","#9ca3af"],
+                      ["Tier-D","≥5","#9ca3af"],["Tier-E","≥0","#9ca3af"],
+                    ].map(([tier,pts,col])=>(
+                      <th key={tier} style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid var(--border)"}}>
+                        <div style={{color:col,fontWeight:700,fontSize:10}}>{tier}</div>
+                        <div style={{color:"var(--text3)",fontSize:9}}>{pts} Pkt</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["🔨 Hammer (Sieg)",    "8.6k","8.2k","7.8k","7.6k","3.6k","2.13k","2.1k","1.4k"],
+                    ["🔨 Hammer (Niederlage)","3.9k","3.9k","3.9k","1.9k","1.9k","1.06k","1.05k","700"],
+                    ["⚙️ Clockwinder (Sieg)","5.7k","5.5k","5.2k","4.4k","2.5k","1.58k","1.4k","800"],
+                    ["⚙️ Clockwinder (Niederlage)","2.6k","2.6k","2.6k","1.1k","1.1k","790","700","350"],
+                    ["🎫 Skill-Tickets (Sieg)","6.5k","6.2k","5.9k","5.5k","2.8k","1k","1k","400"],
+                    ["🎫 Skill-Tickets (Niederlage)","2.9k","2.9k","2.9k","1.2k","1.2k","500","500","200"],
+                    ["🥚 Eggshells (Sieg)","4.4k","4.2k","4k","3.8k","1.9k","1k","500","125"],
+                    ["🥚 Eggshells (Niederlage)","2k","2k","2k","1k","1k","500","500","100"],
+                    ["🐾 Clockwinder (extra) (Sieg)","100","50","20","10","5","10","5","—"],
+                    ["🐾 Clockwinder (extra) (Niederlage)","40","20","10","5","—","5","—","—"],
+                  ].map(([res,...vals])=>(
+                    <tr key={res} style={{borderBottom:"1px solid var(--border)20"}}>
+                      <td style={{padding:"5px 8px",color:"var(--text2)",fontSize:11,whiteSpace:"nowrap"}}>{res}</td>
+                      {vals.map((v,i)=>(
+                        <td key={i} style={{padding:"5px 8px",textAlign:"center",color:v==="—"?"var(--text3)40":"var(--gold2)",fontWeight:v==="—"?400:600,fontSize:11}}>{v}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -4109,6 +4257,73 @@ function Spielinfo() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {section==="updates" && (
+        <div style={{display:"grid",gap:16}}>
+          {[
+            {datum:"15.05.2026", titel:"Forge Master Roadmap", farbe:"#a855f7", eintraege:[
+              "Nächste Schritte (nächste Wochen): Clan-Missionen-Comeback, Stepping Stones dauerhaft entsperrt nach einmaligem Erreichen von 6-15, Spielerstatistik-Übersicht, Clan-Chat-Vorschau in der Chat-Leiste",
+              "Zweiter Schritt (6+ Wochen): Clan Tech Tree mit 50+ Knoten (Bewegungsgeschwindigkeit, mehr Reichweite, mehr Clan War Punkte, Schaden & Gesundheit, PvP-Schaden und mehr)",
+              "Verbesserungen: Chat für dauerhaft Stummgeschaltete sichtbar, Stummschaltungsgrund anzeigen, Sperren für Haustiere & Reittiere, Alle-Haustiere-auswählen-Funktion",
+              "Ideen ohne Termin: Spielweiter Dark Mode, Chat-Übersetzung, Matchmaking-Überarbeitung, bessere Wege für Clan-Anführer Mitglieder zu benachrichtigen",
+            ]},
+            {datum:"06.05.2026", titel:"Aktuelle Probleme & kommende Fixes", farbe:"#ef4444", eintraege:[
+              "Derzeit deaktiviert: Extra Ei-Beschwörungschancen, Extra Reittier-Beschwörungschancen, Clan-Missionen (wegen Bug)",
+              "Fix für Clan-Missionen und Extra-Beschwörungschancen wurde zur App Store & Google Play Überprüfung eingereicht",
+            ]},
+            {datum:"22.04.2026", titel:"Tech Research Update", farbe:"#3b82f6", eintraege:[
+              "Tech-Forschungskosten wurden reduziert (LIVE)",
+              "Als Ausgleich: Tech Tree Beiträge zu Clan War Punkten wurden reduziert — insgesamt dennoch eine klare Verbesserung",
+              "Beschwörungs-Fortschrittsanforderungen: leicht von früh → spät verschoben",
+              "Beschwörungschancen: konsistenter über alle Level hinweg",
+              "Progress Pass Anpassungen",
+            ]},
+            {datum:"20.04.2026", titel:"Balance Update", farbe:"#f59e0b", eintraege:[
+              "Ei-Scherben & Clockwinder-Fortschritt: Beschwörungslevel-Anforderungen erhöht, Belohnungen in Dungeons/Arena/Gilde/Shops/Progress Pass entsprechend skaliert",
+              "Skill-, Ei- und Reittier-Fallchancen insgesamt erhöht",
+              "Clan War Punkte angepasst: gleichwertiger Beitrag für alle Fortschrittsstufen ermöglicht",
+            ]},
+            {datum:"14.04.2026", titel:"Balance: Higher Morale genervt", farbe:"#9ca3af", eintraege:[
+              "Der Skill 'Higher Morale' wurde aufgrund von Balance-Bedenken geschwächt",
+            ]},
+            {datum:"09.04.2026", titel:"Server-Zusammenschlüsse & Dungeon-Migration", farbe:"#9ca3af", eintraege:[
+              "Server-Zusammenschlüsse: 10→7, 12→9, 16→13, 22→19, 28→25, 33→30",
+              "Spieler wurden basierend auf ihrem Schmiede-Level in Dungeons vorgezogen: F35→Dungeon 20-1, A1 F35→25-1, A2 F35→30-1, A3 F35→35-1",
+            ]},
+            {datum:"07.04.2026", titel:"Anpassungen nach dem Update", farbe:"#22c55e", eintraege:[
+              "Haustier-Beschwörungschancen skalieren besser in späteren Leveln",
+              "Dungeons rückwirkend basierend auf Schmiedewert erhöht",
+              "Clan War Belohnungen erhöht",
+              "Stepping Stones: Hammer & Gold Belohnungen angepasst",
+            ]},
+            {datum:"27.03.2026", titel:"Ascension System — Migration", farbe:"#c8850a", eintraege:[
+              "Alle Accounts werden ins neue System migriert — maximale Spieler landen am Ende von Aufstieg 1",
+              "Ressourcen werden bereitgestellt um den passenden Aufstiegs-Punkt zu erreichen",
+              "Kein automatischer Aufstieg — volle Kontrolle über jeden Pfeiler: Skills, Reittiere, Haustiere, Schmiede",
+              "Behalten: Gold, Hämmer, Edelsteine, Skins, Skill-Tickets, Clockwinder, Dungeon-Schlüssel",
+              "Reset (pro Pfeiler beim Aufsteigen): Ausrüstung, Haustiere, Eier, Reittiere, Skills",
+              "Hauptkampf-Fortschritt wird NICHT zurückgesetzt. Dungeons und Progression Pass werden NICHT zurückgesetzt",
+              "Reittier-Skalierung: von multiplikativ auf additiv geändert",
+              "Power-Verteilung wird gleichmäßiger auf alle 4 Pfeiler verteilt (vorher ~50% Reittiere)",
+            ]},
+          ].map(patch => (
+            <div key={patch.datum} className="card" style={{borderColor:`${patch.farbe}30`}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:11,color:"var(--text3)",padding:"2px 8px",background:"var(--bg2)",borderRadius:6,border:"1px solid var(--border)"}}>{patch.datum}</span>
+                <span style={{fontWeight:700,fontSize:14,color:patch.farbe}}>{patch.titel}</span>
+              </div>
+              <div style={{display:"grid",gap:6}}>
+                {patch.eintraege.map((e,i)=>(
+                  <div key={i} style={{display:"flex",gap:8,fontSize:12,color:"var(--text2)",lineHeight:1.5}}>
+                    <span style={{color:patch.farbe,flexShrink:0}}>•</span>
+                    <span>{e}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
