@@ -4543,6 +4543,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
   // Ränge R1–R5 automatisch anhand gewerteter Wars vergeben
   const [aufgeklappt, setAufgeklappt] = useState(null);
   const [rangeSaved, setRangeSaved] = useState(false);
+  const [durchschnittModus, setDurchschnittModus] = useState("gewertet");
   async function rangeAktualisieren() {
     const gewerteteWarsListe = (warList||[]).filter(w => w.gewertet !== false && w.memberPoints);
     const ranking = (mergedClanMembers||[])
@@ -4932,28 +4933,81 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
 
       {/* Durchschnittspunkte-Übersicht */}
       {(() => {
-        const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
-        const anzahlWars = gewerteteWars.length;
-        if (anzahlWars === 0) return null;
+        const gewerteteWars   = warList.filter(w => w.gewertet !== false && w.memberPoints);
+        const ungewerteteWars = warList.filter(w => w.gewertet === false  && w.memberPoints);
+        if (gewerteteWars.length === 0 && ungewerteteWars.length === 0) return null;
         const fmtPts = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
-        const liste = (mergedClanMembers||[]).map(m => {
-          const displayName = m.ingameName?.trim() || m.username || "";
-          const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
-          let gesamtPunkte = 0, teilnahmen = 0;
-          gewerteteWars.forEach(w => { Object.entries(w.memberPoints).forEach(([name, pts]) => { if (namen.has(normName(name))) { gesamtPunkte += Number(pts)||0; if ((Number(pts)||0)>0) teilnahmen++; } }); });
-          return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt: teilnahmen > 0 ? Math.round(gesamtPunkte / teilnahmen) : 0 };
-        }).sort((a,b) => b.durchschnitt - a.durchschnitt);
-        const maxD = liste[0]?.durchschnitt || 1;
+
+        function berechne(wars) {
+          return (mergedClanMembers||[]).map(m => {
+            const displayName = m.ingameName?.trim() || m.username || "";
+            const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
+            let gesamtPunkte = 0, teilnahmen = 0;
+            wars.forEach(w => { Object.entries(w.memberPoints).forEach(([name, pts]) => {
+              if (namen.has(normName(name))) { gesamtPunkte += Number(pts)||0; if ((Number(pts)||0)>0) teilnahmen++; }
+            }); });
+            return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt: teilnahmen > 0 ? Math.round(gesamtPunkte / teilnahmen) : 0 };
+          });
+        }
+
+        const listeGew   = berechne(gewerteteWars);
+        const listeUngew = berechne(ungewerteteWars);
+
+        const liste = (() => {
+          if (durchschnittModus === "gewertet")   return [...listeGew].sort((a,b) => b.durchschnitt - a.durchschnitt);
+          if (durchschnittModus === "ungewertet") return [...listeUngew].sort((a,b) => b.durchschnitt - a.durchschnitt);
+          // Differenz: gewertet - ungewertet
+          return listeGew.map((m, i) => ({
+            ...m,
+            durchschnitt: m.durchschnitt - (listeUngew[i]?.durchschnitt || 0),
+            teilnahmenGew: m.teilnahmen,
+            teilnahmenUngew: listeUngew[i]?.teilnahmen || 0,
+          })).sort((a,b) => b.durchschnitt - a.durchschnitt);
+        })();
+
+        const maxD = Math.max(...liste.map(m => Math.abs(m.durchschnitt)), 1);
+        const isDiff = durchschnittModus === "differenz";
+        const anzahlLabel = durchschnittModus === "gewertet"
+          ? `${gewerteteWars.length} gewertete Wars`
+          : durchschnittModus === "ungewertet"
+          ? `${ungewerteteWars.length} ungewertete Wars`
+          : `${gewerteteWars.length} gew. / ${ungewerteteWars.length} ungew. Wars`;
+
+        const MODI = [
+          { key:"gewertet",   label:"Ø Gewertet" },
+          { key:"ungewertet", label:"Ø Ungewertet" },
+          { key:"differenz",  label:"Ø Gew. − Ungew." },
+        ];
+
         return (
           <div className="card mt-20" style={{borderColor:"#3b82f630"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
               <div className="card-title" style={{marginBottom:0}}>📊 Durchschnittspunkte pro Mitglied <span style={{fontSize:11,color:"#9ca3af",fontWeight:400}}>(nur Admins)</span></div>
-              <div style={{fontSize:12,color:"var(--text3)"}}>Basis: <strong style={{color:"#3b82f6"}}>{anzahlWars} gewertete Wars</strong></div>
+              <div style={{fontSize:12,color:"var(--text3)"}}><strong style={{color:"#3b82f6"}}>{anzahlLabel}</strong></div>
+            </div>
+            {/* Auswahlmenü */}
+            <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+              {MODI.map(mo => (
+                <button key={mo.key} onClick={()=>setDurchschnittModus(mo.key)}
+                  style={{padding:"5px 14px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid",
+                    background: durchschnittModus===mo.key ? "#3b82f6" : "var(--bg2)",
+                    color:       durchschnittModus===mo.key ? "#fff"     : "var(--text3)",
+                    borderColor: durchschnittModus===mo.key ? "#3b82f6"  : "var(--border)"}}>
+                  {mo.label}
+                </button>
+              ))}
             </div>
             <div style={{display:"grid",gap:4}}>
-              {liste.map((m,idx) => {
-                const farbe = m.durchschnitt >= 500000 ? "#22c55e" : m.durchschnitt >= 150000 ? "#f59e0b" : "#ef4444";
+              {liste.map((m, idx) => {
+                const val = m.durchschnitt;
+                const farbe = isDiff
+                  ? (val >= 0 ? "#22c55e" : "#ef4444")
+                  : val >= 500000 ? "#22c55e" : val >= 150000 ? "#f59e0b" : "#ef4444";
                 const rc = RANK_COLORS[m.role]||"#9ca3af";
+                const balken = maxD > 0 ? (Math.abs(val) / maxD) * 100 : 0;
+                const teilInfo = isDiff
+                  ? `${m.teilnahmenGew||0}g / ${m.teilnahmenUngew||0}u`
+                  : `${m.teilnahmen} Wars`;
                 return (
                   <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--border)"}}>
                     <div style={{width:24,textAlign:"center",fontSize:11,color:"var(--text3)",flexShrink:0}}>#{idx+1}</div>
@@ -4962,18 +5016,21 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                       <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:`${rc}20`,border:`1px solid ${rc}40`,color:rc}}>{RANK_ICONS[m.role]} {m.role}</span>
                     </div>
                     <div style={{flex:1,height:8,background:"var(--bg)",borderRadius:4,overflow:"hidden",minWidth:40}}>
-                      <div style={{width:`${(m.durchschnitt/maxD)*100}%`,height:"100%",background:farbe,borderRadius:4,transition:"width .4s"}}/>
+                      <div style={{width:`${balken}%`,height:"100%",background:farbe,borderRadius:4,transition:"width .4s"}}/>
                     </div>
-                    <div style={{minWidth:70,textAlign:"right",flexShrink:0}}>
-                      <span style={{fontWeight:700,fontSize:13,color:farbe}}>{fmtPts(m.durchschnitt)}</span>
-                      <div style={{fontSize:10,color:"var(--text3)"}}>{m.teilnahmen}/{anzahlWars} Wars</div>
+                    <div style={{minWidth:80,textAlign:"right",flexShrink:0}}>
+                      <span style={{fontWeight:700,fontSize:13,color:farbe}}>{isDiff && val > 0 ? "+" : ""}{fmtPts(val)}</span>
+                      <div style={{fontSize:10,color:"var(--text3)"}}>{teilInfo}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
             <div style={{marginTop:10,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
-              💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> ≥500k · <span style={{color:"#f59e0b"}}>●</span> 150k–499k · <span style={{color:"#ef4444"}}>●</span> &lt;150k — Ø über alle gewerteten Wars (fehlende Teilnahmen zählen als 0)
+              {isDiff
+                ? "💡 Differenz: positiv = besser in gewerteten Wars · negativ = besser in ungewerteten Wars"
+                : <>💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> ≥500k · <span style={{color:"#f59e0b"}}>●</span> 150k–499k · <span style={{color:"#ef4444"}}>●</span> &lt;150k</>
+              }
             </div>
           </div>
         );
