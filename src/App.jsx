@@ -93,16 +93,16 @@ const TECH_TREE_DATA = {
   schmiede: {
     label:"⚒️ Schmiede", color:"#c8850a",
     nodes:[
-      {id:"schmiede_timer",  name:"Schmiede-Timer",            icon:"⏰",  effekt:0.02, maxLevel:5, calc:"schmiedeTimer",   desc:"−2% Upgrade-Zeit pro Level"},
-      {id:"aufruest_kosten", name:"Schmiede-Aufrüstungskosten",icon:"🏷️", effekt:0.01, maxLevel:5, calc:"schmiedeKosten",  desc:"−1% Upgrade-Kosten pro Level"},
-      {id:"verkaufspreis",   name:"Ausrüstungs-Verkaufspreis", icon:"💰",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Verkaufspreis pro Level"},
-      {id:"hd_hammer",       name:"Hammerdieb-Hammer-Bonus",   icon:"🔑",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Hammerdieb-Hammer-Belohnung pro Level"},
-      {id:"hd_muenzen",      name:"Hammerdieb-Münzen-Bonus",   icon:"🗝️",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Hammerdieb-Münzen-Belohnung pro Level"},
+      {id:"schmiede_timer",  name:"Schmiede-Timer",            icon:"⏰",  effekt:0.04, maxLevel:5, calc:"schmiedeTimer",   desc:"−4% Upgrade-Zeit pro Level"},
+      {id:"aufruest_kosten", name:"Schmiede-Aufrüstungskosten",icon:"🏷️", effekt:0.02, maxLevel:5, calc:"schmiedeKosten",  desc:"−2% Upgrade-Kosten pro Level"},
+      {id:"verkaufspreis",   name:"Ausrüstungs-Verkaufspreis", icon:"💰",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Verkaufspreis pro Level"},
+      {id:"hd_hammer",       name:"Hammerdieb-Hammer-Bonus",   icon:"🔑",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Hammerdieb-Hammer-Belohnung pro Level"},
+      {id:"hd_muenzen",      name:"Hammerdieb-Münzen-Bonus",   icon:"🗝️",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Hammerdieb-Münzen-Belohnung pro Level"},
       {id:"auto_schmiede",   name:"Auto-Schmiede",             icon:"🔨",  effekt:1,    maxLevel:1, calc:null,              desc:"+1 extra Hammer beim Schmieden"},
       {id:"gratis_forge",    name:"Kostenlose Schmiede-Chance",icon:"🍀",  effekt:0.01, maxLevel:5, calc:"freeForge",       desc:"+1% Gratis-Schmiede-Chance pro Level"},
       {id:"offline_zeit",    name:"Maximale Offline-Zeit",     icon:"💤",  effekt:0.16, maxLevel:5, calc:"offlineTime",     desc:"+16% maximale Offline-Zeit pro Level"},
-      {id:"offline_muenzen", name:"Münzen-Offline-Belohnung",  icon:"💰",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Offline-Münzen-Belohnung pro Level"},
-      {id:"offline_hammer",  name:"Hammer-Offline-Belohnung",  icon:"🔨",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Offline-Hammer-Belohnung pro Level"},
+      {id:"offline_muenzen", name:"Münzen-Offline-Belohnung",  icon:"💰",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Offline-Münzen-Belohnung pro Level"},
+      {id:"offline_hammer",  name:"Hammer-Offline-Belohnung",  icon:"🔨",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Offline-Hammer-Belohnung pro Level"},
     ]
   },
   macht: {
@@ -147,7 +147,7 @@ const TECH_TREE_DATA = {
       {id:"ei_legend",      name:"Legendäres Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
       {id:"ei_ultimate",    name:"Ultimatives Ei-Timer",                 icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
       {id:"ei_mythisch",    name:"Mythisches Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
-      {id:"ei_chance",      name:"Zusätzliche Ei-Chance",                icon:"🐾🍀", effekt:0.02, maxLevel:5, calc:"eiChance",         desc:"+2% Extra-Ei-Chance pro Level"},
+      {id:"ei_chance",      name:"Zusätzliche Ei-Chance",                icon:"🐾🍀", effekt:0.04, maxLevel:5, calc:"eiChance",         desc:"+4% Extra-Ei-Chance pro Level"},
       {id:"ghost_ticket",   name:"Geisterstadt-Fähigkeits-Ticket-Bonus", icon:"🔑🟢", effekt:0.01, maxLevel:5, calc:null,               desc:"+1% Geisterstadt-Skill-Ticket-Belohnung pro Level"},
       {id:"zombie_trank",   name:"Zombiesturm-Techniktrank-Bonus",       icon:"🔑❤️", effekt:0.02, maxLevel:5, calc:null,               desc:"+2% Zombiesturm-Tech-Trank-Belohnung pro Level"},
     ]
@@ -167,12 +167,17 @@ function getIngameName(acc) {
   return (acc?.ingameName && acc.ingameName.trim()) ? acc.ingameName.trim() : acc?.username || "";
 }
 
-// Findet einen Account anhand eines Namens (prüft ingameName UND username, case-insensitive)
+// Normalisiert Namen für Vergleiche: trim + lowercase (ignoriert Leerzeichen)
+function normName(name) {
+  return (name||"").trim().toLowerCase();
+}
+
+// Findet einen Account anhand eines Namens (prüft ingameName UND username, case-insensitive, trim)
 function findAccountByName(accList, name) {
-  const n = name.toLowerCase();
+  const n = normName(name);
   return accList.find(a =>
-    (a.ingameName||"").toLowerCase()===n ||
-    a.username.toLowerCase()===n
+    normName(a.ingameName)===n ||
+    normName(a.username)===n
   );
 }
 
@@ -432,7 +437,7 @@ export default function GerxyApp() {
     const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
     const hashed = await hashPw(password);
     // Benutzername-Vergleich ignoriert Groß/Kleinschreibung
-    const found = accList.find(a => a.username.toLowerCase()===username.toLowerCase() && a.passwordHash===hashed);
+    const found = accList.find(a => normName(a.username)===normName(username) && a.passwordHash===hashed);
     if (found) {
       const u = { id:found.id, username:found.username, role:found.role };
       setUser(u); sessionStorage.setItem("gerxy_user", JSON.stringify(u));
@@ -442,17 +447,17 @@ export default function GerxyApp() {
   }
 
   async function register(username, password) {
-    // Doppelt prüfen — auch serverseitig, falls accList beim Login noch nicht geladen war
+    username = username.trim();
     const accList = Object.entries(accounts).map(([id,a])=>({id,...a}));
-    if (accList.find(a => a.username.toLowerCase() === username.toLowerCase())) {
+    if (accList.find(a => normName(a.username) === normName(username))) {
       return { error: "Benutzername bereits vergeben." };
     }
     const hashed = await hashPw(password);
-    await push(ref(db,"accounts"), {
-      username,
-      passwordHash: hashed,
-      role: "R5"
-    });
+    const clanMemberEntries = Object.entries(clanMembers);
+    const matchingEntry = clanMemberEntries.find(([,cm]) => normName(cm.name) === normName(username));
+    const role = matchingEntry ? (matchingEntry[1].role || "R5") : "R5";
+    await push(ref(db,"accounts"), { username, passwordHash: hashed, role });
+    if (matchingEntry) await remove(ref(db,`clanMembers/${matchingEntry[0]}`));
     return { success: true };
   }
 
@@ -470,10 +475,10 @@ export default function GerxyApp() {
   const clanMemberList = Object.entries(clanMembers).map(([id,m])=>({id,...m,_isManual:true}));
   const mergedClanMembers = [...accountList];
   clanMemberList.forEach(cm => {
-    const nameNorm = (cm.name||"").toLowerCase();
+    const nameNorm = normName(cm.name);
     const hasAccount = accountList.some(a =>
-      a.username.toLowerCase()===nameNorm ||
-      (a.ingameName||"").toLowerCase()===nameNorm
+      normName(a.username)===nameNorm ||
+      normName(a.ingameName)===nameNorm
     );
     if (!hasAccount) mergedClanMembers.push({
       id: cm.id, username: cm.name, role: cm.role||"R5",
@@ -577,7 +582,7 @@ function LoginScreen({ onLogin, onRegister, onGuest, accounts, loading }) {
     if (pass !== pass2) { setErr("Passwörter stimmen nicht überein."); return; }
     if (pass.length < 4) { setErr("Passwort muss mindestens 4 Zeichen lang sein."); return; }
     // Duplikat-Check im Client (schnell)
-    if (accList.find(a => a.username.toLowerCase() === user.toLowerCase())) {
+    if (accList.find(a => normName(a.username)===normName(user))) {
       setErr("Dieser Benutzername ist bereits vergeben (auch mit anderer Schreibweise)."); return;
     }
     // Duplikat-Check auch im Server (absicherung falls accList noch nicht geladen)
@@ -1031,8 +1036,8 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, u
   // Namen-Set aller aktiven Clan-Mitglieder
   const clanNamen = new Set();
   (mergedClanMembers||[]).forEach(m => {
-    if (m.username) clanNamen.add(m.username.toLowerCase());
-    if (m.ingameName && m.ingameName.trim()) clanNamen.add(m.ingameName.trim().toLowerCase());
+    if (m.username) clanNamen.add(normName(m.username));
+    if (m.ingameName && m.ingameName.trim()) clanNamen.add(normName(m.ingameName));
   });
 
   // Gesamtpunkte aus allen Wars — nur aktive Clan-Mitglieder
@@ -1040,7 +1045,7 @@ function Dashboard({ memberList, warList, settings, isAdmin, db, timer, polls, u
   warList.forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
-        if (!clanNamen.has(name.toLowerCase())) return;
+        if (!clanNamen.has(normName(name))) return;
         const key = name.toLowerCase();
         if (!totalPerMember[key]) totalPerMember[key] = { displayName: name, pts: 0 };
         totalPerMember[key].pts += Number(pts)||0;
@@ -1187,21 +1192,28 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
     if (!name) { setAddErr("Bitte einen Namen eingeben."); return; }
     const nameLow = name.toLowerCase();
     const exists = mergedClanMembers.some(a =>
-      a.username?.toLowerCase()===nameLow ||
-      (a.ingameName||"").toLowerCase()===nameLow
+      normName(a.username)===nameLow ||
+      normName(a.ingameName)===nameLow
     );
     if (exists) { setAddErr("Dieser Name ist bereits in der Liste."); return; }
     await push(ref(db,"clanMembers"), { name, role:"R5", hinzugefuegt: Date.now() });
     setNewMemberName(""); setShowAddManual(false);
   }
 
-  // Gewertete War-Punkte pro Mitglied (nur für Rang-Vorschau)
+  // Gewertete War-Punkte pro Mitglied (mitglieder-zentriert — normName für Leerzeichen-Toleranz)
+  const gewerteteWarsFuerPts = (warList||[]).filter(w => w.gewertet !== false && w.memberPoints);
   const gewertetePtsPerMember = {};
-  (warList||[]).filter(w=>w.gewertet!==false).forEach(w => {
-    if (w.memberPoints) Object.entries(w.memberPoints).forEach(([name,pts]) => {
-      const key = name.toLowerCase();
-      gewertetePtsPerMember[key] = (gewertetePtsPerMember[key]||0) + (Number(pts)||0);
+  (mergedClanMembers||[]).forEach(m => {
+    const primaryKey = normName(m.ingameName || m.username || "");
+    if (!primaryKey) return;
+    const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
+    let pts = 0;
+    gewerteteWarsFuerPts.forEach(w => {
+      Object.entries(w.memberPoints).forEach(([name, p]) => {
+        if (namen.has(normName(name))) pts += Number(p)||0;
+      });
     });
+    gewertetePtsPerMember[primaryKey] = pts;
   });
 
   return (
@@ -1533,8 +1545,8 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
   // Namen-Set aller aktiven Clan-Mitglieder (username + ingameName)
   const clanMemberNames = new Set();
   (mergedClanMembers||[]).forEach(m => {
-    if (m.username) clanMemberNames.add(m.username.toLowerCase());
-    if (m.ingameName && m.ingameName.trim()) clanMemberNames.add(m.ingameName.trim().toLowerCase());
+    if (m.username) clanMemberNames.add(normName(m.username));
+    if (m.ingameName && m.ingameName.trim()) clanMemberNames.add(normName(m.ingameName));
   });
 
   // Alle Wars — Ranking (nur aktive Clan-Mitglieder)
@@ -1542,7 +1554,7 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
   warList.forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
-        if (!clanMemberNames.has(name.toLowerCase())) return;
+        if (!clanMemberNames.has(normName(name))) return;
         totalPerMember[name] = (totalPerMember[name]||0) + Number(pts);
       });
     }
@@ -1557,7 +1569,7 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
   warList.filter(w=>w.gewertet!==false).forEach(w => {
     if (w.memberPoints) {
       Object.entries(w.memberPoints).forEach(([name, pts]) => {
-        if (!clanMemberNames.has(name.toLowerCase())) return;
+        if (!clanMemberNames.has(normName(name))) return;
         gewertetPerMember[name] = (gewertetPerMember[name]||0) + Number(pts);
       });
     }
@@ -1733,7 +1745,7 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
           {war.gewertet!==false && !editingPoints && (
             <div style={{marginBottom:12,padding:"8px 12px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:8,fontSize:12,color:"#fca5a5",display:"flex",alignItems:"center",gap:8}}>
               <span>⚠️</span>
-              <span>Mindestpunkte pro Clanwar: <strong style={{color:"#ef4444"}}>150.000 Pkt</strong> — Mitglieder darunter sind rot markiert</span>
+              <span>Mindestpunkte pro Clanwar: <strong style={{color:"#ef4444"}}>{war.dateFrom >= "2026-05-11" ? "500.000" : "150.000"} Pkt</strong> — Mitglieder darunter sind rot markiert</span>
             </div>
           )}
 
@@ -1752,7 +1764,7 @@ function WarTab({ warList, accountList, mergedClanMembers, isAdmin, db, timer })
                   const role = findAccountByName(accountList, name)?.role;
                   const p = editingPoints?(editingPoints[name]??""):(Number(pts[name])||0);
                   const punkte = Number(p)||0;
-                  const MIN_PUNKTE = 150000;
+                  const MIN_PUNKTE = (war.dateFrom >= "2026-05-11") ? 500000 : 150000;
                   // Rot markieren: nur bei gewerteten Wars, nur wenn Punkte eingetragen (>0) und unter Minimum
                   const zuWenig = war.gewertet!==false && !editingPoints && punkte > 0 && punkte < MIN_PUNKTE;
                   return (
@@ -2010,10 +2022,10 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const techFreeForgeBonus = Math.round(getTechTotalBonus("gratis_forge", 0.01) * 100);
   const effectiveFreeForge = freeForge + techFreeForgeBonus;
 
-  // Schmiede-Timer: −2% pro Level, max 25 Level (cap bei 90%)
-  const schmiedeTimerBonus = Math.min(90, Math.round(getTechTotalBonus("schmiede_timer", 0.02) * 100));
-  // Schmiede-Kosten: −1% pro Level
-  const schmiedeKostenBonus = Math.min(50, Math.round(getTechTotalBonus("aufruest_kosten", 0.01) * 100));
+  // Schmiede-Timer: −4% pro Level, max 25 Level = −100% (cap bei 90%)
+  const schmiedeTimerBonus = Math.min(90, Math.round(getTechTotalBonus("schmiede_timer", 0.04) * 100));
+  // Schmiede-Kosten: −2% pro Level
+  const schmiedeKostenBonus = Math.min(50, Math.round(getTechTotalBonus("aufruest_kosten", 0.02) * 100));
   // Tech-Timer: −4% pro Level
   const techTimerBonus = Math.min(90, Math.round(getTechTotalBonus("tech_timer", 0.04) * 100));
   // Tech-Kosten: −2% pro Level
@@ -2024,8 +2036,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const reittierKostenBonus = Math.round(getTechTotalBonus("reittier_kost", 0.01) * 100);
   // Skill-Kosten: −1% pro Level
   const skillKostenBonus = Math.round(getTechTotalBonus("faehig_beschwk", 0.01) * 100);
-  // Ei-Chance: +2% pro Level (Invasion Dungeon)
-  const eiChanceBonus = Math.round(getTechTotalBonus("ei_chance", 0.02) * 100);
+  // Ei-Chance: +4% pro Level (Invasion Dungeon)
+  const eiChanceBonus = Math.round(getTechTotalBonus("ei_chance", 0.04) * 100);
 
   // Offline-Zeit
   const offlineTechLevel = Math.min(25, getTechTotalLevels("offline_zeit"));
@@ -2498,7 +2510,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge","⚒️ Schmiede"],["egg","🥚 Eier"],["offline","💤 Offline"],["summon","🎯 Beschwörung"],["techtree","🔬 Tech Tree"],["analyse","🔍 Build-Analyse"],["planer","⏰ Planer"]].map(([id,label])=>(
+        {[["forge","⚒️ Schmiede"],["egg","🥚 Eier"],["offline","💤 Offline"],["summon","🎯 Beschwörung"],["techtree","🔬 Tech Tree"],["analyse","🔍 Build-Analyse"],["planer","⏰ Planer"],["ressourcen","📦 Ressourcen ansparen"],["wochen","📊 Wochenpunkte-Ziel"],["beschwoerung","🎯 Beschwörungs-Kosten"]].map(([id,label])=>(
           <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
@@ -2738,6 +2750,9 @@ function MyPage({ user, memberList, warList, accountList, db }) {
 
       {activeCalc==="planer" && <WarPlaner techTree={techTree} getTechTotalLevels={getTechTotalLevels} EGG_NODE_IDS={EGG_NODE_IDS} techTimerBonus={techTimerBonus} EGG_TIMES={EGG_TIMES}/>}
 
+      {activeCalc==="ressourcen"   && <AufstiegRessourcen reittierKostenBonus={reittierKostenBonus} reittierChanceBonus={reittierChanceBonus} eiChanceBonus={eiChanceBonus} skillKostenBonus={skillKostenBonus}/>}
+      {activeCalc==="wochen"       && <WochenPunkteZiel/>}
+      {activeCalc==="beschwoerung" && <BeschwoerungsKosten/>}
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
@@ -2749,6 +2764,285 @@ function MyPage({ user, memberList, warList, accountList, db }) {
     </div>
   );
 }
+
+// ── AUFSTIEG PLANER ──────────────────────────────────────────
+
+// ── AUFSTIEG: RESSOURCEN ANSPAREN ────────────────────────────
+function AufstiegRessourcen({ reittierKostenBonus, reittierChanceBonus, eiChanceBonus, skillKostenBonus }) {
+  const [skillZiel, setSkillZiel] = useState("Legendaer");
+  const [petZiel,   setPetZiel]   = useState("Legendaer");
+  const [mountZiel, setMountZiel] = useState("Episch");
+  const RARITY_COL = {"Gewoehnlich":"#9ca3af","Selten":"#3b82f6","Episch":"#22c55e","Legendaer":"#f59e0b","Ultimate":"#ec4899","Mythisch":"#a855f7"};
+  const RARITY_LABEL = {"Gewoehnlich":"Gewöhnlich","Selten":"Selten","Episch":"Episch","Legendaer":"Legendär","Ultimate":"Ultimate","Mythisch":"Mythisch"};
+  const fmtNum = n => n>=1000000?(n/1000000).toFixed(2)+"M":n>=1000?Math.round(n/1000)+"k":String(n);
+  const skillRabattPct = Math.min(skillKostenBonus||0,50);
+  const petDropPct     = Math.min(eiChanceBonus||0,100);
+  const mountRabattPct = Math.min(reittierKostenBonus||0,25);
+  const mountDropPct   = Math.min(reittierChanceBonus||0,50);
+  function berechne(basis,rab,drop){const mR=rab>0?Math.round(basis*(1-rab/100)):null;const mD=drop>0?Math.round(basis/(1+drop/100)):null;const b=(rab>0&&drop>0)?Math.round(basis*(1-rab/100)/(1+drop/100)):null;return{basis,mitRabatt:mR,mitDrop:mD,beides:b,effektiv:b??mR??mD??basis};}
+  const RarityBtn = ({k,aktiv,onClick}) => {const c=RARITY_COL[k]||"#9ca3af";return<button onClick={onClick} style={{padding:"4px 12px",borderRadius:16,fontSize:12,fontWeight:aktiv?700:500,cursor:"pointer",border:`1px solid ${c}${aktiv?"":"50"}`,background:aktiv?c+"25":"var(--bg2)",color:aktiv?c:"var(--text3)",transition:"all .15s"}}>{RARITY_LABEL[k]||k}</button>;};
+  const TechBadge = ({label,wert,farbe="#22c55e"}) => wert>0?<span style={{fontSize:10,padding:"1px 7px",borderRadius:10,background:`${farbe}15`,border:`1px solid ${farbe}30`,color:farbe,marginLeft:6}}>🔬 Tech: {label}</span>:null;
+  const KostenBlock = ({label,icon,data,suffix,rab,drop,lvl,rc}) => (
+    <div style={{padding:"12px 14px",background:"var(--bg2)",borderRadius:10,border:`1px solid ${rc}30`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        <span style={{fontSize:18}}>{icon}</span><span style={{fontWeight:700,fontSize:14,color:rc}}>{label}</span>
+        <span style={{fontSize:11,padding:"1px 8px",borderRadius:10,background:`${rc}20`,color:rc,border:`1px solid ${rc}40`}}>A1 Level {lvl}</span>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:6}}>
+        <div style={{padding:"8px 10px",background:"var(--bg)",borderRadius:8,textAlign:"center"}}><div style={{fontSize:10,color:"var(--text3)",marginBottom:3}}>Basis</div><div style={{fontWeight:700,fontSize:16,color:"var(--text)"}}>{fmtNum(data.basis)}</div><div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div></div>
+        {data.mitRabatt&&<div style={{padding:"8px 10px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8,textAlign:"center"}}><div style={{fontSize:10,color:"#22c55e",marginBottom:3}}>−{rab}% Rabatt</div><div style={{fontWeight:700,fontSize:16,color:"#22c55e"}}>{fmtNum(data.mitRabatt)}</div><div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div></div>}
+        {data.mitDrop&&<div style={{padding:"8px 10px",background:"#3b82f610",border:"1px solid #3b82f630",borderRadius:8,textAlign:"center"}}><div style={{fontSize:10,color:"#3b82f6",marginBottom:3}}>+{drop}% Drop</div><div style={{fontWeight:700,fontSize:16,color:"#3b82f6"}}>{fmtNum(data.mitDrop)}</div><div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div></div>}
+        {data.beides&&<div style={{padding:"8px 10px",background:"#a855f710",border:"1px solid #a855f730",borderRadius:8,textAlign:"center"}}><div style={{fontSize:10,color:"#a855f7",marginBottom:3}}>Rabatt+Drop</div><div style={{fontWeight:700,fontSize:16,color:"#a855f7"}}>{fmtNum(data.beides)}</div><div style={{fontSize:10,color:"var(--text3)"}}>{suffix}</div></div>}
+        {!data.mitRabatt&&!data.mitDrop&&<div style={{padding:"8px 10px",background:"#ef444410",border:"1px solid #ef444430",borderRadius:8,textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{fontSize:10,color:"#ef4444",lineHeight:1.4}}>Kein Tech-Bonus aktiv</div></div>}
+      </div>
+      {data.effektiv<data.basis&&<div style={{marginTop:8,fontSize:11,color:"#22c55e"}}>💰 Ersparnis: <strong>{fmtNum(data.basis-data.effektiv)} {suffix}</strong> ({Math.round((1-data.effektiv/data.basis)*100)}%)</div>}
+    </div>
+  );
+  const SZ={
+    "Gewoehnlich":{level:1, basis:500,   hinweis:"Sehr schwach — nur als Übergangslösung direkt nach Aufstieg."},
+    "Selten":     {level:8, basis:8000,  hinweis:"Deutlich schwächer als Base-Mythisch — kurzzeitig sinnvoll."},
+    "Episch":     {level:15,basis:30000, hinweis:"Günstiger Einstieg — schwächer als Mythisch-Base."},
+    "Legendaer":  {level:24,basis:62200, hinweis:"Empfohlen — gleichwertig zu Base-Mythisch. 2% Chance reicht."},
+    "Ultimate":   {level:44,basis:130000,hinweis:"Deutlich stärker als Base-Mythisch — sehr teuer."},
+    "Mythisch":   {level:82,basis:350000,hinweis:"Endgame — nur mit maximalen Tech-Boni sinnvoll."},
+  };
+  const PZ={
+    "Gewoehnlich":{level:1, basis:200,   hinweis:"Sehr schwach — nur direkt nach Aufstieg als Überbrückung."},
+    "Selten":     {level:7, basis:2000,  hinweis:"Kurze Übergangsphase — schwächer als Base-Mythisch."},
+    "Episch":     {level:15,basis:7100,  hinweis:"Äquivalent Base-Ultimate — günstig bei schlechten Stats."},
+    "Legendaer":  {level:37,basis:48600, hinweis:"Gleichwertig Base-Mythisch — empfohlen bei guten Stats."},
+    "Ultimate":   {level:46,basis:90000, hinweis:"Stärker als Base-Mythisch — nur mit gutem Drop-Bonus."},
+    "Mythisch":   {level:82,basis:280000,hinweis:"Endgame — nur mit maximalen Ei-Drop-Boni."},
+  };
+  const MZ={
+    "Gewoehnlich":{level:1, basis:1000,  hinweis:"Sehr schwach — nur direkt nach Aufstieg."},
+    "Selten":     {level:24,basis:12000, hinweis:"Günstig zum Einstieg — schwächer als Base-Mythisch."},
+    "Episch":     {level:31,basis:30000, hinweis:"Gleichwertig Base-Mythisch — empfohlen (bestes P/L)."},
+    "Legendaer":  {level:50,basis:70000, hinweis:"Deutlich stärker — gut mit Reittier-Tech-Boni."},
+    "Ultimate":   {level:67,basis:150000,hinweis:"Sehr stark — teuer, aber lohnenswert mit Tech-Boni."},
+    "Mythisch":   {level:82,basis:350000,hinweis:"Endgame — nur mit allen Rabatten + Extra-Drop."},
+  };
+  const sK=berechne(SZ[skillZiel]?.basis||62200,skillRabattPct,0);
+  const pK=berechne(PZ[petZiel]?.basis||48600,0,petDropPct);
+  const mK=berechne(MZ[mountZiel]?.basis||30000,mountRabattPct,mountDropPct);
+  return (
+    <div style={{display:"grid",gap:14}}>
+      <div style={{padding:"10px 14px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a"}}>
+        💡 Diese Ressourcen vor dem Aufstieg ansparen — danach sind Pets, Reittiere und Skills verloren! Rabatte kommen automatisch aus deinem Tech Tree.
+      </div>
+      {[["🧠 Skills",SZ,skillZiel,setSkillZiel,"🎫",sK,"Tickets",skillRabattPct,0,<><TechBadge label={`−${skillRabattPct}% Kosten`} wert={skillRabattPct}/>{skillRabattPct===0&&<span style={{fontSize:10,color:"var(--text3)",marginLeft:6}}>Kein Skill-Kosten-Tech</span>}</>],
+         ["🐾 Haustiere",PZ,petZiel,setPetZiel,"🥚",pK,"Eggshells",0,petDropPct,<><TechBadge label={`+${petDropPct}% Ei-Drop`} wert={petDropPct}/>{petDropPct===0&&<span style={{fontSize:10,color:"var(--text3)",marginLeft:6}}>Kein Ei-Drop-Tech</span>}</>],
+         ["🐎 Reittiere",MZ,mountZiel,setMountZiel,"⚙️",mK,"Clockwinder",mountRabattPct,mountDropPct,<><TechBadge label={`−${mountRabattPct}% Kosten`} wert={mountRabattPct}/><TechBadge label={`+${mountDropPct}% Drop`} wert={mountDropPct} farbe="#3b82f6"/>{mountRabattPct===0&&mountDropPct===0&&<span style={{fontSize:10,color:"var(--text3)",marginLeft:6}}>Kein Reittier-Tech</span>}</>],
+      ].map(([titel,ziele,aktiv,setAktiv,icon,kosten,suf,rab,drop,badge])=>(
+        <div key={titel} className="card">
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+            <div className="card-title" style={{marginBottom:0}}>{titel}</div>{badge}
+          </div>
+          <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+            {Object.keys(ziele).map(k=><RarityBtn key={k} k={k} aktiv={aktiv===k} onClick={()=>setAktiv(k)}/>)}
+          </div>
+          <div style={{fontSize:12,marginBottom:12,padding:"6px 10px",borderRadius:6,color:RARITY_COL[aktiv],background:`${RARITY_COL[aktiv]}10`,border:`1px solid ${RARITY_COL[aktiv]}30`}}>
+            💡 {ziele[aktiv]?.hinweis}
+          </div>
+          <KostenBlock label={`Benötigte ${suf}`} icon={icon} data={kosten} suffix={suf} rab={rab} drop={drop} lvl={ziele[aktiv]?.level} rc={RARITY_COL[aktiv]}/>
+        </div>
+      ))}
+      <div className="card" style={{borderColor:"#a855f730"}}>
+        <div className="card-title">📋 Anspar-Ziel (mit Tech-Boni)</div>
+        <div style={{display:"grid",gap:6}}>
+          {[["🎫 Skill-Tickets",sK.effektiv,"Tickets",skillRabattPct>0?`−${skillRabattPct}% Tech`:null],
+            ["🥚 Eggshells",pK.effektiv,"Eggshells",petDropPct>0?`+${petDropPct}% Drop-Tech`:null],
+            ["⚙️ Clockwinder",mK.effektiv,"Clockwinder",(mountRabattPct>0||mountDropPct>0)?"Reittier-Tech aktiv":null],
+          ].map(([label,wert,suf,ti])=>(
+            <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13,gap:8,flexWrap:"wrap"}}>
+              <div><span style={{color:"var(--text2)"}}>{label}</span>{ti&&<span style={{fontSize:10,color:"#22c55e",marginLeft:8}}>🔬 {ti}</span>}</div>
+              <span style={{fontWeight:700,color:"var(--gold2)"}}>{fmtNum(wert)} <span style={{fontWeight:400,fontSize:11,color:"var(--text3)"}}>{suf}</span></span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── WOCHENPUNKTE-ZIEL ─────────────────────────────────────────
+function WochenPunkteZiel() {
+  const [wEier,     setWEier]     = useState({Gewoehnlich:0,Selten:0,Episch:0,Legendaer:0,Ultimate:0,Mythisch:0});
+  const [wReittier, setWReittier] = useState({beschworen:0,gemergt:0});
+  const [wSkills,   setWSkills]   = useState({beschworen:0,upgrades:0});
+  const [wHaemmer,  setWHaemmer]  = useState(0);
+  const [wTechTier, setWTechTier] = useState("keiner");
+  const [wRival,    setWRival]    = useState(0);
+  const fmtNum = n => n>=1000000?(n/1000000).toFixed(2)+"M":n>=1000?Math.round(n/1000)+"k":String(n);
+  const EI_PUNKTE = {Gewoehnlich:400,Selten:1600,Episch:3200,Legendaer:6400,Ultimate:12800,Mythisch:0};
+  const TECH_PUNKTE = {"keiner":0,"Tier I":1000,"Tier II":9000,"Tier III":30000,"Tier IV":47800,"Tier V":90700};
+  const MINDEST = 500000;
+  const eiPts    = Object.entries(wEier).reduce((s,[r,n])=>s+(EI_PUNKTE[r]||0)*n, 0);
+  const reitPts  = wReittier.beschworen*1250 + wReittier.gemergt*600;
+  const skillPts = wSkills.beschworen*125 + wSkills.upgrades*125;
+  const hamPts   = wHaemmer;
+  const techPts  = TECH_PUNKTE[wTechTier]||0;
+  const rivalPts = wRival*1000;
+  const gesamt   = eiPts+reitPts+skillPts+hamPts+techPts+rivalPts;
+  const pct      = Math.min(100,Math.round(gesamt/MINDEST*100));
+  const farbe    = pct>=100?"#22c55e":pct>=70?"#f59e0b":"#ef4444";
+  const N = ({val,onCh}) => <input type="number" min={0} value={val} onChange={e=>onCh(Number(e.target.value)||0)} style={{width:70,padding:"4px 8px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontSize:12,textAlign:"center"}}/>;
+  return (
+    <div style={{display:"grid",gap:14}}>
+      <div style={{padding:"10px 14px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6"}}>
+        💡 Trage ein was du diese Woche nutzen willst — zeigt ob du das <strong>500k-Mindest-Ziel</strong> erreichst.
+      </div>
+      <div className="grid-2">
+        <div className="card">
+          <div className="card-title">🥚 Eier (Tag 2 & 4)</div>
+          {[["Gewoehnlich","Gewöhnlich",400,"#9ca3af"],["Selten","Selten",1600,"#3b82f6"],["Episch","Episch",3200,"#22c55e"],["Legendaer","Legendär",6400,"#f59e0b"],["Ultimate","Ultimate",12800,"#ec4899"],["Mythisch","Mythisch",0,"#a855f7"]].map(([k,l,p,c])=>(
+            <div key={k} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <label style={{fontSize:12,color:c,width:80,flexShrink:0,fontWeight:500}}>{l} <span style={{color:p>0?"var(--gold)":"var(--text3)",fontSize:10}}>({p>0?p+"Pkt":"—"})</span></label>
+              <N val={wEier[k]||0} onCh={v=>setWEier(prev=>({...prev,[k]:v}))}/>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"grid",gap:14,alignContent:"start"}}>
+          <div className="card">
+            <div className="card-title">🐎 Reittiere (Tag 3 & 5)</div>
+            {[["beschworen","Beschwörungen (Selten+)",1250],["gemergt","Merges",600]].map(([k,l,p])=>(
+              <div key={k} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <label style={{fontSize:12,color:"var(--text3)",flex:1}}>{l} <span style={{color:"var(--gold)",fontSize:10}}>({p}Pkt)</span></label>
+                <N val={wReittier[k]||0} onCh={v=>setWReittier(prev=>({...prev,[k]:v}))}/>
+              </div>
+            ))}
+          </div>
+          <div className="card">
+            <div className="card-title">🧠 Skills</div>
+            {[["beschworen","Beschwörungen",125],["upgrades","Upgrades",125]].map(([k,l,p])=>(
+              <div key={k} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                <label style={{fontSize:12,color:"var(--text3)",flex:1}}>{l} <span style={{color:"var(--gold)",fontSize:10}}>({p}Pkt)</span></label>
+                <N val={wSkills[k]||0} onCh={v=>setWSkills(prev=>({...prev,[k]:v}))}/>
+              </div>
+            ))}
+          </div>
+          <div className="card">
+            <div className="card-title">🔨 Hämmer (Tag 1,3,5)</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <label style={{fontSize:12,color:"var(--text3)",flex:1}}>Anzahl <span style={{color:"var(--gold)",fontSize:10}}>(1 Pkt je)</span></label>
+              <N val={wHaemmer} onCh={setWHaemmer}/>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">🔬 Tech abschließen</div>
+            <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+              {[["keiner","Kein",0],["Tier I","I",1000],["Tier II","II",9000],["Tier III","III",30000],["Tier IV","IV",47800],["Tier V","V",90700]].map(([v,l,p])=>(
+                <button key={v} className={`btn btn-sm ${wTechTier===v?"btn-gold":"btn-ghost"}`} style={{fontSize:11}} onClick={()=>setWTechTier(v)}>{l}{p>0?` (${Math.round(p/1000)}k)`:""}</button>
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">⚔️ Kampftag Siege</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <label style={{fontSize:12,color:"var(--text3)",flex:1}}>Siege <span style={{color:"var(--gold)",fontSize:10}}>(1.000 Pkt je)</span></label>
+              <N val={wRival} onCh={setWRival}/>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{borderColor:`${farbe}40`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
+          <div className="card-title" style={{marginBottom:0}}>📊 Erwartete Wochenpunkte</div>
+          <div style={{fontWeight:700,fontSize:22,color:farbe,fontFamily:"'Cinzel',serif"}}>{fmtNum(gesamt)}</div>
+        </div>
+        <div style={{height:12,background:"var(--bg2)",borderRadius:6,overflow:"hidden",marginBottom:8}}>
+          <div style={{height:"100%",width:pct+"%",background:farbe,borderRadius:6,transition:"width .4s"}}/>
+        </div>
+        <div style={{fontSize:12,color:"var(--text3)",marginBottom:12}}>
+          {pct}% von 500k Mindest-Ziel {pct>=100?"✅ Ziel erreicht!":` — noch ${fmtNum(MINDEST-gesamt)} fehlen`}
+        </div>
+        <div style={{display:"grid",gap:4,fontSize:12}}>
+          {[["🥚 Eier",eiPts],["🐎 Reittiere",reitPts],["🧠 Skills",skillPts],["🔨 Hämmer",hamPts],["🔬 Tech",techPts],["⚔️ Kampftag",rivalPts]].map(([l,p])=>p>0&&(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"5px 10px",background:"var(--bg2)",borderRadius:6}}>
+              <span style={{color:"var(--text3)"}}>{l}</span><span style={{color:"var(--gold2)",fontWeight:600}}>{fmtNum(p)} Pkt</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── BESCHWÖRUNGS-KOSTEN ───────────────────────────────────────
+function BeschwoerungsKosten() {
+  const [bTyp,  setBTyp]  = useState("Haustier");
+  const [bZiel, setBZiel] = useState("Legendaer");
+  const fmtNum = n => n>=1000000?(n/1000000).toFixed(2)+"M":n>=1000?Math.round(n/1000)+"k":String(n);
+  const RC = {"Gewoehnlich":"#9ca3af","Selten":"#3b82f6","Episch":"#22c55e","Legendaer":"#f59e0b","Ultimate":"#ec4899","Mythisch":"#a855f7"};
+  const SFX = {Haustier:"Eggshells",Reittier:"Clockwinder",Skill:"Tickets"};
+  const ZIELE = {Haustier:["Episch","Legendaer","Ultimate","Mythisch"],Reittier:["Selten","Episch","Legendaer","Ultimate"],Skill:["Episch","Legendaer","Ultimate","Mythisch"]};
+  const HINWEIS = {
+    Haustier:{Episch:"Level 15 = 20%",Legendaer:"Level 37 = 7.2%",Ultimate:"Level 46 = 4.32%",Mythisch:"Level 82 = 20%"},
+    Reittier:{Selten:"Level 24 = 82%+",Episch:"Level 31 = 7.2%",Legendaer:"Level 50 = ~5%",Ultimate:"Level 67 = erste Chance"},
+    Skill:   {Episch:"Level 15 = 4%",Legendaer:"Level 40 = ~2%",Ultimate:"Level 68 = ~1%",Mythisch:"Level 82 = 16.5%"},
+  };
+  const LVL  = {Haustier:{Episch:15,Legendaer:37,Ultimate:46,Mythisch:82},Reittier:{Selten:24,Episch:31,Legendaer:50,Ultimate:67},Skill:{Episch:15,Legendaer:40,Ultimate:68,Mythisch:82}};
+  const CHAN  = {Haustier:{Episch:20,Legendaer:7.2,Ultimate:4.32,Mythisch:20},Reittier:{Selten:82,Episch:7.2,Legendaer:5,Ultimate:2},Skill:{Episch:4,Legendaer:1,Ultimate:1,Mythisch:16.5}};
+  const KOST  = {Haustier:{Episch:1000,Legendaer:2300,Ultimate:2300,Mythisch:2300},Reittier:{Selten:1000,Episch:1000,Legendaer:1000,Ultimate:1000},Skill:{Episch:4000,Legendaer:4400,Ultimate:4400,Mythisch:4400}};
+  const ziele = ZIELE[bTyp]||[];
+  const az    = ziele.includes(bZiel)?bZiel:ziele[0];
+  const chan   = CHAN[bTyp]?.[az];
+  const kpb    = KOST[bTyp]?.[az]||0;
+  const anz    = chan?Math.round(100/chan):null;
+  const ges    = anz?anz*kpb:null;
+  const col    = RC[az]||"#c8850a";
+  const lbl    = {Gewoehnlich:"Gewöhnlich",Selten:"Selten",Episch:"Episch",Legendaer:"Legendär",Ultimate:"Ultimate",Mythisch:"Mythisch"};
+  return (
+    <div style={{display:"grid",gap:14}}>
+      <div style={{padding:"10px 14px",background:"#3b82f615",border:"1px solid #3b82f630",borderRadius:8,fontSize:12,color:"#3b82f6"}}>
+        💡 Wie viele Ressourcen brauchst du durchschnittlich um eine bestimmte Seltenheit zu erreichen?
+      </div>
+      <div className="card">
+        <div className="card-title">🎯 Typ & Ziel-Seltenheit</div>
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:12,color:"var(--text3)",display:"block",marginBottom:6}}>Typ:</label>
+          <div style={{display:"flex",gap:6}}>
+            {["Haustier","Reittier","Skill"].map(t=><button key={t} className={`btn btn-sm ${bTyp===t?"btn-gold":"btn-ghost"}`} onClick={()=>{setBTyp(t);setBZiel(ZIELE[t]?.[0]||"Episch");}}>{t}</button>)}
+          </div>
+        </div>
+        <div style={{marginBottom:16}}>
+          <label style={{fontSize:12,color:"var(--text3)",display:"block",marginBottom:6}}>Ziel-Seltenheit:</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {ziele.map(z=>{const c=RC[z]||"#9ca3af";const a=az===z;return<button key={z} onClick={()=>setBZiel(z)} style={{padding:"4px 12px",borderRadius:16,fontSize:12,fontWeight:a?700:500,cursor:"pointer",border:`1px solid ${c}${a?"":"50"}`,background:a?c+"25":"var(--bg2)",color:a?c:"var(--text3)",transition:"all .15s"}}>{lbl[z]||z}</button>;})}
+          </div>
+        </div>
+        {chan&&(
+          <div style={{display:"grid",gap:10}}>
+            <div style={{padding:"8px 12px",background:`${col}10`,border:`1px solid ${col}30`,borderRadius:8,fontSize:12,color:col}}>
+              Level {LVL[bTyp]?.[az]} empfohlen · {HINWEIS[bTyp]?.[az]}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+              <div style={{textAlign:"center",padding:"12px 8px",background:"var(--bg2)",borderRadius:10,border:"1px solid var(--border)"}}>
+                <div style={{fontSize:10,color:"var(--text3)",marginBottom:4}}>Ø Beschwörungen</div>
+                <div style={{fontWeight:700,fontSize:22,color:col}}>{anz}</div>
+                <div style={{fontSize:10,color:"var(--text3)"}}>bis erste {lbl[az]||az}</div>
+              </div>
+              <div style={{textAlign:"center",padding:"12px 8px",background:"var(--bg2)",borderRadius:10,border:"1px solid var(--border)"}}>
+                <div style={{fontSize:10,color:"var(--text3)",marginBottom:4}}>Kosten je Beschwörung</div>
+                <div style={{fontWeight:700,fontSize:22,color:"var(--gold2)"}}>{fmtNum(kpb)}</div>
+                <div style={{fontSize:10,color:"var(--text3)"}}>{SFX[bTyp]}</div>
+              </div>
+              <div style={{textAlign:"center",padding:"12px 8px",background:`${col}10`,borderRadius:10,border:`1px solid ${col}30`}}>
+                <div style={{fontSize:10,color:col,marginBottom:4}}>Ø Gesamt-Kosten</div>
+                <div style={{fontWeight:700,fontSize:22,color:col}}>{fmtNum(ges)}</div>
+                <div style={{fontSize:10,color:"var(--text3)"}}>{SFX[bTyp]}</div>
+              </div>
+            </div>
+            <div style={{padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
+              📊 50% Chance nach ~{Math.round(anz*0.7)} · 90% nach ~{Math.round(anz*2.3)} Beschwörungen
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 // ── TECH TREE PANEL ──────────────────────────────────────────
 function TechTreePanel({ techTree, saveTechNode, getTechTotalLevels, getTechTotalBonus, getTechLvl, techFreeForgeBonus, offlineTechLevel, EGG_NODE_IDS, schmiedeTimerBonus, schmiedeKostenBonus, techTimerBonus, techKostenBonus, reittierChanceBonus, reittierKostenBonus, skillKostenBonus, eiChanceBonus }) {
@@ -3064,19 +3358,19 @@ function WarPlaner({ techTree, getTechTotalLevels, EGG_NODE_IDS, techTimerBonus,
   };
   const EI_IDS = ["Gewoehnlich","Selten","Episch","Legendaer","Ultimate","Mythisch"];
 
-  // Exakte Tech-Zeiten in Sekunden pro Tier + Stufe (aus Guide-Tabelle)
+  // Exakte Tech-Zeiten in Sekunden pro Tier + Stufe (aktualisiert aus Bild Seite 18)
   const TECH_STUFEN = {
     "Tier I":   [5*60, 10*60, 20*60, 40*60, 80*60],
-    "Tier II":  [2*3600+40*60, 5*3600+20*60, 10*3600+40*60, 21*3600+20*60, 23*3600+28*60],
-    "Tier III": [1*86400+1*3600+48*60, 1*86400+4*3600+23*60, 1*86400+7*3600+14*60, 1*86400+10*3600+21*60, 1*86400+13*3600+47*60],
-    "Tier IV":  [1*86400+17*3600+34*60, 1*86400+21*3600+43*60, 2*86400+2*3600+18*60, 2*86400+7*3600+19*60, 2*86400+12*3600+51*60],
-    "Tier V":   [2*86400+18*3600+57*60, 3*86400+1*3600+38*60, 3*86400+9*3600+0*60, 3*86400+17*3600+6*60, 4*86400+2*3600+1*60],
+    "Tier II":  [2*3600+40*60, 5*3600+20*60, 10*3600+40*60, 21*3600+20*60, 23*3600+53*60],
+    "Tier III": [1*86400+1*3600+0*60, 1*86400+4*3600+0*60, 1*86400+7*3600+0*60, 1*86400+10*3600+0*60, 1*86400+13*3600+0*60],
+    "Tier IV":  [1*86400+17*3600+0*60, 1*86400+21*3600+0*60, 2*86400+2*3600+0*60, 2*86400+7*3600+0*60, 2*86400+12*3600+0*60],
+    "Tier V":   [2*86400+18*3600+0*60, 3*86400+1*3600+0*60, 3*86400+9*3600+0*60, 3*86400+17*3600+0*60, 4*86400+2*3600+0*60],
   };
   const TECH_TIER_FARBEN = {
     "Tier I":"#22c55e","Tier II":"#3b82f6","Tier III":"#a855f7","Tier IV":"#f59e0b","Tier V":"#ef4444"
   };
   const TECH_TIER_PUNKTE = {
-    "Tier I":1000,"Tier II":10000,"Tier III":30000,"Tier IV":50000,"Tier V":100000
+    "Tier I":1000,"Tier II":9000,"Tier III":30000,"Tier IV":47800,"Tier V":90700
   };
   const TECH_STUFEN_LABELS = ["1/5","2/5","3/5","4/5","5/5"];
 
@@ -3703,6 +3997,7 @@ function Spielinfo() {
     ["clankieg","🏆 Clan War"],
     ["reittiere","🐎 Reittiere"],
     ["tipps","💡 Tipps"],
+    ["updates","📢 Patch Notes"],
   ];
 
   return (
@@ -4009,7 +4304,7 @@ function Spielinfo() {
                 ["Tag 3 (Donnerstag)","Hammer, Skills, Reittiere beschwören/mergen","#a855f7"],
                 ["Tag 4 (Freitag)","Schmiede (Münzen/Edelsteine), Tech-Baum, Eier, Haustiere mergen","#f59e0b"],
                 ["Tag 5 (Samstag)","Hammer, Dungeon-Schlüssel ⭐, Reittiere beschwören/mergen, Skills","#ef4444"],
-                ["Tag 6 (Sonntag)","Kampftag — All-Out Brawl (5 Tickets, 1.000 Pkt/Sieg)","#ec4899"],
+                ["Tag 6 (Sonntag)","Kampftag — Defeat rival clan members (1.000 Pkt/Sieg)","#ec4899"],
                 ["Tag 7 (Montag)","Belohnungen abholen 🎁","#9ca3af"],
               ].map(([day,actions,col])=>(
                 <div key={day} style={{display:"flex",gap:10,padding:"8px 12px",background:"var(--bg2)",borderRadius:8,marginBottom:6,alignItems:"flex-start"}}>
@@ -4033,20 +4328,167 @@ function Spielinfo() {
                 </div>
               </div>
               <div className="card">
-                <div className="card-title">📊 Punkte & Strafen</div>
+                <div className="card-title">📊 Tier-Punkte & Strafen</div>
                 <div style={{display:"grid",gap:6}}>
                   <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:8,fontSize:13}}>
                     <span style={{color:"var(--text2)"}}>Sieg</span>
                     <span style={{color:"#22c55e",fontWeight:600}}>+5 Punkte</span>
                   </div>
-                  {[["Niederlage auf Tier S","-5 Punkte","#ef4444"],["Niederlage auf Tier A","-3 Punkte","#f59e0b"],["Niederlage auf Tier B","-1 Punkt","#9ca3af"]].map(([k,v,col])=>(
-                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13}}>
+                  {[
+                    ["Niederlage auf Tier-SSS / Tier-SS / Tier-S","-5 Punkte","#ef4444"],
+                    ["Niederlage auf Tier-A","-3 Punkte","#f59e0b"],
+                    ["Niederlage auf Tier-B","-1 Punkt","#9ca3af"],
+                  ].map(([k,v,col])=>(
+                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,fontSize:13,gap:8}}>
                       <span style={{color:"var(--text2)"}}>{k}</span>
-                      <span style={{color:col,fontWeight:600}}>{v}</span>
+                      <span style={{color:col,fontWeight:600,flexShrink:0}}>{v}</span>
                     </div>
                   ))}
                 </div>
               </div>
+              <div className="card">
+                <div className="card-title">🏅 Tier-System</div>
+                <div style={{display:"grid",gap:4}}>
+                  {[
+                    ["Tier-SSS","≥ 50 Punkte","#a855f7"],
+                    ["Tier-SS", "≥ 35 Punkte","#ef4444"],
+                    ["Tier-S",  "≥ 25 Punkte","#f59e0b"],
+                    ["Tier-A",  "≥ 20 Punkte","#22c55e"],
+                    ["Tier-B",  "≥ 15 Punkte","#06b6d4"],
+                    ["Tier-C",  "≥ 10 Punkte","#9ca3af"],
+                    ["Tier-D",  "≥ 5 Punkte", "#9ca3af"],
+                    ["Tier-E",  "≥ 0 Punkte", "#9ca3af"],
+                  ].map(([tier,req,col])=>(
+                    <div key={tier} style={{display:"flex",justifyContent:"space-between",padding:"6px 10px",background:`${col}15`,border:`1px solid ${col}30`,borderRadius:6,fontSize:12}}>
+                      <span style={{color:col,fontWeight:700}}>{tier}</span>
+                      <span style={{color:"var(--text2)"}}>{req}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Clan War Aktionen Punkte-Tabelle */}
+          <div className="card mt-20">
+            <div className="card-title">⚔️ Clan War Aktionen & Punkte</div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr style={{background:"var(--bg2)"}}>
+                    {["Aktion","Tag 1","Tag 2","Tag 3","Tag 4","Tag 5","Tag 6"].map(h=>(
+                      <th key={h} style={{padding:"6px 8px",textAlign:"left",color:"var(--text3)",fontWeight:600,borderBottom:"1px solid var(--border)"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["Primitive Ausrüstung schmieden",1,null,1,null,1,null],
+                    ["1000 Münzen ausgeben",null,1,null,1,null,null],
+                    ["1 Edelstein auf Schmiede",null,1,null,null,null,null],
+                    ["Mittelalterliche Ausrüstung",1,null,1,null,null,null],
+                    ["Frühneuzeitl. Ausrüstung",null,3000,null,3000,null,null],
+                    ["Weltraum-Ausrüstung",null,null,null,null,null,null],
+                    ["Dungeon-Schlüssel nutzen",null,2,null,null,2,null],
+                    ["Invasions-Dungeon-Schlüssel",null,2,null,null,null,null],
+                    ["Geisterst.-Dungeon-Schlüssel",null,null,null,null,null,null],
+                    ["Quantenausrüstung",null,null,null,null,null,null],
+                    ["Multiversum-Ausrüstung",null,null,null,null,null,null],
+                    ["Unterw.-Ausrüstung",null,null,null,null,null,null],
+                    ["Divine-Ausrüstung",null,null,null,null,null,null],
+                    ["Gemeinsames Ei schlüpfen",null,400,null,null,null,null],
+                    ["Seltenes Ei schlüpfen",null,1600,null,null,null,null],
+                    ["Episches Ei schlüpfen",null,null,null,3200,null,null],
+                    ["Legendäres Ei schlüpfen",null,6400,null,6400,null,null],
+                    ["Ultimate Ei schlüpfen",null,12800,null,12800,null,null],
+                    ["Mythisches Ei schlüpfen",null,null,null,null,null,null],
+                    ["Gemeinsames Reittier beschwören",null,null,600,null,600,null],
+                    ["Seltenes Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Episches Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Legendäres Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Ultimate Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Mythisches Reittier beschwören",null,null,1250,null,1250,null],
+                    ["Gemeinsames Reittier mergen",null,null,600,null,600,null],
+                    ["Seltenes Reittier mergen",null,null,600,null,600,null],
+                    ["Episches Reittier mergen",null,null,600,null,600,null],
+                    ["Legendäres Reittier mergen",null,null,600,null,600,null],
+                    ["Ultimate Reittier mergen",null,null,600,null,600,null],
+                    ["Mythisches Reittier mergen",null,null,600,null,600,null],
+                    ["Gemeinsamen Skill beschwören",125,null,null,125,125,null],
+                    ["Seltenen Skill beschwören",null,null,null,null,null,null],
+                    ["Epischen Skill beschwören",null,null,null,null,null,null],
+                    ["Legendären Skill beschwören",null,null,null,null,null,null],
+                    ["Ultimate Skill beschwören",null,null,null,null,null,null],
+                    ["Mythischen Skill beschwören",null,null,null,null,null,null],
+                    ["Gemeinsamen Skill upgraden",125,null,125,125,125,null],
+                    ["Seltenen Skill upgraden",125,null,125,125,125,null],
+                    ["Epischen Skill upgraden",125,null,125,125,125,null],
+                    ["Ultimate Skill upgraden",125,null,125,125,125,null],
+                    ["Mythischen Skill upgraden",125,null,125,125,125,null],
+                    ["Tech Tier I abschließen",1000,null,null,null,null,null],
+                    ["Tech Tier II abschließen",9000,null,null,null,null,null],
+                    ["Tech Tier III abschließen",30000,null,null,null,null,null],
+                    ["Tech Tier IV abschließen",47800,null,null,null,null,null],
+                    ["Tech Tier V abschließen",90700,null,null,null,null,null],
+                    ["Rival besiegen (Kampftag)",null,null,null,null,null,1000],
+                  ].map(([aktion,...punkte])=>(
+                    <tr key={aktion} style={{borderBottom:"1px solid var(--border)20"}}>
+                      <td style={{padding:"4px 8px",color:"var(--text2)",fontSize:11}}>{aktion}</td>
+                      {punkte.map((p,i)=>(
+                        <td key={i} style={{padding:"4px 8px",textAlign:"center",color:p?`var(--gold2)`:"var(--text3)40",fontWeight:p?600:400,fontSize:11}}>
+                          {p ? p.toLocaleString("de-DE") : "—"}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Clan War Belohnungen */}
+          <div className="card mt-20">
+            <div className="card-title">🎁 Clan War Belohnungen</div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr style={{background:"var(--bg2)"}}>
+                    <th style={{padding:"6px 8px",textAlign:"left",color:"var(--text3)",fontWeight:600,borderBottom:"1px solid var(--border)"}}></th>
+                    {[
+                      ["Tier-SSS","≥50","#a855f7"],["Tier-SS","≥35","#ef4444"],
+                      ["Tier-S","≥25","#f59e0b"],["Tier-A","≥20","#22c55e"],
+                      ["Tier-B","≥15","#06b6d4"],["Tier-C","≥10","#9ca3af"],
+                      ["Tier-D","≥5","#9ca3af"],["Tier-E","≥0","#9ca3af"],
+                    ].map(([tier,pts,col])=>(
+                      <th key={tier} style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid var(--border)"}}>
+                        <div style={{color:col,fontWeight:700,fontSize:10}}>{tier}</div>
+                        <div style={{color:"var(--text3)",fontSize:9}}>{pts} Pkt</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["🔨 Hammer (Sieg)",    "8.6k","8.2k","7.8k","7.6k","3.6k","2.13k","2.1k","1.4k"],
+                    ["🔨 Hammer (Niederlage)","3.9k","3.9k","3.9k","1.9k","1.9k","1.06k","1.05k","700"],
+                    ["⚙️ Clockwinder (Sieg)","5.7k","5.5k","5.2k","4.4k","2.5k","1.58k","1.4k","800"],
+                    ["⚙️ Clockwinder (Niederlage)","2.6k","2.6k","2.6k","1.1k","1.1k","790","700","350"],
+                    ["🎫 Skill-Tickets (Sieg)","6.5k","6.2k","5.9k","5.5k","2.8k","1k","1k","400"],
+                    ["🎫 Skill-Tickets (Niederlage)","2.9k","2.9k","2.9k","1.2k","1.2k","500","500","200"],
+                    ["🥚 Eggshells (Sieg)","4.4k","4.2k","4k","3.8k","1.9k","1k","500","125"],
+                    ["🥚 Eggshells (Niederlage)","2k","2k","2k","1k","1k","500","500","100"],
+                    ["🐾 Clockwinder (extra) (Sieg)","100","50","20","10","5","10","5","—"],
+                    ["🐾 Clockwinder (extra) (Niederlage)","40","20","10","5","—","5","—","—"],
+                  ].map(([res,...vals])=>(
+                    <tr key={res} style={{borderBottom:"1px solid var(--border)20"}}>
+                      <td style={{padding:"5px 8px",color:"var(--text2)",fontSize:11,whiteSpace:"nowrap"}}>{res}</td>
+                      {vals.map((v,i)=>(
+                        <td key={i} style={{padding:"5px 8px",textAlign:"center",color:v==="—"?"var(--text3)40":"var(--gold2)",fontWeight:v==="—"?400:600,fontSize:11}}>{v}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -4097,6 +4539,73 @@ function Spielinfo() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {section==="updates" && (
+        <div style={{display:"grid",gap:16}}>
+          {[
+            {datum:"15.05.2026", titel:"Forge Master Roadmap", farbe:"#a855f7", eintraege:[
+              "Nächste Schritte (nächste Wochen): Clan-Missionen-Comeback, Stepping Stones dauerhaft entsperrt nach einmaligem Erreichen von 6-15, Spielerstatistik-Übersicht, Clan-Chat-Vorschau in der Chat-Leiste",
+              "Zweiter Schritt (6+ Wochen): Clan Tech Tree mit 50+ Knoten (Bewegungsgeschwindigkeit, mehr Reichweite, mehr Clan War Punkte, Schaden & Gesundheit, PvP-Schaden und mehr)",
+              "Verbesserungen: Chat für dauerhaft Stummgeschaltete sichtbar, Stummschaltungsgrund anzeigen, Sperren für Haustiere & Reittiere, Alle-Haustiere-auswählen-Funktion",
+              "Ideen ohne Termin: Spielweiter Dark Mode, Chat-Übersetzung, Matchmaking-Überarbeitung, bessere Wege für Clan-Anführer Mitglieder zu benachrichtigen",
+            ]},
+            {datum:"06.05.2026", titel:"Aktuelle Probleme & kommende Fixes", farbe:"#ef4444", eintraege:[
+              "Derzeit deaktiviert: Extra Ei-Beschwörungschancen, Extra Reittier-Beschwörungschancen, Clan-Missionen (wegen Bug)",
+              "Fix für Clan-Missionen und Extra-Beschwörungschancen wurde zur App Store & Google Play Überprüfung eingereicht",
+            ]},
+            {datum:"22.04.2026", titel:"Tech Research Update", farbe:"#3b82f6", eintraege:[
+              "Tech-Forschungskosten wurden reduziert (LIVE)",
+              "Als Ausgleich: Tech Tree Beiträge zu Clan War Punkten wurden reduziert — insgesamt dennoch eine klare Verbesserung",
+              "Beschwörungs-Fortschrittsanforderungen: leicht von früh → spät verschoben",
+              "Beschwörungschancen: konsistenter über alle Level hinweg",
+              "Progress Pass Anpassungen",
+            ]},
+            {datum:"20.04.2026", titel:"Balance Update", farbe:"#f59e0b", eintraege:[
+              "Ei-Scherben & Clockwinder-Fortschritt: Beschwörungslevel-Anforderungen erhöht, Belohnungen in Dungeons/Arena/Gilde/Shops/Progress Pass entsprechend skaliert",
+              "Skill-, Ei- und Reittier-Fallchancen insgesamt erhöht",
+              "Clan War Punkte angepasst: gleichwertiger Beitrag für alle Fortschrittsstufen ermöglicht",
+            ]},
+            {datum:"14.04.2026", titel:"Balance: Higher Morale genervt", farbe:"#9ca3af", eintraege:[
+              "Der Skill 'Higher Morale' wurde aufgrund von Balance-Bedenken geschwächt",
+            ]},
+            {datum:"09.04.2026", titel:"Server-Zusammenschlüsse & Dungeon-Migration", farbe:"#9ca3af", eintraege:[
+              "Server-Zusammenschlüsse: 10→7, 12→9, 16→13, 22→19, 28→25, 33→30",
+              "Spieler wurden basierend auf ihrem Schmiede-Level in Dungeons vorgezogen: F35→Dungeon 20-1, A1 F35→25-1, A2 F35→30-1, A3 F35→35-1",
+            ]},
+            {datum:"07.04.2026", titel:"Anpassungen nach dem Update", farbe:"#22c55e", eintraege:[
+              "Haustier-Beschwörungschancen skalieren besser in späteren Leveln",
+              "Dungeons rückwirkend basierend auf Schmiedewert erhöht",
+              "Clan War Belohnungen erhöht",
+              "Stepping Stones: Hammer & Gold Belohnungen angepasst",
+            ]},
+            {datum:"27.03.2026", titel:"Ascension System — Migration", farbe:"#c8850a", eintraege:[
+              "Alle Accounts werden ins neue System migriert — maximale Spieler landen am Ende von Aufstieg 1",
+              "Ressourcen werden bereitgestellt um den passenden Aufstiegs-Punkt zu erreichen",
+              "Kein automatischer Aufstieg — volle Kontrolle über jeden Pfeiler: Skills, Reittiere, Haustiere, Schmiede",
+              "Behalten: Gold, Hämmer, Edelsteine, Skins, Skill-Tickets, Clockwinder, Dungeon-Schlüssel",
+              "Reset (pro Pfeiler beim Aufsteigen): Ausrüstung, Haustiere, Eier, Reittiere, Skills",
+              "Hauptkampf-Fortschritt wird NICHT zurückgesetzt. Dungeons und Progression Pass werden NICHT zurückgesetzt",
+              "Reittier-Skalierung: von multiplikativ auf additiv geändert",
+              "Power-Verteilung wird gleichmäßiger auf alle 4 Pfeiler verteilt (vorher ~50% Reittiere)",
+            ]},
+          ].map(patch => (
+            <div key={patch.datum} className="card" style={{borderColor:`${patch.farbe}30`}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:11,color:"var(--text3)",padding:"2px 8px",background:"var(--bg2)",borderRadius:6,border:"1px solid var(--border)"}}>{patch.datum}</span>
+                <span style={{fontWeight:700,fontSize:14,color:patch.farbe}}>{patch.titel}</span>
+              </div>
+              <div style={{display:"grid",gap:6}}>
+                {patch.eintraege.map((e,i)=>(
+                  <div key={i} style={{display:"flex",gap:8,fontSize:12,color:"var(--text2)",lineHeight:1.5}}>
+                    <span style={{color:patch.farbe,flexShrink:0}}>•</span>
+                    <span>{e}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -4467,7 +4976,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
 
   async function addAccount() {
     if (!form.username||!form.password) return;
-    if (accList.find(a=>a.username.toLowerCase()===form.username.toLowerCase())) { alert("Benutzername bereits vergeben (auch mit anderer Schreibweise)!"); return; }
+    if (accList.find(a=>normName(a.username)===normName(form.username))) { alert("Benutzername bereits vergeben (auch mit anderer Schreibweise)!"); return; }
     const hashed = await hashPw(form.password);
     await push(ref(db,"accounts"), {username:form.username,passwordHash:hashed,role:form.role});
     setForm({username:"",password:"",role:"R5"}); setShowAdd(false);
@@ -4531,43 +5040,29 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
   // Ränge R1–R5 automatisch anhand gewerteter Wars vergeben
   const [aufgeklappt, setAufgeklappt] = useState(null);
   const [rangeSaved, setRangeSaved] = useState(false);
+  const [durchschnittModus, setDurchschnittModus] = useState("gewertet");
   async function rangeAktualisieren() {
-    // Punkte aus nur gewerteten Wars berechnen
-    const gewertetPts = {};
-    (warList||[]).filter(w=>w.gewertet!==false).forEach(w => {
-      if (w.memberPoints) Object.entries(w.memberPoints).forEach(([name,pts]) => {
-        const key = name.toLowerCase();
-        gewertetPts[key] = (gewertetPts[key]||0) + (Number(pts)||0);
-      });
-    });
-
-    // Nur Mitglieder die im Clan sind (mergedClanMembers) und R1–R5 haben
-    // Admins (Anführer/Kommandant/Hauptmann) werden übersprungen
-    // Map auf username UND ingameName (beide lowercase) damit War-Namen matchen
-    const clanMemberMap = {};
-    (mergedClanMembers||[]).forEach(m => {
-      if (m.username) clanMemberMap[m.username.toLowerCase()] = m;
-      if (m.ingameName && m.ingameName.trim()) clanMemberMap[m.ingameName.trim().toLowerCase()] = m;
-    });
-
-    // Ranking nur der Clan-Mitglieder (keine Admins)
-    const ranking = Object.entries(gewertetPts)
-      .filter(([nameKey]) => {
-        const member = clanMemberMap[nameKey];
-        return member && !ADMIN_ROLES.includes(member.role);
+    const gewerteteWarsListe = (warList||[]).filter(w => w.gewertet !== false && w.memberPoints);
+    const ranking = (mergedClanMembers||[])
+      .filter(m => !ADMIN_ROLES.includes(m.role))
+      .map(m => {
+        const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
+        let pts = 0;
+        gewerteteWarsListe.forEach(w => {
+          Object.entries(w.memberPoints).forEach(([name, p]) => {
+            if (namen.has(normName(name))) pts += Number(p)||0;
+          });
+        });
+        return { member: m, pts };
       })
-      .map(([nameKey, pts]) => ({ nameKey, member: clanMemberMap[nameKey], pts }))
       .sort((a,b) => b.pts - a.pts);
 
-    // Rang-Grenzen: R1=Platz 1–3, R2=4–8, R3=9–15, R4=16–25, R5=Rest
-    // Basiert auf RANK_LIMITS: {R1:3, R2:5, R3:7, R4:10}
     const rangGrenzen = [
       { rang:"R1", bis: RANK_LIMITS.R1 },
       { rang:"R2", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 },
       { rang:"R3", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 + RANK_LIMITS.R3 },
       { rang:"R4", bis: RANK_LIMITS.R1 + RANK_LIMITS.R2 + RANK_LIMITS.R3 + RANK_LIMITS.R4 },
     ];
-
     let updated = 0;
     for (let i = 0; i < ranking.length; i++) {
       const { member } = ranking[i];
@@ -4619,6 +5114,44 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
   const [renameAlt, setRenameAlt] = useState("");
   const [renameNeu, setRenameNeu] = useState("");
   const [renameMsg, setRenameMsg] = useState("");
+  const [leerzeichenMsg, setLeerzeichenMsg] = useState("");
+  const [duplikatMsg, setDuplikatMsg] = useState("");
+  const [diagnoseName, setDiagnoseName] = useState("");
+  const [diagnoseResult, setDiagnoseResult] = useState(null);
+
+  async function leerzeichenBereinigen() {
+    setLeerzeichenMsg("");
+    const alle = Object.entries(accounts).map(([id,a]) => ({id,...a}));
+    let fixed = 0;
+    for (const a of alle) {
+      const trimmedUser = (a.username||"").trim();
+      const trimmedIngame = (a.ingameName||"").trim();
+      if (trimmedUser !== a.username) { await update(ref(db,`accounts/${a.id}`), { username: trimmedUser }); fixed++; }
+      if (a.ingameName && trimmedIngame !== a.ingameName) { await update(ref(db,`accounts/${a.id}`), { ingameName: trimmedIngame }); fixed++; }
+    }
+    setLeerzeichenMsg(fixed > 0 ? `✅ ${fixed} Name(n) bereinigt.` : "✅ Keine Leerzeichen gefunden.");
+  }
+
+  async function duplikateEntfernen() {
+    setDuplikatMsg("");
+    const alle = Object.entries(accounts).map(([id,a]) => ({id,...a}));
+    const gruppen = {};
+    alle.forEach(a => { const k = normName(a.username); if(!gruppen[k]) gruppen[k]=[]; gruppen[k].push(a); });
+    const doppelte = Object.values(gruppen).filter(g => g.length > 1);
+    if (doppelte.length === 0) { setDuplikatMsg("✅ Keine Duplikate gefunden."); return; }
+    const rangOrder = ["Anführer","Kommandant","Hauptmann","R1","R2","R3","R4","R5"];
+    let geloescht = 0;
+    for (const gruppe of doppelte) {
+      gruppe.sort((a,b) => rangOrder.indexOf(a.role) - rangOrder.indexOf(b.role));
+      for (let i = 1; i < gruppe.length; i++) {
+        if (gruppe[i].id === currentUser.id) continue;
+        await remove(ref(db,`accounts/${gruppe[i].id}`));
+        geloescht++;
+      }
+    }
+    setDuplikatMsg(geloescht > 0 ? `✅ ${geloescht} Duplikat(e) entfernt.` : "⚠️ Duplikate gefunden aber eigener Account betroffen.");
+  }
+
 
   async function renameInWars() {
     setRenameMsg("");
@@ -4708,6 +5241,74 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
               Führt doppelte Namen in allen Wars zusammen (z.B. friskydogbreath + Friskydogbreath → Friskydogbreath). Einmalig ausführen um alte Daten zu korrigieren.
             </div>
             <button className="btn btn-ghost" style={{borderColor:"#f59e0b40",color:"#f59e0b"}} onClick={cleanupNames}>🔧 Namen bereinigen</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>✂️ Leerzeichen in Namen bereinigen</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Entfernt unsichtbare Leerzeichen am Anfang/Ende aller Benutzernamen in Firebase. Behebt Matching-Probleme wie beim Kalani-Fall.
+            </div>
+            {leerzeichenMsg && <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,background:"#22c55e15",color:"#22c55e",border:"1px solid #22c55e30"}}>{leerzeichenMsg}</div>}
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#22c55e40",color:"#22c55e"}} onClick={leerzeichenBereinigen}>✂️ Leerzeichen entfernen</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:8}}>👥 Doppelte Accounts entfernen</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Sucht Accounts mit identischem Benutzernamen und löscht den Duplikat-Eintrag. Der Account mit dem höheren Rang wird behalten.
+            </div>
+            {duplikatMsg && <div style={{fontSize:12,marginBottom:8,padding:"6px 10px",borderRadius:6,background:duplikatMsg.startsWith("✅")?"#22c55e15":"#f59e0b15",color:duplikatMsg.startsWith("✅")?"#22c55e":"#f59e0b",border:`1px solid ${duplikatMsg.startsWith("✅")?"#22c55e30":"#f59e0b30"}`}}>{duplikatMsg}</div>}
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#ef444440",color:"#ef4444"}} onClick={duplikateEntfernen}>🗑️ Duplikate prüfen & entfernen</button>
+          </div>
+          <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
+          <div>
+            <div style={{fontSize:13,color:"var(--text2)",marginBottom:4}}>🔬 Name-Diagnose</div>
+            <div style={{fontSize:12,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>
+              Zeigt Hex-Codes und Firebase-IDs — findet unsichtbare Zeichen die Matching verhindern.
+            </div>
+            <div style={{display:"grid",gap:8,marginBottom:8}}>
+              <input className="inp" placeholder="z.B. Kalani" value={diagnoseName} onChange={e=>{setDiagnoseName(e.target.value);setDiagnoseResult(null);}}/>
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{borderColor:"#a855f740",color:"#a855f7",marginBottom:8}} onClick={()=>{
+              const name = diagnoseName.trim(); if (!name) return;
+              const nameLow = name.toLowerCase();
+              const chars = [...name].map(c => ({z:c===" "?"·":c, code:"U+"+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0"), dec:c.charCodeAt(0)}));
+              const firebaseAccounts = accList.filter(a => normName(a.username).includes(nameLow)||(a.ingameName&&normName(a.ingameName).includes(nameLow))).map(a => ({id:a.id,username:a.username,ingameName:a.ingameName||null,role:a.role,hex:[...a.username].map(c=>c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),exakt:normName(a.username)===nameLow}));
+              const warNamen = []; (warList||[]).forEach(w=>{ if(!w.memberPoints) return; Object.keys(w.memberPoints).forEach(n=>{ if((normName(n).includes(nameLow)||nameLow.includes(normName(n)))&&!warNamen.find(t=>t.name===n)) warNamen.push({name:n,hex:[...n].map(c=>c.charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" "),exakt:normName(n)===nameLow}); }); });
+              setDiagnoseResult({chars,firebaseAccounts,warNamen,name});
+            }}>🔬 Analysieren</button>
+            {diagnoseResult && (
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:8,padding:12,fontSize:12}}>
+                <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:10}}>
+                  {diagnoseResult.chars.map((c,i)=>(
+                    <div key={i} style={{textAlign:"center",padding:"3px 5px",background:"var(--bg2)",borderRadius:4,border:`1px solid ${c.dec>127||c.dec<32?"#ef4444":"var(--border)"}`,minWidth:32}}>
+                      <div style={{fontSize:13,fontFamily:"monospace",color:c.dec>127||c.dec===32?"#ef4444":"var(--text)"}}>{c.z}</div>
+                      <div style={{fontSize:8,color:"var(--text3)",fontFamily:"monospace"}}>{c.code}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginBottom:8}}>
+                  <div style={{color:"var(--text3)",marginBottom:4,fontWeight:600}}>🔑 Firebase Accounts ({diagnoseResult.firebaseAccounts.length}):</div>
+                  {diagnoseResult.firebaseAccounts.length===0?<div style={{color:"#ef4444"}}>Keiner gefunden</div>:diagnoseResult.firebaseAccounts.map((a,i)=>(
+                    <div key={i} style={{padding:"5px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,border:`1px solid ${a.exakt?"#22c55e40":"#f59e0b40"}`}}>
+                      <div><span style={{color:a.exakt?"#22c55e":"#f59e0b",fontWeight:600}}>{a.exakt?"✅":"⚠️"} "{a.username}"</span>{a.ingameName&&<span style={{color:"#a855f7",marginLeft:8}}>🎮 {a.ingameName}</span>}<span style={{color:RANK_COLORS[a.role]||"#9ca3af",marginLeft:8}}>{a.role}</span></div>
+                      <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)"}}>ID: {a.id} · Hex: {a.hex}</div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{color:"var(--text3)",marginBottom:4,fontWeight:600}}>⚔️ War-Einträge ({diagnoseResult.warNamen.length}):</div>
+                  {diagnoseResult.warNamen.length===0?<div style={{color:"#ef4444"}}>Keine gefunden</div>:diagnoseResult.warNamen.map((t,i)=>(
+                    <div key={i} style={{padding:"5px 8px",background:"var(--bg2)",borderRadius:6,marginBottom:4,border:`1px solid ${t.exakt?"#22c55e40":"#ef444440"}`}}>
+                      <span style={{color:t.exakt?"#22c55e":"#ef4444",fontWeight:600}}>{t.exakt?"✅":"❌"} "{t.name}"</span>
+                      <div style={{fontFamily:"monospace",fontSize:9,color:"var(--text3)"}}>Hex: {t.hex}</div>
+                    </div>
+                  ))}
+                </div>
+                {diagnoseResult.warNamen.length>0&&!diagnoseResult.warNamen.some(t=>t.exakt)&&<div style={{marginTop:8,padding:"6px 10px",background:"#ef444415",border:"1px solid #ef444430",borderRadius:6,color:"#ef4444"}}>❌ Kein exakter Match — Hex-Codes oben vergleichen. "✏️ In allen Wars umbenennen" zum Korrigieren nutzen.</div>}
+                {diagnoseResult.warNamen.some(t=>t.exakt)&&diagnoseResult.firebaseAccounts.some(a=>a.exakt)&&<div style={{marginTop:8,padding:"6px 10px",background:"#22c55e15",border:"1px solid #22c55e30",borderRadius:6,color:"#22c55e"}}>✅ Match vorhanden — falls Punkte fehlen: evtl. zwei Firebase-IDs sichtbar (Duplikat-Account).</div>}
+              </div>
+            )}
           </div>
           <hr style={{border:"none",borderTop:"1px solid #3a200040",margin:"16px 0"}}/>
           <div>
@@ -4827,43 +5428,151 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
         </div>
       )}
 
+      {/* Durchschnittspunkte-Übersicht */}
+      {(() => {
+        const gewerteteWars   = warList.filter(w => w.gewertet !== false && w.memberPoints);
+        const ungewerteteWars = warList.filter(w => w.gewertet === false  && w.memberPoints);
+        if (gewerteteWars.length === 0 && ungewerteteWars.length === 0) return null;
+        const fmtPts = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
+
+        function berechne(wars) {
+          return (mergedClanMembers||[]).map(m => {
+            const displayName = m.ingameName?.trim() || m.username || "";
+            const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
+            let gesamtPunkte = 0, teilnahmen = 0;
+            wars.forEach(w => { Object.entries(w.memberPoints).forEach(([name, pts]) => {
+              if (namen.has(normName(name))) { gesamtPunkte += Number(pts)||0; if ((Number(pts)||0)>0) teilnahmen++; }
+            }); });
+            return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt: teilnahmen > 0 ? Math.round(gesamtPunkte / teilnahmen) : 0 };
+          });
+        }
+
+        const listeGew   = berechne(gewerteteWars);
+        const listeUngew = berechne(ungewerteteWars);
+
+        const liste = (() => {
+          if (durchschnittModus === "gewertet")   return [...listeGew].sort((a,b) => b.durchschnitt - a.durchschnitt);
+          if (durchschnittModus === "ungewertet") return [...listeUngew].filter(m => m.teilnahmen > 0).sort((a,b) => a.durchschnitt - b.durchschnitt);
+          // Differenz: gewertet - ungewertet
+          return listeGew.map((m, i) => ({
+            ...m,
+            durchschnitt: m.durchschnitt - (listeUngew[i]?.durchschnitt || 0),
+            teilnahmenGew: m.teilnahmen,
+            teilnahmenUngew: listeUngew[i]?.teilnahmen || 0,
+          })).sort((a,b) => b.durchschnitt - a.durchschnitt);
+        })();
+
+        const maxD = Math.max(...liste.map(m => Math.abs(m.durchschnitt)), 1);
+        const isDiff = durchschnittModus === "differenz";
+        const anzahlLabel = durchschnittModus === "gewertet"
+          ? `${gewerteteWars.length} gewertete Wars`
+          : durchschnittModus === "ungewertet"
+          ? `${ungewerteteWars.length} ungewertete Wars`
+          : `${gewerteteWars.length} gew. / ${ungewerteteWars.length} ungew. Wars`;
+
+        const MODI = [
+          { key:"gewertet",   label:"Ø Gewertet" },
+          { key:"ungewertet", label:"Ø Ungewertet" },
+          { key:"differenz",  label:"Ø Gew. − Ungew." },
+        ];
+
+        return (
+          <div className="card mt-20" style={{borderColor:"#3b82f630"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
+              <div className="card-title" style={{marginBottom:0}}>📊 Durchschnittspunkte pro Mitglied <span style={{fontSize:11,color:"#9ca3af",fontWeight:400}}>(nur Admins)</span></div>
+              <div style={{fontSize:12,color:"var(--text3)"}}><strong style={{color:"#3b82f6"}}>{anzahlLabel}</strong></div>
+            </div>
+            {/* Auswahlmenü */}
+            <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+              {MODI.map(mo => (
+                <button key={mo.key} onClick={()=>setDurchschnittModus(mo.key)}
+                  style={{padding:"5px 14px",borderRadius:20,fontSize:12,fontWeight:600,cursor:"pointer",border:"1px solid",
+                    background: durchschnittModus===mo.key ? "#3b82f6" : "var(--bg2)",
+                    color:       durchschnittModus===mo.key ? "#fff"     : "var(--text3)",
+                    borderColor: durchschnittModus===mo.key ? "#3b82f6"  : "var(--border)"}}>
+                  {mo.label}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"grid",gap:4}}>
+              {liste.map((m, idx) => {
+                const val = m.durchschnitt;
+                const farbe = isDiff
+                  ? (val >= 0 ? "#22c55e" : "#ef4444")
+                  : durchschnittModus === "ungewertet"
+                  ? (val >= 500000 ? "#ef4444" : val >= 200000 ? "#f59e0b" : "#22c55e")
+                  : val >= 500000 ? "#22c55e" : val >= 150000 ? "#f59e0b" : "#ef4444";
+                const rc = RANK_COLORS[m.role]||"#9ca3af";
+                const balken = maxD > 0 ? (Math.abs(val) / maxD) * 100 : 0;
+                const teilInfo = isDiff
+                  ? `${m.teilnahmenGew||0}g / ${m.teilnahmenUngew||0}u`
+                  : `${m.teilnahmen} Wars`;
+                return (
+                  <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--border)"}}>
+                    <div style={{width:24,textAlign:"center",fontSize:11,color:"var(--text3)",flexShrink:0}}>#{idx+1}</div>
+                    <div style={{minWidth:120,flexShrink:0}}>
+                      <div style={{fontWeight:600,fontSize:13}}>{m.displayName}</div>
+                      <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:`${rc}20`,border:`1px solid ${rc}40`,color:rc}}>{RANK_ICONS[m.role]} {m.role}</span>
+                    </div>
+                    <div style={{flex:1,height:8,background:"var(--bg)",borderRadius:4,overflow:"hidden",minWidth:40}}>
+                      <div style={{width:`${balken}%`,height:"100%",background:farbe,borderRadius:4,transition:"width .4s"}}/>
+                    </div>
+                    <div style={{minWidth:80,textAlign:"right",flexShrink:0}}>
+                      <span style={{fontWeight:700,fontSize:13,color:farbe}}>{isDiff && val > 0 ? "+" : ""}{fmtPts(val)}</span>
+                      <div style={{fontSize:10,color:"var(--text3)"}}>{teilInfo}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{marginTop:10,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
+              {isDiff
+                ? "💡 Differenz: positiv = besser in gewerteten Wars · negativ = besser in ungewerteten Wars"
+                : durchschnittModus === "ungewertet"
+                ? <>💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> &lt;200k · <span style={{color:"#f59e0b"}}>●</span> 200k–499k · <span style={{color:"#ef4444"}}>●</span> ≥500k — weniger Punkte = besser (ungewertete Wars sind Trainings-Wars)</>
+                : <>💡 Farbcode: <span style={{color:"#22c55e"}}>●</span> ≥500k · <span style={{color:"#f59e0b"}}>●</span> 150k–499k · <span style={{color:"#ef4444"}}>●</span> &lt;150k</>
+              }
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Mindestpunkte-Übersicht */}
       {(() => {
-        const MIN_PUNKTE = 150000;
+        const STICHTAG = "2026-05-11";
+        const MIN_ALT = 150000;
+        const MIN_NEU = 500000;
+        const fmtPts = n => n >= 1000000 ? (n/1000000).toFixed(2)+"M" : n >= 1000 ? Math.round(n/1000)+"k" : String(n);
         const gewerteteWars = warList.filter(w => w.gewertet !== false && w.memberPoints);
-
-        // Namen-Set aller aktiven Clan-Mitglieder (username + ingameName)
-        const clanNamen = new Set();
-        (mergedClanMembers||[]).forEach(m => {
-          if (m.username) clanNamen.add(m.username.toLowerCase());
-          if (m.ingameName && m.ingameName.trim()) clanNamen.add(m.ingameName.trim().toLowerCase());
-        });
-
         const verfehlungen = {};
-        gewerteteWars.forEach(w => {
-          Object.entries(w.memberPoints).forEach(([name, pts]) => {
-            // Nur aktive Clan-Mitglieder
-            if (!clanNamen.has(name.toLowerCase())) return;
-            const punkte = Number(pts)||0;
-            if (punkte > 0 && punkte < MIN_PUNKTE) {
-              const key = name.toLowerCase();
-              if (!verfehlungen[key]) verfehlungen[key] = { displayName: name, anzahl: 0, wars: [] };
-              verfehlungen[key].anzahl++;
-              verfehlungen[key].wars.push({ opponent: w.opponent, dateFrom: w.dateFrom, punkte });
-            }
+        (mergedClanMembers||[]).forEach(m => {
+          const displayName = m.ingameName?.trim() || m.username || "";
+          if (!displayName) return;
+          const namen = new Set([normName(m.username), normName(m.ingameName)].filter(Boolean));
+          gewerteteWars.forEach(w => {
+            const minPunkte = (w.dateFrom >= STICHTAG) ? MIN_NEU : MIN_ALT;
+            Object.entries(w.memberPoints).forEach(([name, pts]) => {
+              if (!namen.has(normName(name))) return;
+              const punkte = Number(pts)||0;
+              if (punkte > 0 && punkte < minPunkte) {
+                if (!verfehlungen[displayName]) verfehlungen[displayName] = { displayName, anzahl:0, wars:[] };
+                verfehlungen[displayName].anzahl++;
+                verfehlungen[displayName].wars.push({ opponent:w.opponent, dateFrom:w.dateFrom, punkte, minPunkte });
+              }
+            });
           });
         });
         const liste = Object.values(verfehlungen).sort((a,b) => b.anzahl - a.anzahl);
         return liste.length === 0 ? (
           <div className="card mt-20" style={{borderColor:"#22c55e30"}}>
             <div className="card-title">📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#9ca3af",fontWeight:400}}>(nur Admins)</span></div>
-            <div style={{fontSize:13,color:"#22c55e",padding:"8px 0"}}>✅ Alle Mitglieder haben in allen gewerteten Wars die 150.000 Punkte erreicht!</div>
+            <div style={{fontSize:13,color:"#22c55e",padding:"8px 0"}}>✅ Alle Mitglieder haben in allen gewerteten Wars die Mindestpunkte erreicht!</div>
           </div>
         ) : (
           <div className="card mt-20" style={{borderColor:"#ef444430"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
               <div className="card-title" style={{marginBottom:0}}>📋 Mindestpunkte-Übersicht <span style={{fontSize:11,color:"#ef4444",fontWeight:400}}>(nur Admins)</span></div>
-              <div style={{fontSize:12,color:"var(--text3)"}}>Minimum: <strong style={{color:"#ef4444"}}>150.000 Pkt</strong> · {gewerteteWars.length} gewertete Wars</div>
+              <div style={{fontSize:12,color:"var(--text3)"}}>Minimum: <strong style={{color:"#f59e0b"}}>150k</strong> (vor {STICHTAG}) · <strong style={{color:"#ef4444"}}>500k</strong> (ab {STICHTAG}) · {gewerteteWars.length} Wars</div>
             </div>
             <div style={{display:"grid",gap:6}}>
               {liste.map(eintrag => {
@@ -4875,16 +5584,11 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                       style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:`${schwereGrad}10`,cursor:"pointer",userSelect:"none"}}>
                       <div style={{flex:1,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
                         <span style={{fontWeight:600,fontSize:14}}>{eintrag.displayName}</span>
-                        <span style={{padding:"2px 8px",borderRadius:12,fontSize:12,fontWeight:700,
-                          background:`${schwereGrad}25`,color:schwereGrad,border:`1px solid ${schwereGrad}50`}}>
-                          {eintrag.anzahl}× verfehlt
-                        </span>
+                        <span style={{padding:"2px 8px",borderRadius:12,fontSize:12,fontWeight:700,background:`${schwereGrad}25`,color:schwereGrad,border:`1px solid ${schwereGrad}50`}}>{eintrag.anzahl}× verfehlt</span>
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{display:"flex",gap:3}}>
-                          {Array.from({length:Math.min(eintrag.anzahl,10)}).map((_,i)=>(
-                            <div key={i} style={{width:8,height:8,borderRadius:"50%",background:schwereGrad,opacity:0.8}}/>
-                          ))}
+                          {Array.from({length:Math.min(eintrag.anzahl,10)}).map((_,i)=>(<div key={i} style={{width:8,height:8,borderRadius:"50%",background:schwereGrad,opacity:0.8}}/>))}
                           {eintrag.anzahl>10&&<span style={{fontSize:10,color:schwereGrad}}>+{eintrag.anzahl-10}</span>}
                         </div>
                         <span style={{color:"var(--text3)",fontSize:14}}>{istOffen?"▲":"▼"}</span>
@@ -4896,13 +5600,14 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                         <div style={{display:"grid",gap:4}}>
                           {eintrag.wars.sort((a,b)=>a.dateFrom?.localeCompare(b.dateFrom)).map((w,i)=>(
                             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",background:"var(--bg3)",borderRadius:6,fontSize:13}}>
-                              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                                 <span style={{color:"var(--text3)",fontSize:11,minWidth:80}}>{w.dateFrom}</span>
                                 <span style={{color:"var(--text2)"}}>vs. {w.opponent}</span>
+                                <span style={{fontSize:10,padding:"1px 5px",borderRadius:4,background:w.dateFrom>=STICHTAG?"#ef444420":"#f59e0b20",color:w.dateFrom>=STICHTAG?"#ef4444":"#f59e0b",border:`1px solid ${w.dateFrom>=STICHTAG?"#ef444440":"#f59e0b40"}`}}>Min: {w.dateFrom>=STICHTAG?"500k":"150k"}</span>
                               </div>
                               <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                                <span style={{color:"#ef4444",fontWeight:600}}>{fmt(w.punkte)}</span>
-                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmt(150000 - w.punkte)}</span>
+                                <span style={{color:"#ef4444",fontWeight:600}}>{fmtPts(w.punkte)}</span>
+                                <span style={{fontSize:11,color:"#ef444490"}}>-{fmtPts(w.minPunkte-w.punkte)}</span>
                               </div>
                             </div>
                           ))}
