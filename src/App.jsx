@@ -93,16 +93,16 @@ const TECH_TREE_DATA = {
   schmiede: {
     label:"⚒️ Schmiede", color:"#c8850a",
     nodes:[
-      {id:"schmiede_timer",  name:"Schmiede-Timer",            icon:"⏰",  effekt:0.04, maxLevel:5, calc:"schmiedeTimer",   desc:"−4% Upgrade-Zeit pro Level"},
-      {id:"aufruest_kosten", name:"Schmiede-Aufrüstungskosten",icon:"🏷️", effekt:0.02, maxLevel:5, calc:"schmiedeKosten",  desc:"−2% Upgrade-Kosten pro Level"},
-      {id:"verkaufspreis",   name:"Ausrüstungs-Verkaufspreis", icon:"💰",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Verkaufspreis pro Level"},
-      {id:"hd_hammer",       name:"Hammerdieb-Hammer-Bonus",   icon:"🔑",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Hammerdieb-Hammer-Belohnung pro Level"},
-      {id:"hd_muenzen",      name:"Hammerdieb-Münzen-Bonus",   icon:"🗝️",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Hammerdieb-Münzen-Belohnung pro Level"},
+      {id:"schmiede_timer",  name:"Schmiede-Timer",            icon:"⏰",  effekt:0.02, maxLevel:5, calc:"schmiedeTimer",   desc:"−2% Upgrade-Zeit pro Level"},
+      {id:"aufruest_kosten", name:"Schmiede-Aufrüstungskosten",icon:"🏷️", effekt:0.01, maxLevel:5, calc:"schmiedeKosten",  desc:"−1% Upgrade-Kosten pro Level"},
+      {id:"verkaufspreis",   name:"Ausrüstungs-Verkaufspreis", icon:"💰",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Verkaufspreis pro Level"},
+      {id:"hd_hammer",       name:"Hammerdieb-Hammer-Bonus",   icon:"🔑",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Hammerdieb-Hammer-Belohnung pro Level"},
+      {id:"hd_muenzen",      name:"Hammerdieb-Münzen-Bonus",   icon:"🗝️",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Hammerdieb-Münzen-Belohnung pro Level"},
       {id:"auto_schmiede",   name:"Auto-Schmiede",             icon:"🔨",  effekt:1,    maxLevel:1, calc:null,              desc:"+1 extra Hammer beim Schmieden"},
       {id:"gratis_forge",    name:"Kostenlose Schmiede-Chance",icon:"🍀",  effekt:0.01, maxLevel:5, calc:"freeForge",       desc:"+1% Gratis-Schmiede-Chance pro Level"},
       {id:"offline_zeit",    name:"Maximale Offline-Zeit",     icon:"💤",  effekt:0.16, maxLevel:5, calc:"offlineTime",     desc:"+16% maximale Offline-Zeit pro Level"},
-      {id:"offline_muenzen", name:"Münzen-Offline-Belohnung",  icon:"💰",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Offline-Münzen-Belohnung pro Level"},
-      {id:"offline_hammer",  name:"Hammer-Offline-Belohnung",  icon:"🔨",  effekt:0.02, maxLevel:5, calc:null,              desc:"+2% Offline-Hammer-Belohnung pro Level"},
+      {id:"offline_muenzen", name:"Münzen-Offline-Belohnung",  icon:"💰",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Offline-Münzen-Belohnung pro Level"},
+      {id:"offline_hammer",  name:"Hammer-Offline-Belohnung",  icon:"🔨",  effekt:0.01, maxLevel:5, calc:null,              desc:"+1% Offline-Hammer-Belohnung pro Level"},
     ]
   },
   macht: {
@@ -147,7 +147,7 @@ const TECH_TREE_DATA = {
       {id:"ei_legend",      name:"Legendäres Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
       {id:"ei_ultimate",    name:"Ultimatives Ei-Timer",                 icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
       {id:"ei_mythisch",    name:"Mythisches Ei-Timer",                  icon:"🥚",   effekt:0.1,  maxLevel:5, calc:"eggTimer",         desc:"−10% Schlüpfzeit pro Level"},
-      {id:"ei_chance",      name:"Zusätzliche Ei-Chance",                icon:"🐾🍀", effekt:0.04, maxLevel:5, calc:"eiChance",         desc:"+4% Extra-Ei-Chance pro Level"},
+      {id:"ei_chance",      name:"Zusätzliche Ei-Chance",                icon:"🐾🍀", effekt:0.02, maxLevel:5, calc:"eiChance",         desc:"+2% Extra-Ei-Chance pro Level"},
       {id:"ghost_ticket",   name:"Geisterstadt-Fähigkeits-Ticket-Bonus", icon:"🔑🟢", effekt:0.01, maxLevel:5, calc:null,               desc:"+1% Geisterstadt-Skill-Ticket-Belohnung pro Level"},
       {id:"zombie_trank",   name:"Zombiesturm-Techniktrank-Bonus",       icon:"🔑❤️", effekt:0.02, maxLevel:5, calc:null,               desc:"+2% Zombiesturm-Tech-Trank-Belohnung pro Level"},
     ]
@@ -2022,10 +2022,10 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const techFreeForgeBonus = Math.round(getTechTotalBonus("gratis_forge", 0.01) * 100);
   const effectiveFreeForge = freeForge + techFreeForgeBonus;
 
-  // Schmiede-Timer: −4% pro Level, max 25 Level = −100% (cap bei 90%)
-  const schmiedeTimerBonus = Math.min(90, Math.round(getTechTotalBonus("schmiede_timer", 0.04) * 100));
-  // Schmiede-Kosten: −2% pro Level
-  const schmiedeKostenBonus = Math.min(50, Math.round(getTechTotalBonus("aufruest_kosten", 0.02) * 100));
+  // Schmiede-Timer: −2% pro Level (cap bei 90%)
+  const schmiedeTimerBonus = Math.min(90, Math.round(getTechTotalBonus("schmiede_timer", 0.02) * 100));
+  // Schmiede-Kosten: −1% pro Level
+  const schmiedeKostenBonus = Math.min(50, Math.round(getTechTotalBonus("aufruest_kosten", 0.01) * 100));
   // Tech-Timer: −4% pro Level
   const techTimerBonus = Math.min(90, Math.round(getTechTotalBonus("tech_timer", 0.04) * 100));
   // Tech-Kosten: −2% pro Level
@@ -2036,8 +2036,8 @@ function MyPage({ user, memberList, warList, accountList, db }) {
   const reittierKostenBonus = Math.round(getTechTotalBonus("reittier_kost", 0.01) * 100);
   // Skill-Kosten: −1% pro Level
   const skillKostenBonus = Math.round(getTechTotalBonus("faehig_beschwk", 0.01) * 100);
-  // Ei-Chance: +4% pro Level (Invasion Dungeon)
-  const eiChanceBonus = Math.round(getTechTotalBonus("ei_chance", 0.04) * 100);
+  // Ei-Chance: +2% pro Level (Invasion Dungeon)
+  const eiChanceBonus = Math.round(getTechTotalBonus("ei_chance", 0.02) * 100);
 
   // Offline-Zeit
   const offlineTechLevel = Math.min(25, getTechTotalLevels("offline_zeit"));
