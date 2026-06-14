@@ -181,6 +181,28 @@ function findAccountByName(accList, name) {
   );
 }
 
+// Prüft ob ein Mitglied aktuell im Urlaub ist
+function isImUrlaub(member) {
+  if (!member?.urlaub?.aktiv) return false;
+  const heute = new Date().toISOString().slice(0,10);
+  const von = member.urlaub.von || "";
+  const bis = member.urlaub.bis || "";
+  if (!von && !bis) return true;
+  if (!bis) return heute >= von;
+  if (!von) return heute <= bis;
+  return heute >= von && heute <= bis;
+}
+// Formatiert den Urlaubszeitraum
+function urlaubBereich(member) {
+  const u = member?.urlaub;
+  if (!u) return "";
+  const fd = d => d ? d.split("-").reverse().join(".") : "";
+  if (u.von && u.bis) return `${fd(u.von)} – ${fd(u.bis)}`;
+  if (u.von) return `ab ${fd(u.von)}`;
+  if (u.bis) return `bis ${fd(u.bis)}`;
+  return "Zeitraum offen";
+}
+
 function getWarStatus() {
   const now = new Date();
   const day = now.getUTCDay(); // 0=So,1=Mo,2=Di,...,6=Sa
@@ -482,7 +504,8 @@ export default function GerxyApp() {
     );
     if (!hasAccount) mergedClanMembers.push({
       id: cm.id, username: cm.name, role: cm.role||"R5",
-      _isManual: true, _manualId: cm.id
+      _isManual: true, _manualId: cm.id,
+      urlaub: cm.urlaub || null
     });
   });
 
@@ -1159,6 +1182,19 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
   const [showAddManual, setShowAddManual] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
   const [addErr, setAddErr] = useState("");
+  const [editUrlaub, setEditUrlaub] = useState(null); // { member, aktiv, von, bis }
+
+  async function saveUrlaub() {
+    if (!editUrlaub) return;
+    const { member, aktiv, von, bis } = editUrlaub;
+    const urlaubDaten = aktiv ? { aktiv: true, von: von||"", bis: bis||"" } : { aktiv: false, von: "", bis: "" };
+    if (member._isManual) {
+      await update(ref(db,`clanMembers/${member._manualId}`), { urlaub: urlaubDaten });
+    } else {
+      await update(ref(db,`accounts/${member.id}`), { urlaub: urlaubDaten });
+    }
+    setEditUrlaub(null);
+  }
 
   const filtered = mergedClanMembers
     .filter(a => a.username?.toLowerCase().includes(search.toLowerCase()))
@@ -1270,6 +1306,7 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
                           {a.username}
                           {a.id===currentUser.id && <span style={{fontSize:11,color:"#22c55e"}}>(Du)</span>}
                           {a._isManual && <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:"#f59e0b20",border:"1px solid #f59e0b40",color:"#f59e0b"}}>kein Account</span>}
+                          {isImUrlaub(a) && <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:"#3b82f620",border:"1px solid #3b82f640",color:"#3b82f6"}}>🏖️ Urlaub</span>}
                         </div>
                         <span className="rank-badge" style={{color:RANK_COLORS[a.role]||"#c88500",borderColor:`${RANK_COLORS[a.role]||"#c88500"}40`,background:`${RANK_COLORS[a.role]||"#c88500"}10`}}>
                           {a.role}
@@ -1281,7 +1318,9 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
                     <span style={{color:RANK_COLORS[a.role]||"var(--gold2)",fontWeight:600}}>{RANK_ICONS[a.role]} {a.role}</span>
                   </td>
                   <td className="hide-mobile">
-                    {a._isManual
+                    {isImUrlaub(a)
+                      ? <span style={{fontSize:12,color:"#3b82f6"}}>🏖️ Im Urlaub ({urlaubBereich(a)})</span>
+                      : a._isManual
                       ? <span style={{fontSize:12,color:"#f59e0b"}}>👤 Nur Clan-Liste</span>
                       : <span style={{fontSize:12,color:"#22c55e"}}>✅ Account vorhanden</span>
                     }
@@ -1290,6 +1329,7 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
                     <td>
                       <div style={{display:"flex",gap:4}}>
                         <button className="btn btn-ghost btn-sm" onClick={()=>setEditAcc({...a})}>🔑 Rang</button>
+                        <button className="btn btn-ghost btn-sm" style={{color:"#3b82f6",borderColor:"#3b82f640"}} onClick={()=>setEditUrlaub({member:a, aktiv:a.urlaub?.aktiv||false, von:a.urlaub?.von||"", bis:a.urlaub?.bis||""})}>🏖️</button>
                         {a.id!==currentUser.id && <button className="btn btn-red btn-sm" onClick={()=>deleteAcc(a)}>🗑️</button>}
                       </div>
                     </td>
@@ -1351,11 +1391,45 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
           </div>
         </div>
       )}
+      {/* Urlaub Modal */}
+      {editUrlaub && (
+        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setEditUrlaub(null)}>
+          <div className="modal">
+            <div className="modal-title">🏖️ Urlaub — {editUrlaub.member.username}</div>
+            <div style={{marginBottom:16}}>
+              <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"10px 14px",background:editUrlaub.aktiv?"#3b82f615":"var(--bg2)",border:`1px solid ${editUrlaub.aktiv?"#3b82f6":"var(--border)"}`,borderRadius:8,transition:"all .2s"}}>
+                <input type="checkbox" checked={editUrlaub.aktiv} onChange={e=>setEditUrlaub(p=>({...p,aktiv:e.target.checked}))} style={{width:18,height:18,accentColor:"#3b82f6"}}/>
+                <div>
+                  <div style={{fontWeight:600,fontSize:14,color:editUrlaub.aktiv?"#3b82f6":"var(--text2)"}}>Im Urlaub</div>
+                  <div style={{fontSize:12,color:"var(--text3)"}}>Mitglied als abwesend markieren</div>
+                </div>
+              </label>
+            </div>
+            {editUrlaub.aktiv && (
+              <div style={{display:"grid",gap:12,marginBottom:16}}>
+                <div>
+                  <label className="lbl">Urlaub von</label>
+                  <input className="inp" type="date" value={editUrlaub.von} onChange={e=>setEditUrlaub(p=>({...p,von:e.target.value}))}/>
+                </div>
+                <div>
+                  <label className="lbl">Urlaub bis</label>
+                  <input className="inp" type="date" value={editUrlaub.bis} onChange={e=>setEditUrlaub(p=>({...p,bis:e.target.value}))}/>
+                </div>
+                <div style={{padding:"8px 12px",background:"#3b82f610",border:"1px solid #3b82f630",borderRadius:6,fontSize:12,color:"#3b82f6"}}>
+                  💡 Datum leer lassen = kein Enddatum. Der Urlaub-Status ist dann unbegrenzt aktiv bis er manuell entfernt wird.
+                </div>
+              </div>
+            )}
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <button className="btn btn-ghost" onClick={()=>setEditUrlaub(null)}>Abbrechen</button>
+              <button className="btn btn-gold" onClick={saveUrlaub}>Speichern</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// ── IMPORT MODAL ─────────────────────────────────────────────
 function ImportModal({ db, memberList, onClose }) {
   const [mode, setMode] = useState("screenshot"); // screenshot | csv
   const [file, setFile] = useState(null);
@@ -2510,7 +2584,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:20,flexWrap:"wrap"}}>
-        {[["forge","⚒️ Schmiede"],["egg","🥚 Eier"],["offline","💤 Offline"],["summon","🎯 Beschwörung"],["techtree","🔬 Tech Tree"],["analyse","🔍 Build-Analyse"],["planer","⏰ Planer"],["ressourcen","📦 Ressourcen ansparen"],["wochen","📊 Wochenpunkte-Ziel"],["beschwoerung","🎯 Beschwörungs-Kosten"]].map(([id,label])=>(
+        {[["forge","⚒️ Schmiede"],["egg","🥚 Eier"],["offline","💤 Offline"],["summon","🎯 Beschwörung"],["techtree","🔬 Tech Tree"],["analyse","🔍 Build-Analyse"],["planer","⏰ Planer"],["ressourcen","📦 Ressourcen ansparen"],["wochen","📊 Wochenpunkte-Ziel"],["beschwoerung","🎯 Beschwörungs-Kosten"],["levelrechner","📈 Level-Rechner"]].map(([id,label])=>(
           <button key={id} className={`btn ${activeCalc===id?"btn-gold":"btn-ghost"}`} style={{fontSize:12}} onClick={()=>setActiveCalc(id)}>{label}</button>
         ))}
       </div>
@@ -2753,6 +2827,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       {activeCalc==="ressourcen"   && <AufstiegRessourcen reittierKostenBonus={reittierKostenBonus} reittierChanceBonus={reittierChanceBonus} eiChanceBonus={eiChanceBonus} skillKostenBonus={skillKostenBonus}/>}
       {activeCalc==="wochen"       && <WochenPunkteZiel/>}
       {activeCalc==="beschwoerung" && <BeschwoerungsKosten/>}
+      {activeCalc==="levelrechner" && <LevelRechner/>}
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
@@ -2962,6 +3037,262 @@ function WochenPunkteZiel() {
               <span style={{color:"var(--text3)"}}>{l}</span><span style={{color:"var(--gold2)",fontWeight:600}}>{fmtNum(p)} Pkt</span>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── LEVEL-RECHNER ────────────────────────────────────────────
+function LevelRechner() {
+  const fmtNum = n => n >= 1_000_000 ? (n/1_000_000).toFixed(2)+"M" : n >= 1_000 ? (n/1_000).toFixed(n>=100_000?0:1)+"k" : String(n);
+
+  // ─── Kostentabellen (pro Stufe = Kosten von Stufe N nach N+1) ───
+  // Haustiere: Ei-Scherben (Eggshells) pro Stufe
+  const HAUSTIER_KOSTEN = (() => {
+    const k = [];
+    for (let i=1;i<=99;i++) {
+      if (i<=2)       k[i]=400;
+      else if (i<=4)  k[i]=900;
+      else if (i<=6)  k[i]=1600;
+      else if (i<=8)  k[i]=2500;
+      else if (i<=10) k[i]=3600;
+      else if (i<=12) k[i]=4900;
+      else if (i===13)k[i]=6400;
+      else if (i===14)k[i]=8100;
+      else if (i===15)k[i]=10000;
+      else if (i===16)k[i]=12100;
+      else if (i===17)k[i]=14400;
+      else if (i===18)k[i]=16900;
+      else if (i===19)k[i]=19600;
+      else if (i===20)k[i]=22500;
+      else if (i===21)k[i]=25600;
+      else if (i===22)k[i]=28900;
+      else if (i===23)k[i]=32400;
+      else if (i===24)k[i]=36100;
+      else if (i===25)k[i]=40000;
+      else if (i===26)k[i]=44100;
+      else if (i===27)k[i]=48400;
+      else             k[i]=52900; // 28–99
+    }
+    return k;
+  })();
+
+  // Reittiere: Clockwinder pro Stufe (konstant 20×1000=20.000)
+  const REITTIER_KOSTEN = (() => {
+    const k = [];
+    for (let i=1;i<=99;i++) k[i]=20000;
+    return k;
+  })();
+
+  // Fähigkeiten: Skill-Tickets pro Stufe
+  const FAEHIG_KOSTEN = (() => {
+    const k = [];
+    for (let i=1;i<=99;i++) {
+      if      (i===1)  k[i]=1000;
+      else if (i===2)  k[i]=4000;
+      else if (i===3)  k[i]=9000;
+      else if (i===4)  k[i]=16000;
+      else if (i===5)  k[i]=25000;
+      else if (i===6)  k[i]=36000;
+      else if (i===7)  k[i]=49000;
+      else if (i===8)  k[i]=64000;
+      else if (i===9)  k[i]=81000;
+      else if (i===10) k[i]=100000;
+      else if (i===11) k[i]=144000;
+      else if (i===12) k[i]=196000;
+      else if (i===13) k[i]=256000;
+      else if (i===14) k[i]=324000;
+      else if (i===15) k[i]=400000;
+      else             k[i]=484000; // 16–99
+    }
+    return k;
+  })();
+
+  // Schmiede: Münzen pro Stufe (inkl. Multiplikator-Faktor)
+  const SCHMIEDE_MUENZEN = [0,
+    400,700,1500,3500,10000,25000,50000,
+    99000,150000,249900,348000,448000,600000,800000,
+    910000,1020000,1127000,1240000,1350000,1460000,
+    1570000,1680000,1790000,1900000,2010000,2120000,
+    2230000,2340000,2450000,2560000,2670000,2780000,
+    2890000,3000000
+  ]; // Index 1–34 → Kosten Stufe N→N+1
+
+  // Schmiede: Edelsteine (Gems) zum Sofort-Fertigstellen pro Stufe
+  const SCHMIEDE_EDELSTEINE = [0,
+    0,0,0,8,17,63,109,155,201,247,293,339,385,431,
+    477,523,569,638,707,776,845,914,983,1050,1120,
+    1190,1250,1320,1390,1460,1530,1600,1670,1740
+  ]; // Index 1–34
+
+  function berechneKosten(tabelle, von, bis) {
+    let gesamt = 0;
+    for (let s = von; s < bis; s++) gesamt += tabelle[s] || 0;
+    return gesamt;
+  }
+
+  // State: von/bis für jede Kategorie
+  const [hVon, setHVon] = useState(1);
+  const [hBis, setHBis] = useState(20);
+  const [rVon, setRVon] = useState(1);
+  const [rBis, setRBis] = useState(31);
+  const [sVon, setSVon] = useState(1);
+  const [sBis, setSBis] = useState(35);
+  const [fVon, setFVon] = useState(1);
+  const [fBis, setFBis] = useState(24);
+  const [zeigEdelst, setZeigEdelst] = useState(false);
+
+  const hGesamt = berechneKosten(HAUSTIER_KOSTEN, hVon, hBis);
+  const rGesamt = berechneKosten(REITTIER_KOSTEN, rVon, rBis);
+  const sGestMuenz = berechneKosten(SCHMIEDE_MUENZEN, sVon, sBis);
+  const sGestEdel  = berechneKosten(SCHMIEDE_EDELSTEINE, sVon, sBis);
+  const fGesamt = berechneKosten(FAEHIG_KOSTEN, fVon, fBis);
+
+  function LevelSlider({ label, icon, farbe, von, bis, setVon, setBis, maxStufe, gesamt, einheit, einheitIcon, hinweis, extras }) {
+    return (
+      <div className="card" style={{borderColor:`${farbe}30`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+          <span style={{fontSize:20}}>{icon}</span>
+          <div className="card-title" style={{marginBottom:0,color:farbe}}>{label}</div>
+          {hinweis && <span style={{fontSize:11,color:"var(--text3)",marginLeft:"auto"}}>{hinweis}</span>}
+        </div>
+        {/* Von-Slider */}
+        <div style={{marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <label className="lbl" style={{marginBottom:0}}>Von Stufe</label>
+            <span style={{fontWeight:700,color:farbe,fontSize:15}}>{von}</span>
+          </div>
+          <input type="range" min={1} max={maxStufe-1} value={von}
+            onChange={e=>{const v=Number(e.target.value);setVon(v);if(v>=bis)setBis(Math.min(maxStufe,v+1));}}
+            style={{width:"100%",accentColor:farbe}}/>
+        </div>
+        {/* Bis-Slider */}
+        <div style={{marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <label className="lbl" style={{marginBottom:0}}>Bis Stufe</label>
+            <span style={{fontWeight:700,color:farbe,fontSize:15}}>{bis}</span>
+          </div>
+          <input type="range" min={von+1} max={maxStufe} value={bis}
+            onChange={e=>setBis(Number(e.target.value))}
+            style={{width:"100%",accentColor:farbe}}/>
+        </div>
+        {/* Ergebnis */}
+        <div style={{padding:"12px 14px",background:`${farbe}10`,border:`1px solid ${farbe}30`,borderRadius:10}}>
+          <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>Benötigte Ressourcen (Stufe {von} → {bis})</div>
+          <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+            <span style={{fontSize:11}}>{einheitIcon}</span>
+            <span style={{fontWeight:800,fontSize:22,color:farbe}}>{fmtNum(gesamt)}</span>
+            <span style={{fontSize:13,color:"var(--text3)"}}>{einheit}</span>
+          </div>
+          {gesamt > 0 && <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{gesamt.toLocaleString("de-DE")} {einheit} exakt · {bis-von} Stufe{bis-von!==1?"n":""}</div>}
+          {extras}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{display:"grid",gap:14}}>
+      <div style={{padding:"10px 14px",background:"#c8850a15",border:"1px solid #c8850a30",borderRadius:8,fontSize:12,color:"#c8850a"}}>
+        💡 Wähle den gewünschten Stufen-Bereich — der Rechner zeigt dir wie viele Ressourcen du für das Upgrade benötigst. Die Daten basieren auf den offiziellen Discord-Screenshots.
+      </div>
+
+      <div className="grid-2">
+        <LevelSlider
+          label="Haustiere" icon="🐾" farbe="#ec4899"
+          von={hVon} bis={hBis} setVon={setHVon} setBis={setHBis}
+          maxStufe={100} gesamt={hGesamt}
+          einheit="Ei-Scherben" einheitIcon="🥚"
+          hinweis="Max. Stufe 100"
+        />
+        <LevelSlider
+          label="Reittiere" icon="🐴" farbe="#3b82f6"
+          von={rVon} bis={rBis} setVon={setRVon} setBis={setRBis}
+          maxStufe={100} gesamt={rGesamt}
+          einheit="Clockwinder" einheitIcon="⚙️"
+          hinweis="Max. Stufe 100"
+          extras={<div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>Konstant 20.000 Clockwinder pro Stufe</div>}
+        />
+        <LevelSlider
+          label="Fähigkeiten" icon="🧠" farbe="#a855f7"
+          von={fVon} bis={fBis} setVon={setFVon} setBis={setFBis}
+          maxStufe={100} gesamt={fGesamt}
+          einheit="Skill-Tickets" einheitIcon="🎫"
+          hinweis="Max. Stufe 100"
+        />
+        <div className="card" style={{borderColor:"#c8850a30"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+            <span style={{fontSize:20}}>⚒️</span>
+            <div className="card-title" style={{marginBottom:0,color:"#c8850a"}}>Schmiede</div>
+            <span style={{fontSize:11,color:"var(--text3)",marginLeft:"auto"}}>Max. Stufe 35</span>
+          </div>
+          <div style={{marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <label className="lbl" style={{marginBottom:0}}>Von Stufe</label>
+              <span style={{fontWeight:700,color:"#c8850a",fontSize:15}}>{sVon}</span>
+            </div>
+            <input type="range" min={1} max={34} value={sVon}
+              onChange={e=>{const v=Number(e.target.value);setSVon(v);if(v>=sBis)setSBis(Math.min(35,v+1));}}
+              style={{width:"100%",accentColor:"#c8850a"}}/>
+          </div>
+          <div style={{marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <label className="lbl" style={{marginBottom:0}}>Bis Stufe</label>
+              <span style={{fontWeight:700,color:"#c8850a",fontSize:15}}>{sBis}</span>
+            </div>
+            <input type="range" min={sVon+1} max={35} value={sBis}
+              onChange={e=>setSBis(Number(e.target.value))}
+              style={{width:"100%",accentColor:"#c8850a"}}/>
+          </div>
+          {/* Münzen */}
+          <div style={{padding:"10px 14px",background:"#c8850a10",border:"1px solid #c8850a30",borderRadius:10,marginBottom:8}}>
+            <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>💰 Münzen (Stufe {sVon} → {sBis})</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+              <span style={{fontWeight:800,fontSize:22,color:"#c8850a"}}>{fmtNum(sGestMuenz)}</span>
+              <span style={{fontSize:13,color:"var(--text3)"}}>Münzen</span>
+            </div>
+            <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{sGestMuenz.toLocaleString("de-DE")} exakt</div>
+          </div>
+          {/* Edelsteine (optional) */}
+          <button className="btn btn-ghost btn-sm" style={{width:"100%",fontSize:12,marginBottom:8}} onClick={()=>setZeigEdelst(p=>!p)}>
+            {zeigEdelst ? "▲ Edelsteine ausblenden" : "▼ Edelsteine anzeigen (Sofort-Fertigstellen)"}
+          </button>
+          {zeigEdelst && (
+            <div style={{padding:"10px 14px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:10}}>
+              <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>💎 Edelsteine zum Sofort-Fertigstellen</div>
+              <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                <span style={{fontWeight:800,fontSize:22,color:"#22c55e"}}>{fmtNum(sGestEdel)}</span>
+                <span style={{fontSize:13,color:"var(--text3)"}}>Edelsteine</span>
+              </div>
+              <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{sGestEdel.toLocaleString("de-DE")} exakt</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Gesamt-Übersicht */}
+      <div className="card" style={{borderColor:"#f59e0b30"}}>
+        <div className="card-title">📋 Gesamt-Übersicht</div>
+        <div style={{display:"grid",gap:6}}>
+          {[
+            ["🐾 Haustiere", hGesamt, "Ei-Scherben", "#ec4899", `Stufe ${hVon}→${hBis}`],
+            ["🐴 Reittiere", rGesamt, "Clockwinder",  "#3b82f6", `Stufe ${rVon}→${rBis}`],
+            ["🧠 Fähigkeiten", fGesamt, "Skill-Tickets","#a855f7", `Stufe ${fVon}→${fBis}`],
+            ["⚒️ Schmiede", sGestMuenz, "Münzen",      "#c8850a", `Stufe ${sVon}→${sBis}`],
+            ...(zeigEdelst ? [["⚒️ Schmiede", sGestEdel, "Edelsteine","#22c55e", `Stufe ${sVon}→${sBis} (Sofort)`]] : []),
+          ].map(([label,wert,einheit,farbe,range])=>(
+            <div key={label+einheit} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,gap:8,flexWrap:"wrap"}}>
+              <div>
+                <span style={{fontWeight:600,fontSize:13,color:"var(--text2)"}}>{label}</span>
+                <span style={{fontSize:11,color:"var(--text3)",marginLeft:8}}>{range}</span>
+              </div>
+              <span style={{fontWeight:700,color:farbe}}>{fmtNum(wert)} <span style={{fontWeight:400,fontSize:11,color:"var(--text3)"}}>{einheit}</span></span>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:10,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
+          💡 Kosten basieren auf offiziellen Spiel-Daten. Reittiere kosten konstant 20.000 Clockwinder pro Stufe.
         </div>
       </div>
     </div>
@@ -5443,7 +5774,7 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
             wars.forEach(w => { Object.entries(w.memberPoints).forEach(([name, pts]) => {
               if (namen.has(normName(name))) { gesamtPunkte += Number(pts)||0; if ((Number(pts)||0)>0) teilnahmen++; }
             }); });
-            return { displayName, role: m.role, gesamtPunkte, teilnahmen, durchschnitt: teilnahmen > 0 ? Math.round(gesamtPunkte / teilnahmen) : 0 };
+            return { displayName, role: m.role, gesamtPunkte, teilnahmen, imUrlaub: isImUrlaub(m), durchschnitt: teilnahmen > 0 ? Math.round(gesamtPunkte / teilnahmen) : 0 };
           });
         }
 
@@ -5511,7 +5842,10 @@ function Admin({ accounts, memberList, db, currentUser, wars, clanMembers, merge
                   <div key={m.displayName} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,background:"var(--bg2)",border:"1px solid var(--border)"}}>
                     <div style={{width:24,textAlign:"center",fontSize:11,color:"var(--text3)",flexShrink:0}}>#{idx+1}</div>
                     <div style={{minWidth:120,flexShrink:0}}>
-                      <div style={{fontWeight:600,fontSize:13}}>{m.displayName}</div>
+                      <div style={{fontWeight:600,fontSize:13,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                        {m.displayName}
+                        {m.imUrlaub && <span style={{fontSize:10,padding:"1px 5px",borderRadius:6,background:"#3b82f620",border:"1px solid #3b82f640",color:"#3b82f6"}}>🏖️ Urlaub</span>}
+                      </div>
                       <span style={{fontSize:10,padding:"1px 6px",borderRadius:8,background:`${rc}20`,border:`1px solid ${rc}40`,color:rc}}>{RANK_ICONS[m.role]} {m.role}</span>
                     </div>
                     <div style={{flex:1,height:8,background:"var(--bg)",borderRadius:4,overflow:"hidden",minWidth:40}}>
