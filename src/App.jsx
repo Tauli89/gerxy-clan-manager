@@ -1329,7 +1329,7 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
                     <td>
                       <div style={{display:"flex",gap:4}}>
                         <button className="btn btn-ghost btn-sm" onClick={()=>setEditAcc({...a})}>🔑 Rang</button>
-                        <button className="btn btn-ghost btn-sm" style={{color:"#3b82f6",borderColor:"#3b82f640"}} onClick={()=>setEditUrlaub({member:a, aktiv:a.urlaub?.aktiv||false, von:a.urlaub?.von||"", bis:a.urlaub?.bis||""})}>🏖️</button>
+                        <button className="btn btn-ghost btn-sm" style={{color:"#3b82f6",borderColor:"#3b82f640"}} onClick={()=>setEditUrlaub({member:a, aktiv:a.urlaub?.aktiv||false, von:a.urlaub?.von||"", bis:a.urlaub?.bis||""})}>🏖️ Urlaub</button>
                         {a.id!==currentUser.id && <button className="btn btn-red btn-sm" onClick={()=>deleteAcc(a)}>🗑️</button>}
                       </div>
                     </td>
@@ -1407,6 +1407,7 @@ function Members({ accountList, clanMemberList, mergedClanMembers, isAdmin, db, 
             </div>
             {editUrlaub.aktiv && (
               <div style={{display:"grid",gap:12,marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--text2)",borderBottom:"1px solid var(--border)",paddingBottom:6}}>📅 Urlaubszeitraum</div>
                 <div>
                   <label className="lbl">Urlaub von</label>
                   <input className="inp" type="date" value={editUrlaub.von} onChange={e=>setEditUrlaub(p=>({...p,von:e.target.value}))}/>
@@ -3044,95 +3045,95 @@ function WochenPunkteZiel() {
 }
 
 // ── LEVEL-RECHNER ────────────────────────────────────────────
-function LevelRechner() {
-  const fmtNum = n => n >= 1_000_000 ? (n/1_000_000).toFixed(2)+"M" : n >= 1_000 ? (n/1_000).toFixed(n>=100_000?0:1)+"k" : String(n);
+// Alle Konstanten auf Modul-Ebene → werden einmalig beim Laden berechnet,
+// nicht bei jedem Render-Zyklus neu erzeugt (verhindert Flickern)
 
-  // ─── Kostentabellen (pro Stufe = Kosten von Stufe N nach N+1) ───
-  // Haustiere: Ei-Scherben (Eggshells) pro Stufe
-  const HAUSTIER_KOSTEN = (() => {
-    const k = [];
-    for (let i=1;i<=99;i++) {
-      if (i<=2)       k[i]=400;
-      else if (i<=4)  k[i]=900;
-      else if (i<=6)  k[i]=1600;
-      else if (i<=8)  k[i]=2500;
-      else if (i<=10) k[i]=3600;
-      else if (i<=12) k[i]=4900;
-      else if (i===13)k[i]=6400;
-      else if (i===14)k[i]=8100;
-      else if (i===15)k[i]=10000;
-      else if (i===16)k[i]=12100;
-      else if (i===17)k[i]=14400;
-      else if (i===18)k[i]=16900;
-      else if (i===19)k[i]=19600;
-      else if (i===20)k[i]=22500;
-      else if (i===21)k[i]=25600;
-      else if (i===22)k[i]=28900;
-      else if (i===23)k[i]=32400;
-      else if (i===24)k[i]=36100;
-      else if (i===25)k[i]=40000;
-      else if (i===26)k[i]=44100;
-      else if (i===27)k[i]=48400;
-      else             k[i]=52900; // 28–99
-    }
-    return k;
-  })();
+const _fmtL = n => n>=1000000?(n/1000000).toFixed(2)+"M":n>=1000?Math.round(n/1000)+"k":String(n);
 
-  // Reittiere: Clockwinder pro Stufe (konstant 20×1000=20.000)
-  const REITTIER_KOSTEN = (() => {
-    const k = [];
-    for (let i=1;i<=99;i++) k[i]=20000;
-    return k;
-  })();
-
-  // Fähigkeiten: Skill-Tickets pro Stufe
-  const FAEHIG_KOSTEN = (() => {
-    const k = [];
-    for (let i=1;i<=99;i++) {
-      if      (i===1)  k[i]=1000;
-      else if (i===2)  k[i]=4000;
-      else if (i===3)  k[i]=9000;
-      else if (i===4)  k[i]=16000;
-      else if (i===5)  k[i]=25000;
-      else if (i===6)  k[i]=36000;
-      else if (i===7)  k[i]=49000;
-      else if (i===8)  k[i]=64000;
-      else if (i===9)  k[i]=81000;
-      else if (i===10) k[i]=100000;
-      else if (i===11) k[i]=144000;
-      else if (i===12) k[i]=196000;
-      else if (i===13) k[i]=256000;
-      else if (i===14) k[i]=324000;
-      else if (i===15) k[i]=400000;
-      else             k[i]=484000; // 16–99
-    }
-    return k;
-  })();
-
-  // Schmiede: Münzen pro Stufe (inkl. Multiplikator-Faktor)
-  const SCHMIEDE_MUENZEN = [0,
-    400,700,1500,3500,10000,25000,50000,
-    99000,150000,249900,348000,448000,600000,800000,
-    910000,1020000,1127000,1240000,1350000,1460000,
-    1570000,1680000,1790000,1900000,2010000,2120000,
-    2230000,2340000,2450000,2560000,2670000,2780000,
-    2890000,3000000
-  ]; // Index 1–34 → Kosten Stufe N→N+1
-
-  // Schmiede: Edelsteine (Gems) zum Sofort-Fertigstellen pro Stufe
-  const SCHMIEDE_EDELSTEINE = [0,
-    0,0,0,8,17,63,109,155,201,247,293,339,385,431,
-    477,523,569,638,707,776,845,914,983,1050,1120,
-    1190,1250,1320,1390,1460,1530,1600,1670,1740
-  ]; // Index 1–34
-
-  function berechneKosten(tabelle, von, bis) {
-    let gesamt = 0;
-    for (let s = von; s < bis; s++) gesamt += tabelle[s] || 0;
-    return gesamt;
+const _HAUSTIER = (() => {
+  const k=[];
+  for(let i=1;i<=99;i++){
+    if(i<=2)k[i]=400;else if(i<=4)k[i]=900;else if(i<=6)k[i]=1600;
+    else if(i<=8)k[i]=2500;else if(i<=10)k[i]=3600;else if(i<=12)k[i]=4900;
+    else if(i===13)k[i]=6400;else if(i===14)k[i]=8100;else if(i===15)k[i]=10000;
+    else if(i===16)k[i]=12100;else if(i===17)k[i]=14400;else if(i===18)k[i]=16900;
+    else if(i===19)k[i]=19600;else if(i===20)k[i]=22500;else if(i===21)k[i]=25600;
+    else if(i===22)k[i]=28900;else if(i===23)k[i]=32400;else if(i===24)k[i]=36100;
+    else if(i===25)k[i]=40000;else if(i===26)k[i]=44100;else if(i===27)k[i]=48400;
+    else k[i]=52900;
   }
+  return k;
+})();
 
-  // State: von/bis für jede Kategorie
+const _REITTIER = (() => { const k=[]; for(let i=1;i<=99;i++) k[i]=20000; return k; })();
+
+const _FAEHIG = (() => {
+  const k=[];
+  for(let i=1;i<=99;i++){
+    if(i===1)k[i]=1000;else if(i===2)k[i]=4000;else if(i===3)k[i]=9000;
+    else if(i===4)k[i]=16000;else if(i===5)k[i]=25000;else if(i===6)k[i]=36000;
+    else if(i===7)k[i]=49000;else if(i===8)k[i]=64000;else if(i===9)k[i]=81000;
+    else if(i===10)k[i]=100000;else if(i===11)k[i]=144000;else if(i===12)k[i]=196000;
+    else if(i===13)k[i]=256000;else if(i===14)k[i]=324000;else if(i===15)k[i]=400000;
+    else k[i]=484000;
+  }
+  return k;
+})();
+
+const _SCHM_M=[0,400,700,1500,3500,10000,25000,50000,99000,150000,249900,348000,
+  448000,600000,800000,910000,1020000,1127000,1240000,1350000,1460000,
+  1570000,1680000,1790000,1900000,2010000,2120000,2230000,2340000,2450000,
+  2560000,2670000,2780000,2890000,3000000];
+
+const _SCHM_E=[0,0,0,0,8,17,63,109,155,201,247,293,339,385,431,
+  477,523,569,638,707,776,845,914,983,1050,1120,1190,1250,1320,1390,
+  1460,1530,1600,1670,1740];
+
+function _sumKosten(tab, von, bis) {
+  let s=0; for(let i=von;i<bis;i++) s+=tab[i]||0; return s;
+}
+
+function LevelSlider({ label, icon, farbe, von, bis, maxStufe, gesamt, einheit, einheitIcon, onVonChange, onBisChange, hinweis, note }) {
+  return (
+    <div className="card" style={{borderColor:`${farbe}30`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+        <span style={{fontSize:20}}>{icon}</span>
+        <div className="card-title" style={{marginBottom:0,color:farbe}}>{label}</div>
+        {hinweis && <span style={{fontSize:11,color:"var(--text3)",marginLeft:"auto"}}>{hinweis}</span>}
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+          <label className="lbl" style={{marginBottom:0}}>Von Stufe</label>
+          <span style={{fontWeight:700,color:farbe,fontSize:15}}>{von}</span>
+        </div>
+        <input type="range" min={1} max={maxStufe-1} value={von}
+          onChange={e=>onVonChange(Number(e.target.value))}
+          style={{width:"100%",accentColor:farbe}}/>
+      </div>
+      <div style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+          <label className="lbl" style={{marginBottom:0}}>Bis Stufe</label>
+          <span style={{fontWeight:700,color:farbe,fontSize:15}}>{bis}</span>
+        </div>
+        <input type="range" min={2} max={maxStufe} value={bis}
+          onChange={e=>onBisChange(Number(e.target.value))}
+          style={{width:"100%",accentColor:farbe}}/>
+      </div>
+      <div style={{padding:"12px 14px",background:`${farbe}10`,border:`1px solid ${farbe}30`,borderRadius:10}}>
+        <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>Benötigte Ressourcen (Stufe {von} → {bis})</div>
+        <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+          <span style={{fontSize:11}}>{einheitIcon}</span>
+          <span style={{fontWeight:800,fontSize:22,color:farbe}}>{_fmtL(gesamt)}</span>
+          <span style={{fontSize:13,color:"var(--text3)"}}>{einheit}</span>
+        </div>
+        <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{gesamt.toLocaleString("de-DE")} {einheit} exakt · {bis-von} Stufe{bis-von!==1?"n":""}</div>
+        {note && <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{note}</div>}
+      </div>
+    </div>
+  );
+}
+
+function LevelRechner() {
   const [hVon, setHVon] = useState(1);
   const [hBis, setHBis] = useState(20);
   const [rVon, setRVon] = useState(1);
@@ -3143,54 +3144,19 @@ function LevelRechner() {
   const [fBis, setFBis] = useState(24);
   const [zeigEdelst, setZeigEdelst] = useState(false);
 
-  const hGesamt = berechneKosten(HAUSTIER_KOSTEN, hVon, hBis);
-  const rGesamt = berechneKosten(REITTIER_KOSTEN, rVon, rBis);
-  const sGestMuenz = berechneKosten(SCHMIEDE_MUENZEN, sVon, sBis);
-  const sGestEdel  = berechneKosten(SCHMIEDE_EDELSTEINE, sVon, sBis);
-  const fGesamt = berechneKosten(FAEHIG_KOSTEN, fVon, fBis);
-
-  function LevelSlider({ label, icon, farbe, von, bis, setVon, setBis, maxStufe, gesamt, einheit, einheitIcon, hinweis, extras }) {
-    return (
-      <div className="card" style={{borderColor:`${farbe}30`}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-          <span style={{fontSize:20}}>{icon}</span>
-          <div className="card-title" style={{marginBottom:0,color:farbe}}>{label}</div>
-          {hinweis && <span style={{fontSize:11,color:"var(--text3)",marginLeft:"auto"}}>{hinweis}</span>}
-        </div>
-        {/* Von-Slider */}
-        <div style={{marginBottom:10}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-            <label className="lbl" style={{marginBottom:0}}>Von Stufe</label>
-            <span style={{fontWeight:700,color:farbe,fontSize:15}}>{von}</span>
-          </div>
-          <input type="range" min={1} max={maxStufe-1} value={von}
-            onChange={e=>{const v=Number(e.target.value);setVon(v);if(v>=bis)setBis(Math.min(maxStufe,v+1));}}
-            style={{width:"100%",accentColor:farbe}}/>
-        </div>
-        {/* Bis-Slider */}
-        <div style={{marginBottom:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-            <label className="lbl" style={{marginBottom:0}}>Bis Stufe</label>
-            <span style={{fontWeight:700,color:farbe,fontSize:15}}>{bis}</span>
-          </div>
-          <input type="range" min={von+1} max={maxStufe} value={bis}
-            onChange={e=>setBis(Number(e.target.value))}
-            style={{width:"100%",accentColor:farbe}}/>
-        </div>
-        {/* Ergebnis */}
-        <div style={{padding:"12px 14px",background:`${farbe}10`,border:`1px solid ${farbe}30`,borderRadius:10}}>
-          <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>Benötigte Ressourcen (Stufe {von} → {bis})</div>
-          <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-            <span style={{fontSize:11}}>{einheitIcon}</span>
-            <span style={{fontWeight:800,fontSize:22,color:farbe}}>{fmtNum(gesamt)}</span>
-            <span style={{fontSize:13,color:"var(--text3)"}}>{einheit}</span>
-          </div>
-          {gesamt > 0 && <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{gesamt.toLocaleString("de-DE")} {einheit} exakt · {bis-von} Stufe{bis-von!==1?"n":""}</div>}
-          {extras}
-        </div>
-      </div>
-    );
+  // Immer beide State-Werte gemeinsam aktualisieren → kein Zwischen-Render
+  function setVonSafe(setVon, setBis, maxStufe) {
+    return v => { setVon(v); setBis(b => b <= v ? Math.min(maxStufe, v+1) : b); };
   }
+  function setBisSafe(setBis, von) {
+    return v => setBis(Math.max(von+1, v));
+  }
+
+  const hGesamt    = _sumKosten(_HAUSTIER, hVon, hBis);
+  const rGesamt    = _sumKosten(_REITTIER, rVon, rBis);
+  const fGesamt    = _sumKosten(_FAEHIG,   fVon, fBis);
+  const sGestMuenz = _sumKosten(_SCHM_M,   sVon, sBis);
+  const sGestEdel  = _sumKosten(_SCHM_E,   sVon, sBis);
 
   return (
     <div style={{display:"grid",gap:14}}>
@@ -3201,22 +3167,28 @@ function LevelRechner() {
       <div className="grid-2">
         <LevelSlider
           label="Haustiere" icon="🐾" farbe="#ec4899"
-          von={hVon} bis={hBis} setVon={setHVon} setBis={setHBis}
+          von={hVon} bis={hBis}
+          onVonChange={setVonSafe(setHVon,setHBis,100)}
+          onBisChange={setBisSafe(setHBis,hVon)}
           maxStufe={100} gesamt={hGesamt}
           einheit="Ei-Scherben" einheitIcon="🥚"
           hinweis="Max. Stufe 100"
         />
         <LevelSlider
           label="Reittiere" icon="🐴" farbe="#3b82f6"
-          von={rVon} bis={rBis} setVon={setRVon} setBis={setRBis}
+          von={rVon} bis={rBis}
+          onVonChange={setVonSafe(setRVon,setRBis,100)}
+          onBisChange={setBisSafe(setRBis,rVon)}
           maxStufe={100} gesamt={rGesamt}
           einheit="Clockwinder" einheitIcon="⚙️"
           hinweis="Max. Stufe 100"
-          extras={<div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>Konstant 20.000 Clockwinder pro Stufe</div>}
+          note="Konstant 20.000 Clockwinder pro Stufe"
         />
         <LevelSlider
           label="Fähigkeiten" icon="🧠" farbe="#a855f7"
-          von={fVon} bis={fBis} setVon={setFVon} setBis={setFBis}
+          von={fVon} bis={fBis}
+          onVonChange={setVonSafe(setFVon,setFBis,100)}
+          onBisChange={setBisSafe(setFBis,fVon)}
           maxStufe={100} gesamt={fGesamt}
           einheit="Skill-Tickets" einheitIcon="🎫"
           hinweis="Max. Stufe 100"
@@ -3233,7 +3205,7 @@ function LevelRechner() {
               <span style={{fontWeight:700,color:"#c8850a",fontSize:15}}>{sVon}</span>
             </div>
             <input type="range" min={1} max={34} value={sVon}
-              onChange={e=>{const v=Number(e.target.value);setSVon(v);if(v>=sBis)setSBis(Math.min(35,v+1));}}
+              onChange={e=>{ const v=Number(e.target.value); setSVon(v); setSBis(b=>b<=v?Math.min(35,v+1):b); }}
               style={{width:"100%",accentColor:"#c8850a"}}/>
           </div>
           <div style={{marginBottom:14}}>
@@ -3241,20 +3213,18 @@ function LevelRechner() {
               <label className="lbl" style={{marginBottom:0}}>Bis Stufe</label>
               <span style={{fontWeight:700,color:"#c8850a",fontSize:15}}>{sBis}</span>
             </div>
-            <input type="range" min={sVon+1} max={35} value={sBis}
-              onChange={e=>setSBis(Number(e.target.value))}
+            <input type="range" min={2} max={35} value={sBis}
+              onChange={e=>setSBis(Math.max(sVon+1,Number(e.target.value)))}
               style={{width:"100%",accentColor:"#c8850a"}}/>
           </div>
-          {/* Münzen */}
           <div style={{padding:"10px 14px",background:"#c8850a10",border:"1px solid #c8850a30",borderRadius:10,marginBottom:8}}>
             <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>💰 Münzen (Stufe {sVon} → {sBis})</div>
             <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-              <span style={{fontWeight:800,fontSize:22,color:"#c8850a"}}>{fmtNum(sGestMuenz)}</span>
+              <span style={{fontWeight:800,fontSize:22,color:"#c8850a"}}>{_fmtL(sGestMuenz)}</span>
               <span style={{fontSize:13,color:"var(--text3)"}}>Münzen</span>
             </div>
             <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{sGestMuenz.toLocaleString("de-DE")} exakt</div>
           </div>
-          {/* Edelsteine (optional) */}
           <button className="btn btn-ghost btn-sm" style={{width:"100%",fontSize:12,marginBottom:8}} onClick={()=>setZeigEdelst(p=>!p)}>
             {zeigEdelst ? "▲ Edelsteine ausblenden" : "▼ Edelsteine anzeigen (Sofort-Fertigstellen)"}
           </button>
@@ -3262,7 +3232,7 @@ function LevelRechner() {
             <div style={{padding:"10px 14px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:10}}>
               <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>💎 Edelsteine zum Sofort-Fertigstellen</div>
               <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-                <span style={{fontWeight:800,fontSize:22,color:"#22c55e"}}>{fmtNum(sGestEdel)}</span>
+                <span style={{fontWeight:800,fontSize:22,color:"#22c55e"}}>{_fmtL(sGestEdel)}</span>
                 <span style={{fontSize:13,color:"var(--text3)"}}>Edelsteine</span>
               </div>
               <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{sGestEdel.toLocaleString("de-DE")} exakt</div>
@@ -3271,15 +3241,14 @@ function LevelRechner() {
         </div>
       </div>
 
-      {/* Gesamt-Übersicht */}
       <div className="card" style={{borderColor:"#f59e0b30"}}>
         <div className="card-title">📋 Gesamt-Übersicht</div>
         <div style={{display:"grid",gap:6}}>
           {[
-            ["🐾 Haustiere", hGesamt, "Ei-Scherben", "#ec4899", `Stufe ${hVon}→${hBis}`],
-            ["🐴 Reittiere", rGesamt, "Clockwinder",  "#3b82f6", `Stufe ${rVon}→${rBis}`],
-            ["🧠 Fähigkeiten", fGesamt, "Skill-Tickets","#a855f7", `Stufe ${fVon}→${fBis}`],
-            ["⚒️ Schmiede", sGestMuenz, "Münzen",      "#c8850a", `Stufe ${sVon}→${sBis}`],
+            ["🐾 Haustiere",  hGesamt,    "Ei-Scherben",  "#ec4899", `Stufe ${hVon}→${hBis}`],
+            ["🐴 Reittiere",  rGesamt,    "Clockwinder",  "#3b82f6", `Stufe ${rVon}→${rBis}`],
+            ["🧠 Fähigkeiten",fGesamt,    "Skill-Tickets","#a855f7", `Stufe ${fVon}→${fBis}`],
+            ["⚒️ Schmiede",   sGestMuenz, "Münzen",       "#c8850a", `Stufe ${sVon}→${sBis}`],
             ...(zeigEdelst ? [["⚒️ Schmiede", sGestEdel, "Edelsteine","#22c55e", `Stufe ${sVon}→${sBis} (Sofort)`]] : []),
           ].map(([label,wert,einheit,farbe,range])=>(
             <div key={label+einheit} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,gap:8,flexWrap:"wrap"}}>
@@ -3287,7 +3256,7 @@ function LevelRechner() {
                 <span style={{fontWeight:600,fontSize:13,color:"var(--text2)"}}>{label}</span>
                 <span style={{fontSize:11,color:"var(--text3)",marginLeft:8}}>{range}</span>
               </div>
-              <span style={{fontWeight:700,color:farbe}}>{fmtNum(wert)} <span style={{fontWeight:400,fontSize:11,color:"var(--text3)"}}>{einheit}</span></span>
+              <span style={{fontWeight:700,color:farbe}}>{_fmtL(wert)} <span style={{fontWeight:400,fontSize:11,color:"var(--text3)"}}>{einheit}</span></span>
             </div>
           ))}
         </div>
