@@ -2828,7 +2828,7 @@ function MyPage({ user, memberList, warList, accountList, db }) {
       {activeCalc==="ressourcen"   && <AufstiegRessourcen reittierKostenBonus={reittierKostenBonus} reittierChanceBonus={reittierChanceBonus} eiChanceBonus={eiChanceBonus} skillKostenBonus={skillKostenBonus}/>}
       {activeCalc==="wochen"       && <WochenPunkteZiel/>}
       {activeCalc==="beschwoerung" && <BeschwoerungsKosten/>}
-      {activeCalc==="levelrechner" && <LevelRechner/>}
+      {activeCalc==="levelrechner" && <LevelRechner schmiedeKostenBonus={schmiedeKostenBonus} eiChanceBonus={eiChanceBonus} reittierKostenBonus={reittierKostenBonus} reittierChanceBonus={reittierChanceBonus} skillKostenBonus={skillKostenBonus}/>}
       <div className="card mt-20">
         <div className="card-title">Meine persönlichen Notizen</div>
         <textarea className="inp" rows={4} value={myNote} onChange={e=>setMyNote(e.target.value)} placeholder="Eigene Notizen, Ziele, Build-Plaene..."/>
@@ -3050,33 +3050,24 @@ function WochenPunkteZiel() {
 
 const _fmtL = n => n>=1000000?(n/1000000).toFixed(2)+"M":n>=1000?Math.round(n/1000)+"k":String(n);
 
+// Haustiere: Ei-Scherben pro Stufe (nur Cost-Spalte, NICHT Summon×Cost)
+// Verifiziert: Stufe 1→37 = 48.600 ✓ | Stufe 1→15 = 7.100 ✓
 const _HAUSTIER = (() => {
-  const k=[];
-  for(let i=1;i<=99;i++){
-    if(i<=2)k[i]=400;else if(i<=4)k[i]=900;else if(i<=6)k[i]=1600;
-    else if(i<=8)k[i]=2500;else if(i<=10)k[i]=3600;else if(i<=12)k[i]=4900;
-    else if(i===13)k[i]=6400;else if(i===14)k[i]=8100;else if(i===15)k[i]=10000;
-    else if(i===16)k[i]=12100;else if(i===17)k[i]=14400;else if(i===18)k[i]=16900;
-    else if(i===19)k[i]=19600;else if(i===20)k[i]=22500;else if(i===21)k[i]=25600;
-    else if(i===22)k[i]=28900;else if(i===23)k[i]=32400;else if(i===24)k[i]=36100;
-    else if(i===25)k[i]=40000;else if(i===26)k[i]=44100;else if(i===27)k[i]=48400;
-    else k[i]=52900;
-  }
+  const k=[0,200,200,300,300,400,400,500,500,600,600,700,700,800,900,1000,
+           1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,2100,2200];
+  for(let i=28;i<=99;i++) k[i]=2300;
   return k;
 })();
 
-const _REITTIER = (() => { const k=[]; for(let i=1;i<=99;i++) k[i]=20000; return k; })();
+// Reittiere: Clockwinder pro Stufe (nur Cost-Spalte = 1.000, NICHT 20×1.000)
+// Verifiziert: Stufe 1→31 = 30.000 ✓
+const _REITTIER = (() => { const k=[0]; for(let i=1;i<=99;i++) k[i]=1000; return k; })();
 
+// Fähigkeiten: Skill-Tickets pro Stufe (nur Cost-Spalte, NICHT Summon×Cost)
+// Verifiziert: Stufe 1→24 = 62.200 ✓
 const _FAEHIG = (() => {
-  const k=[];
-  for(let i=1;i<=99;i++){
-    if(i===1)k[i]=1000;else if(i===2)k[i]=4000;else if(i===3)k[i]=9000;
-    else if(i===4)k[i]=16000;else if(i===5)k[i]=25000;else if(i===6)k[i]=36000;
-    else if(i===7)k[i]=49000;else if(i===8)k[i]=64000;else if(i===9)k[i]=81000;
-    else if(i===10)k[i]=100000;else if(i===11)k[i]=144000;else if(i===12)k[i]=196000;
-    else if(i===13)k[i]=256000;else if(i===14)k[i]=324000;else if(i===15)k[i]=400000;
-    else k[i]=484000;
-  }
+  const k=[0,200,400,600,800,1000,1200,1400,1600,1800,2000,2400,2800,3200,3600,4000];
+  for(let i=16;i<=99;i++) k[i]=4400;
   return k;
 })();
 
@@ -3093,7 +3084,8 @@ function _sumKosten(tab, von, bis) {
   let s=0; for(let i=von;i<bis;i++) s+=tab[i]||0; return s;
 }
 
-function LevelSlider({ label, icon, farbe, von, bis, maxStufe, gesamt, einheit, einheitIcon, onVonChange, onBisChange, hinweis, note }) {
+function LevelSlider({ label, icon, farbe, von, bis, maxStufe, gesamt, einheit, einheitIcon, onVonChange, onBisChange, hinweis, note, gesamtRed, rabattLabel }) {
+  const ersparnis = gesamtRed != null ? gesamt - gesamtRed : 0;
   return (
     <div className="card" style={{borderColor:`${farbe}30`}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
@@ -3119,21 +3111,37 @@ function LevelSlider({ label, icon, farbe, von, bis, maxStufe, gesamt, einheit, 
           onChange={e=>onBisChange(Number(e.target.value))}
           style={{width:"100%",accentColor:farbe}}/>
       </div>
-      <div style={{padding:"12px 14px",background:`${farbe}10`,border:`1px solid ${farbe}30`,borderRadius:10}}>
-        <div style={{fontSize:11,color:"var(--text3)",marginBottom:4}}>Benötigte Ressourcen (Stufe {von} → {bis})</div>
+      {/* Basis-Kosten */}
+      <div style={{padding:"10px 14px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,marginBottom:gesamtRed!=null?6:0}}>
+        <div style={{fontSize:10,color:"var(--text3)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>Basis-Kosten (Stufe {von} → {bis})</div>
         <div style={{display:"flex",alignItems:"baseline",gap:6}}>
           <span style={{fontSize:11}}>{einheitIcon}</span>
-          <span style={{fontWeight:800,fontSize:22,color:farbe}}>{_fmtL(gesamt)}</span>
-          <span style={{fontSize:13,color:"var(--text3)"}}>{einheit}</span>
+          <span style={{fontWeight:800,fontSize:20,color:"var(--text)"}}>{_fmtL(gesamt)}</span>
+          <span style={{fontSize:12,color:"var(--text3)"}}>{einheit}</span>
         </div>
-        <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{gesamt.toLocaleString("de-DE")} {einheit} exakt · {bis-von} Stufe{bis-von!==1?"n":""}</div>
-        {note && <div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{note}</div>}
+        <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{gesamt.toLocaleString("de-DE")} exakt · {bis-von} Stufe{bis-von!==1?"n":""}</div>
+        {note && <div style={{fontSize:10,color:"var(--text3)",marginTop:3}}>{note}</div>}
       </div>
+      {/* Reduzierte Kosten (nur wenn Tech-Bonus vorhanden) */}
+      {gesamtRed != null && (
+        <div style={{padding:"10px 14px",background:`${farbe}10`,border:`1px solid ${farbe}40`,borderRadius:8}}>
+          <div style={{fontSize:10,color:farbe,marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px",fontWeight:600}}>🔬 Mit Tech-Bonus ({rabattLabel})</div>
+          <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+            <span style={{fontSize:11}}>{einheitIcon}</span>
+            <span style={{fontWeight:800,fontSize:20,color:farbe}}>{_fmtL(gesamtRed)}</span>
+            <span style={{fontSize:12,color:"var(--text3)"}}>{einheit}</span>
+          </div>
+          <div style={{fontSize:10,marginTop:4,display:"flex",gap:10,flexWrap:"wrap"}}>
+            <span style={{color:"var(--text3)"}}>{gesamtRed.toLocaleString("de-DE")} exakt</span>
+            <span style={{color:"#22c55e",fontWeight:600}}>💰 −{_fmtL(ersparnis)} {einheit} gespart</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function LevelRechner() {
+function LevelRechner({ schmiedeKostenBonus=0, eiChanceBonus=0, reittierKostenBonus=0, reittierChanceBonus=0, skillKostenBonus=0 }) {
   const [hVon, setHVon] = useState(1);
   const [hBis, setHBis] = useState(20);
   const [rVon, setRVon] = useState(1);
@@ -3152,11 +3160,39 @@ function LevelRechner() {
     return v => setBis(Math.max(von+1, v));
   }
 
+  // ── Basis-Kosten ─────────────────────────────────────────────
   const hGesamt    = _sumKosten(_HAUSTIER, hVon, hBis);
   const rGesamt    = _sumKosten(_REITTIER, rVon, rBis);
   const fGesamt    = _sumKosten(_FAEHIG,   fVon, fBis);
   const sGestMuenz = _sumKosten(_SCHM_M,   sVon, sBis);
   const sGestEdel  = _sumKosten(_SCHM_E,   sVon, sBis);
+
+  // ── Tech-Reduktionen ─────────────────────────────────────────
+  // Haustiere: eiChanceBonus = extra Ei-Drop → effektiv weniger Ei-Scherben nötig
+  //   Formel: Basis / (1 + extraDrop/100)
+  const hRab   = Math.min(eiChanceBonus, 100);
+  const hRed   = hRab > 0 ? Math.round(hGesamt / (1 + hRab/100)) : null;
+  const hRabTx = hRab > 0 ? `+${hRab}% Extra-Ei-Drop` : null;
+
+  // Reittiere: Kosten-Rabatt + Extra-Drop
+  //   Formel: Basis × (1 - rabatt/100) / (1 + extraDrop/100)
+  const rKRab  = Math.min(reittierKostenBonus, 25);
+  const rDRab  = Math.min(reittierChanceBonus, 50);
+  const rHasBonus = rKRab > 0 || rDRab > 0;
+  const rRed   = rHasBonus ? Math.round(rGesamt * (1 - rKRab/100) / (1 + rDRab/100)) : null;
+  const rParts = [rKRab>0?`−${rKRab}% Kosten`:null, rDRab>0?`+${rDRab}% Extra-Drop`:null].filter(Boolean);
+  const rRabTx = rParts.length ? rParts.join(" · ") : null;
+
+  // Fähigkeiten: skillKostenBonus = direkte Kosten-Reduktion
+  //   Formel: Basis × (1 - rabatt/100)
+  const fRab   = Math.min(skillKostenBonus, 50);
+  const fRed   = fRab > 0 ? Math.round(fGesamt * (1 - fRab/100)) : null;
+  const fRabTx = fRab > 0 ? `−${fRab}% Kosten` : null;
+
+  // Schmiede: schmiedeKostenBonus = direkte Kosten-Reduktion
+  const sRab   = Math.min(schmiedeKostenBonus, 25);
+  const sRed   = sRab > 0 ? Math.round(sGestMuenz * (1 - sRab/100)) : null;
+  const sRabTx = sRab > 0 ? `−${sRab}% Kosten` : null;
 
   return (
     <div style={{display:"grid",gap:14}}>
@@ -3171,8 +3207,8 @@ function LevelRechner() {
           onVonChange={setVonSafe(setHVon,setHBis,100)}
           onBisChange={setBisSafe(setHBis,hVon)}
           maxStufe={100} gesamt={hGesamt}
-          einheit="Ei-Scherben" einheitIcon="🥚"
-          hinweis="Max. Stufe 100"
+          einheit="Ei-Scherben" einheitIcon="🥚" hinweis="Max. Stufe 100"
+          gesamtRed={hRed} rabattLabel={hRabTx}
         />
         <LevelSlider
           label="Reittiere" icon="🐴" farbe="#3b82f6"
@@ -3180,9 +3216,9 @@ function LevelRechner() {
           onVonChange={setVonSafe(setRVon,setRBis,100)}
           onBisChange={setBisSafe(setRBis,rVon)}
           maxStufe={100} gesamt={rGesamt}
-          einheit="Clockwinder" einheitIcon="⚙️"
-          hinweis="Max. Stufe 100"
-          note="Konstant 20.000 Clockwinder pro Stufe"
+          einheit="Clockwinder" einheitIcon="⚙️" hinweis="Max. Stufe 100"
+          note="Konstant 1.000 Clockwinder pro Stufe"
+          gesamtRed={rRed} rabattLabel={rRabTx}
         />
         <LevelSlider
           label="Fähigkeiten" icon="🧠" farbe="#a855f7"
@@ -3190,9 +3226,10 @@ function LevelRechner() {
           onVonChange={setVonSafe(setFVon,setFBis,100)}
           onBisChange={setBisSafe(setFBis,fVon)}
           maxStufe={100} gesamt={fGesamt}
-          einheit="Skill-Tickets" einheitIcon="🎫"
-          hinweis="Max. Stufe 100"
+          einheit="Skill-Tickets" einheitIcon="🎫" hinweis="Max. Stufe 100"
+          gesamtRed={fRed} rabattLabel={fRabTx}
         />
+        {/* Schmiede – eigene Card wegen Edelsteine-Toggle */}
         <div className="card" style={{borderColor:"#c8850a30"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
             <span style={{fontSize:20}}>⚒️</span>
@@ -3208,7 +3245,7 @@ function LevelRechner() {
               onChange={e=>{ const v=Number(e.target.value); setSVon(v); setSBis(b=>b<=v?Math.min(35,v+1):b); }}
               style={{width:"100%",accentColor:"#c8850a"}}/>
           </div>
-          <div style={{marginBottom:14}}>
+          <div style={{marginBottom:12}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
               <label className="lbl" style={{marginBottom:0}}>Bis Stufe</label>
               <span style={{fontWeight:700,color:"#c8850a",fontSize:15}}>{sBis}</span>
@@ -3217,51 +3254,75 @@ function LevelRechner() {
               onChange={e=>setSBis(Math.max(sVon+1,Number(e.target.value)))}
               style={{width:"100%",accentColor:"#c8850a"}}/>
           </div>
-          <div style={{padding:"10px 14px",background:"#c8850a10",border:"1px solid #c8850a30",borderRadius:10,marginBottom:8}}>
-            <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>💰 Münzen (Stufe {sVon} → {sBis})</div>
+          {/* Münzen Basis */}
+          <div style={{padding:"10px 14px",background:"var(--bg2)",border:"1px solid var(--border)",borderRadius:8,marginBottom:sRed?6:8}}>
+            <div style={{fontSize:10,color:"var(--text3)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>Basis-Kosten (Stufe {sVon} → {sBis})</div>
             <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-              <span style={{fontWeight:800,fontSize:22,color:"#c8850a"}}>{_fmtL(sGestMuenz)}</span>
-              <span style={{fontSize:13,color:"var(--text3)"}}>Münzen</span>
+              <span style={{fontWeight:800,fontSize:20,color:"var(--text)"}}>{_fmtL(sGestMuenz)}</span>
+              <span style={{fontSize:12,color:"var(--text3)"}}>Münzen</span>
             </div>
-            <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{sGestMuenz.toLocaleString("de-DE")} exakt</div>
+            <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{sGestMuenz.toLocaleString("de-DE")} exakt</div>
           </div>
+          {/* Münzen reduziert (wenn Tech aktiv) */}
+          {sRed && (
+            <div style={{padding:"10px 14px",background:"#c8850a10",border:"1px solid #c8850a40",borderRadius:8,marginBottom:8}}>
+              <div style={{fontSize:10,color:"#c8850a",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px",fontWeight:600}}>🔬 Mit Tech-Bonus ({sRabTx})</div>
+              <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                <span style={{fontWeight:800,fontSize:20,color:"#c8850a"}}>{_fmtL(sRed)}</span>
+                <span style={{fontSize:12,color:"var(--text3)"}}>Münzen</span>
+              </div>
+              <div style={{fontSize:10,marginTop:3,display:"flex",gap:10}}>
+                <span style={{color:"var(--text3)"}}>{sRed.toLocaleString("de-DE")} exakt</span>
+                <span style={{color:"#22c55e",fontWeight:600}}>💰 −{_fmtL(sGestMuenz-sRed)} gespart</span>
+              </div>
+            </div>
+          )}
+          {/* Edelsteine */}
           <button className="btn btn-ghost btn-sm" style={{width:"100%",fontSize:12,marginBottom:8}} onClick={()=>setZeigEdelst(p=>!p)}>
-            {zeigEdelst ? "▲ Edelsteine ausblenden" : "▼ Edelsteine anzeigen (Sofort-Fertigstellen)"}
+            {zeigEdelst?"▲ Edelsteine ausblenden":"▼ Edelsteine (Sofort-Fertigstellen)"}
           </button>
           {zeigEdelst && (
-            <div style={{padding:"10px 14px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:10}}>
-              <div style={{fontSize:11,color:"var(--text3)",marginBottom:3}}>💎 Edelsteine zum Sofort-Fertigstellen</div>
+            <div style={{padding:"10px 14px",background:"#22c55e10",border:"1px solid #22c55e30",borderRadius:8}}>
+              <div style={{fontSize:10,color:"var(--text3)",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.5px"}}>Edelsteine (Sofort-Fertigstellen)</div>
               <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-                <span style={{fontWeight:800,fontSize:22,color:"#22c55e"}}>{_fmtL(sGestEdel)}</span>
-                <span style={{fontSize:13,color:"var(--text3)"}}>Edelsteine</span>
+                <span style={{fontWeight:800,fontSize:20,color:"#22c55e"}}>{_fmtL(sGestEdel)}</span>
+                <span style={{fontSize:12,color:"var(--text3)"}}>Edelsteine</span>
               </div>
-              <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>{sGestEdel.toLocaleString("de-DE")} exakt</div>
+              <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{sGestEdel.toLocaleString("de-DE")} exakt</div>
             </div>
           )}
         </div>
       </div>
 
+      {/* Gesamt-Übersicht */}
       <div className="card" style={{borderColor:"#f59e0b30"}}>
         <div className="card-title">📋 Gesamt-Übersicht</div>
-        <div style={{display:"grid",gap:6}}>
+        <div style={{display:"grid",gap:5}}>
           {[
-            ["🐾 Haustiere",  hGesamt,    "Ei-Scherben",  "#ec4899", `Stufe ${hVon}→${hBis}`],
-            ["🐴 Reittiere",  rGesamt,    "Clockwinder",  "#3b82f6", `Stufe ${rVon}→${rBis}`],
-            ["🧠 Fähigkeiten",fGesamt,    "Skill-Tickets","#a855f7", `Stufe ${fVon}→${fBis}`],
-            ["⚒️ Schmiede",   sGestMuenz, "Münzen",       "#c8850a", `Stufe ${sVon}→${sBis}`],
-            ...(zeigEdelst ? [["⚒️ Schmiede", sGestEdel, "Edelsteine","#22c55e", `Stufe ${sVon}→${sBis} (Sofort)`]] : []),
-          ].map(([label,wert,einheit,farbe,range])=>(
-            <div key={label+einheit} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"var(--bg2)",borderRadius:8,gap:8,flexWrap:"wrap"}}>
-              <div>
-                <span style={{fontWeight:600,fontSize:13,color:"var(--text2)"}}>{label}</span>
-                <span style={{fontSize:11,color:"var(--text3)",marginLeft:8}}>{range}</span>
+            ["🐾 Haustiere",  hGesamt, hRed,  "Ei-Scherben",  "#ec4899", `Stufe ${hVon}→${hBis}`],
+            ["🐴 Reittiere",  rGesamt, rRed,  "Clockwinder",  "#3b82f6", `Stufe ${rVon}→${rBis}`],
+            ["🧠 Fähigkeiten",fGesamt, fRed,  "Skill-Tickets","#a855f7", `Stufe ${fVon}→${fBis}`],
+            ["⚒️ Schmiede",   sGestMuenz,sRed,"Münzen",       "#c8850a", `Stufe ${sVon}→${sBis}`],
+            ...(zeigEdelst?[["⚒️ Schmiede",sGestEdel,null,"Edelsteine","#22c55e",`Stufe ${sVon}→${sBis} (Sofort)`]]:[]),
+          ].map(([label,basis,red,einheit,farbe,range])=>(
+            <div key={label+einheit} style={{padding:"8px 12px",background:"var(--bg2)",borderRadius:8,border:"1px solid var(--border)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <div>
+                  <span style={{fontWeight:600,fontSize:13,color:"var(--text2)"}}>{label}</span>
+                  <span style={{fontSize:11,color:"var(--text3)",marginLeft:8}}>{range}</span>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <span style={{fontWeight:700,color:red?`${farbe}80`:farbe,textDecoration:red?"line-through":"none",fontSize:red?12:14}}>{_fmtL(basis)}</span>
+                  {red && <span style={{fontWeight:700,color:farbe,fontSize:14,marginLeft:6}}>{_fmtL(red)}</span>}
+                  <span style={{fontWeight:400,fontSize:11,color:"var(--text3)",marginLeft:4}}>{einheit}</span>
+                  {red && <div style={{fontSize:10,color:"#22c55e"}}>💰 −{_fmtL(basis-red)} gespart</div>}
+                </div>
               </div>
-              <span style={{fontWeight:700,color:farbe}}>{_fmtL(wert)} <span style={{fontWeight:400,fontSize:11,color:"var(--text3)"}}>{einheit}</span></span>
             </div>
           ))}
         </div>
-        <div style={{marginTop:10,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
-          💡 Kosten basieren auf offiziellen Spiel-Daten. Reittiere kosten konstant 20.000 Clockwinder pro Stufe.
+        <div style={{marginTop:8,padding:"7px 12px",background:"var(--bg2)",borderRadius:8,fontSize:11,color:"var(--text3)"}}>
+          💡 Kosten basieren auf offiziellen Spiel-Daten. Tech-Boni werden automatisch aus deinem Tech Tree übernommen.
         </div>
       </div>
     </div>
